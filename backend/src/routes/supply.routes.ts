@@ -6,6 +6,8 @@ import {
   updateSupply,
   deleteSupply,
   approveSupply,
+  getFoodCategories,
+  getFoodProducts,
 } from "../controllers/supply.controller"
 import { protect, authorize } from "../middleware/auth.middleware"
 
@@ -16,6 +18,8 @@ router.use(protect)
 
 // Routes for all authenticated users
 router.get("/", getSupplies)
+router.get("/categories", getFoodCategories)
+router.get("/products/:categoryId", getFoodProducts)
 router.get("/:id", getSupplyById)
 
 // Routes for unit assistants and admin

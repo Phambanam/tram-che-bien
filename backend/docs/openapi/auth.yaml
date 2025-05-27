@@ -37,19 +37,19 @@
                   type: string
                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 user:
-                  $ref: './schemas.yaml#/User'
+                  $ref: '#/components/schemas/User'
       '400':
         description: Bad request
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '401':
         description: Invalid credentials
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
 
 "/auth/register":
   post:
@@ -121,19 +121,19 @@
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '401':
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '403':
         description: Forbidden - Only admins can register new users
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
 
 "/auth/me":
   get:
@@ -156,10 +156,10 @@
                   type: boolean
                   example: true
                 data:
-                  $ref: './schemas.yaml#/User'
+                  $ref: '#/components/schemas/User'
       '401':
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse' 
+              $ref: '#/components/schemas/ErrorResponse'

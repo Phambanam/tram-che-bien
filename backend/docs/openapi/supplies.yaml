@@ -57,26 +57,19 @@
         content:
           application/json:
             schema:
-              allOf:
-                - $ref: './schemas.yaml#/PaginatedResponse'
-                - type: object
-                  properties:
-                    data:
-                      type: array
-                      items:
-                        $ref: './schemas.yaml#/Supply'
+              $ref: '#/components/schemas/PaginatedResponse'
       '401':
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '403':
         description: Forbidden - Not enough permissions
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
 
   post:
     tags:
@@ -137,25 +130,25 @@
                   type: string
                   example: "Tạo nguồn nhập thành công"
                 data:
-                  $ref: './schemas.yaml#/Supply'
+                  $ref: '#/components/schemas/Supply'
       '400':
         description: Bad request
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '401':
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '403':
         description: Forbidden - Only admin or unit assistant can create supplies
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
 
 "/supplies/{id}":
   get:
@@ -185,25 +178,25 @@
                   type: boolean
                   example: true
                 data:
-                  $ref: './schemas.yaml#/Supply'
+                  $ref: '#/components/schemas/Supply'
       '401':
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '403':
         description: Forbidden - Not enough permissions
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '404':
         description: Supply not found
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
 
   patch:
     tags:
@@ -257,31 +250,31 @@
                   type: string
                   example: "Cập nhật nguồn nhập thành công"
                 data:
-                  $ref: './schemas.yaml#/Supply'
+                  $ref: '#/components/schemas/Supply'
       '400':
         description: Bad request
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '401':
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '403':
         description: Forbidden - Not enough permissions or supply not in pending status
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '404':
         description: Supply not found
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
 
   delete:
     tags:
@@ -317,19 +310,19 @@
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '403':
         description: Forbidden - Not enough permissions or supply not in pending status
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '404':
         description: Supply not found
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
 
 "/supplies/{id}/approve":
   patch:
@@ -389,28 +382,28 @@
                   type: string
                   example: "Phê duyệt nguồn nhập thành công"
                 data:
-                  $ref: './schemas.yaml#/Supply'
+                  $ref: '#/components/schemas/Supply'
       '400':
         description: Bad request
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '401':
         description: Unauthorized
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '403':
         description: Forbidden - Only admin or brigade assistant can approve supplies
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse'
+              $ref: '#/components/schemas/ErrorResponse'
       '404':
         description: Supply not found
         content:
           application/json:
             schema:
-              $ref: './schemas.yaml#/ErrorResponse' 
+              $ref: '#/components/schemas/ErrorResponse'

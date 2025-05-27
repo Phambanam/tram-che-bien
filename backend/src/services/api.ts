@@ -20,11 +20,8 @@ const getToken = () => {
   return null
 }
 
-// Generic fetch function with auth
-const fetchWithAuth = async <T>(\
-  endpoint: string,
-  options: RequestInit = {}
-)
+// Generic fetch function with auth\
+const fetchWithAuth = async <T>(endpoint: string, options: RequestInit = {})
   : Promise<T> => {
   const token = getToken()
   const headers = {
@@ -182,7 +179,7 @@ export const productsApi = {
 
 // Supplies API
 export const suppliesApi = {
-  getSupplies: async (filters?: any): Promise<ApiResponse<any[]>> => {
+  getSupplies: async (filters?: any): Promise<any[]> => {
     const queryParams = new URLSearchParams()
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -192,11 +189,11 @@ export const suppliesApi = {
       })
     }
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-    return fetchWithAuth<ApiResponse<any[]>>(`/supplies${query}`)
+    return fetchWithAuth<any[]>(`/supplies${query}`)
   },
 
-  getSupplyById: async (id: string): Promise<ApiResponse<any>> => {
-    return fetchWithAuth<ApiResponse<any>>(`/supplies/${id}`)
+  getSupplyById: async (id: string): Promise<any> => {
+    return fetchWithAuth<any>(`/supplies/${id}`)
   },
 
   createSupply: async (data: any): Promise<ApiResponse<any>> => {
@@ -224,6 +221,14 @@ export const suppliesApi = {
     return fetchWithAuth<ApiResponse<any>>(`/supplies/${id}`, {
       method: "DELETE",
     })
+  },
+
+  getFoodCategories: async (): Promise<ApiResponse<any[]>> => {
+    return fetchWithAuth<ApiResponse<any[]>>("/supplies/categories")
+  },
+
+  getFoodProducts: async (categoryId: string): Promise<ApiResponse<any[]>> => {
+    return fetchWithAuth<ApiResponse<any[]>>(`/supplies/products/${categoryId}`)
   },
 }
 

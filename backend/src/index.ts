@@ -4,6 +4,7 @@ import dotenv from "dotenv"
 import { connectToDatabase } from "./config/database"
 import { errorHandler } from "./middleware/error.middleware"
 import { detectMobileClient } from "./middleware/mobile.middleware"
+import { setupSwagger } from "./config/swagger" // Import Swagger setup function
 
 // Import routes
 import authRoutes from "./routes/auth.routes"
@@ -31,11 +32,19 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 5000
 
+// Setup Swagger API documentation
+setupSwagger(app) // Call the function to setup Swagger
+
 // Middleware
 app.use(
   cors({
     origin: function(origin, callback) {
-      const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', process.env.CORS_ORIGIN];
+      const allowedOrigins = [
+        'http://localhost:5000',
+        'http://localhost:5001',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        process.env.CORS_ORIGIN];
       // Allow requests with no origin (like mobile apps or curl requests)
       if(!origin) return callback(null, true);
       if(allowedOrigins.indexOf(origin) === -1 && allowedOrigins[0] !== '*') {

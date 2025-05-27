@@ -17,6 +17,16 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    # Import common schemas - these will be referenced using '#/components/schemas/[SchemaName]'
+    PaginatedResponse:
+      $ref: './openapi/schemas.yaml#/components/schemas/PaginatedResponse'
+    ErrorResponse:
+      $ref: './openapi/schemas.yaml#/components/schemas/ErrorResponse'
+    User:
+      $ref: './openapi/schemas.yaml#/components/schemas/User'
+    Supply:
+      $ref: './openapi/schemas.yaml#/components/schemas/Supply'
 
 paths: {}
 
@@ -42,4 +52,6 @@ tags:
   - name: Roles
     description: Role management endpoints
   - name: Print
-    description: Document printing endpoints 
+    description: Document printing endpoints
+  - name: Content
+    description: Content management endpoints
