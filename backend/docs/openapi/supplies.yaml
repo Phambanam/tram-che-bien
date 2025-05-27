@@ -1,0 +1,416 @@
+"/supplies":
+  get:
+    tags:
+      - Supplies
+    summary: Get all supplies
+    description: Retrieve a list of all supplies with optional pagination and filtering
+    operationId: getSupplies
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        description: Page number for pagination
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: limit
+        in: query
+        description: Number of items per page
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+      - name: unit
+        in: query
+        description: Filter by unit ID
+        schema:
+          type: string
+      - name: category
+        in: query
+        description: Filter by category ID
+        schema:
+          type: string
+      - name: status
+        in: query
+        description: Filter by supply status
+        schema:
+          type: string
+          enum: [pending, approved, rejected]
+      - name: fromDate
+        in: query
+        description: Filter by harvest date - from (YYYY-MM-DD)
+        schema:
+          type: string
+          format: date
+      - name: toDate
+        in: query
+        description: Filter by harvest date - to (YYYY-MM-DD)
+        schema:
+          type: string
+          format: date
+    responses:
+      '200':
+        description: List of supplies
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: './schemas.yaml#/PaginatedResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: './schemas.yaml#/Supply'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Not enough permissions
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  post:
+    tags:
+      - Supplies
+    summary: Create new supply
+    description: Create a new supply entry
+    operationId: createSupply
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - category
+              - product
+              - quantity
+              - harvestDate
+            properties:
+              category:
+                type: string
+                description: Category ID
+                example: "60a1e2c3d4e5f6a7b8c9d0e1"
+              product:
+                type: string
+                description: Product ID
+                example: "60a1e2c3d4e5f6a7b8c9d0e2"
+              quantity:
+                type: number
+                description: Quantity in kg
+                example: 500
+              harvestDate:
+                type: string
+                format: date
+                example: "2023-07-15"
+              note:
+                type: string
+                description: Additional notes
+                example: "Harvest from field A"
+              unit:
+                type: string
+                description: Unit ID (only required for Admin, otherwise uses user's unit)
+                example: "60a1e2c3d4e5f6a7b8c9d0e3"
+    responses:
+      '201':
+        description: Supply created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Tạo nguồn nhập thành công"
+                data:
+                  $ref: './schemas.yaml#/Supply'
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Only admin or unit assistant can create supplies
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+"/supplies/{id}":
+  get:
+    tags:
+      - Supplies
+    summary: Get supply by ID
+    description: Retrieve a specific supply by ID
+    operationId: getSupplyById
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Supply ID
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Supply found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: './schemas.yaml#/Supply'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Not enough permissions
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Supply not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  patch:
+    tags:
+      - Supplies
+    summary: Update supply
+    description: Update an existing supply by ID
+    operationId: updateSupply
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Supply ID
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              category:
+                type: string
+                description: Category ID
+              product:
+                type: string
+                description: Product ID
+              quantity:
+                type: number
+                description: Quantity in kg
+              harvestDate:
+                type: string
+                format: date
+              note:
+                type: string
+                description: Additional notes
+    responses:
+      '200':
+        description: Supply updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Cập nhật nguồn nhập thành công"
+                data:
+                  $ref: './schemas.yaml#/Supply'
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Not enough permissions or supply not in pending status
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Supply not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  delete:
+    tags:
+      - Supplies
+    summary: Delete supply
+    description: Delete a supply by ID
+    operationId: deleteSupply
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Supply ID
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Supply deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Xóa nguồn nhập thành công"
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Not enough permissions or supply not in pending status
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Supply not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+"/supplies/{id}/approve":
+  patch:
+    tags:
+      - Supplies
+    summary: Approve supply
+    description: Approve a supply and record received quantity
+    operationId: approveSupply
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Supply ID
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - stationEntryDate
+              - receivedQuantity
+            properties:
+              stationEntryDate:
+                type: string
+                format: date
+                example: "2023-07-20"
+              receivedQuantity:
+                type: number
+                description: Actual quantity received in kg
+                example: 480
+              note:
+                type: string
+                description: Additional notes
+                example: "20kg damaged during transport"
+              status:
+                type: string
+                enum: [approved, rejected]
+                default: approved
+                example: "approved"
+    responses:
+      '200':
+        description: Supply approved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Phê duyệt nguồn nhập thành công"
+                data:
+                  $ref: './schemas.yaml#/Supply'
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Only admin or brigade assistant can approve supplies
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Supply not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse' 

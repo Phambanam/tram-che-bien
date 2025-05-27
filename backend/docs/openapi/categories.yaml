@@ -1,0 +1,283 @@
+"/categories":
+  get:
+    tags:
+      - Categories
+    summary: Get all categories
+    description: Retrieve a list of all categories with optional pagination
+    operationId: getCategories
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        description: Page number for pagination
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: limit
+        in: query
+        description: Number of items per page
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+      - name: status
+        in: query
+        description: Filter by category status
+        schema:
+          type: string
+          enum: [active, inactive]
+    responses:
+      '200':
+        description: List of categories
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: './schemas.yaml#/PaginatedResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: './schemas.yaml#/Category'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  post:
+    tags:
+      - Categories
+    summary: Create new category
+    description: Create a new category
+    operationId: createCategory
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+            properties:
+              name:
+                type: string
+                example: "Rau củ"
+              description:
+                type: string
+                example: "Các loại rau củ quả"
+              status:
+                type: string
+                enum: [active, inactive]
+                default: active
+                example: "active"
+    responses:
+      '201':
+        description: Category created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Tạo phân loại thành công"
+                data:
+                  $ref: './schemas.yaml#/Category'
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+"/categories/{id}":
+  get:
+    tags:
+      - Categories
+    summary: Get category by ID
+    description: Retrieve a specific category by ID
+    operationId: getCategoryById
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Category ID
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Category found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: './schemas.yaml#/Category'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Category not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  patch:
+    tags:
+      - Categories
+    summary: Update category
+    description: Update an existing category
+    operationId: updateCategory
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Category ID
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Rau củ"
+              description:
+                type: string
+                example: "Các loại rau củ quả tươi"
+              status:
+                type: string
+                enum: [active, inactive]
+                example: "active"
+    responses:
+      '200':
+        description: Category updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Cập nhật phân loại thành công"
+                data:
+                  $ref: './schemas.yaml#/Category'
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Category not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  delete:
+    tags:
+      - Categories
+    summary: Delete category
+    description: Delete a category by ID
+    operationId: deleteCategory
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Category ID
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Category deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Xóa phân loại thành công"
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Category not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '409':
+        description: Conflict - Category has related products or supplies
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse' 

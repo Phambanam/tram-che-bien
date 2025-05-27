@@ -1,0 +1,234 @@
+# Common schemas for use across the API
+
+User:
+  type: object
+  properties:
+    id:
+      type: string
+      description: User ID
+    username:
+      type: string
+      description: Username for login
+    fullName:
+      type: string
+      description: User's full name
+    rank:
+      type: string
+      description: Military rank
+    position:
+      type: string
+      description: Position in the military
+    role:
+      type: string
+      enum: [admin, commander, brigadeAssistant, unitAssistant]
+      description: User role
+    unit:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    status:
+      type: string
+      enum: [active, inactive]
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+Unit:
+  type: object
+  properties:
+    id:
+      type: string
+      description: Unit ID
+    name:
+      type: string
+      description: Unit name
+    description:
+      type: string
+      description: Unit description
+    status:
+      type: string
+      enum: [active, inactive]
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+Category:
+  type: object
+  properties:
+    id:
+      type: string
+      description: Category ID
+    name:
+      type: string
+      description: Category name
+    description:
+      type: string
+      description: Category description
+    status:
+      type: string
+      enum: [active, inactive]
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+Product:
+  type: object
+  properties:
+    id:
+      type: string
+      description: Product ID
+    name:
+      type: string
+      description: Product name
+    category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    description:
+      type: string
+      description: Product description
+    status:
+      type: string
+      enum: [active, inactive]
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+Supply:
+  type: object
+  properties:
+    id:
+      type: string
+      description: Supply ID
+    unit:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+    category:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+    product:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+    quantity:
+      type: number
+      description: Quantity supplied (kg)
+    harvestDate:
+      type: string
+      format: date
+      description: Expected harvest date
+    stationEntryDate:
+      type: string
+      format: date
+      description: Date received at processing station
+      nullable: true
+    receivedQuantity:
+      type: number
+      description: Actual quantity received (kg)
+      nullable: true
+    status:
+      type: string
+      enum: [pending, approved, rejected]
+      description: Supply status
+    note:
+      type: string
+      description: Additional notes
+    createdBy:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      nullable: true
+    approvedBy:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      nullable: true
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+# Common responses
+ErrorResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      default: false
+    message:
+      type: string
+      description: Error message
+
+SuccessResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      default: true
+    message:
+      type: string
+      description: Success message
+
+PaginatedResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+      default: true
+    count:
+      type: integer
+      description: Number of items returned
+    totalCount:
+      type: integer
+      description: Total number of items available
+    totalPages:
+      type: integer
+      description: Total number of pages
+    currentPage:
+      type: integer
+      description: Current page number
+    data:
+      type: array
+      items:
+        type: object
+      description: Array of items
+    message:
+      type: string
+      description: Optional message 

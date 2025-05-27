@@ -1,0 +1,165 @@
+"/auth/login":
+  post:
+    tags:
+      - Auth
+    summary: User login
+    description: Authenticate a user and return a JWT token
+    operationId: loginUser
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - username
+              - password
+            properties:
+              username:
+                type: string
+                example: "johndoe"
+              password:
+                type: string
+                format: password
+                example: "password123"
+    responses:
+      '200':
+        description: Login successful
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                token:
+                  type: string
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                user:
+                  $ref: './schemas.yaml#/User'
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Invalid credentials
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+"/auth/register":
+  post:
+    tags:
+      - Auth
+    summary: User registration
+    description: Register a new user
+    operationId: registerUser
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - username
+              - password
+              - fullName
+              - rank
+              - position
+              - role
+              - unit
+            properties:
+              username:
+                type: string
+                example: "johndoe"
+              password:
+                type: string
+                format: password
+                example: "password123"
+              fullName:
+                type: string
+                example: "John Doe"
+              rank:
+                type: string
+                example: "Captain"
+              position:
+                type: string
+                example: "Unit Commander"
+              role:
+                type: string
+                enum: [admin, commander, brigadeAssistant, unitAssistant]
+                example: "unitAssistant"
+              unit:
+                type: string
+                description: Unit ID
+                example: "60a1e2c3d4e5f6a7b8c9d0e1"
+    responses:
+      '201':
+        description: User registered successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Đăng ký thành công"
+                userId:
+                  type: string
+                  example: "60a1e2c3d4e5f6a7b8c9d0e1"
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Only admins can register new users
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+"/auth/me":
+  get:
+    tags:
+      - Auth
+    summary: Get current user profile
+    description: Get the authenticated user's profile information
+    operationId: getCurrentUser
+    security:
+      - BearerAuth: []
+    responses:
+      '200':
+        description: User profile retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: './schemas.yaml#/User'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse' 

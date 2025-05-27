@@ -1,0 +1,297 @@
+"/products":
+  get:
+    tags:
+      - Products
+    summary: Get all products
+    description: Retrieve a list of all products with optional pagination and filtering
+    operationId: getProducts
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        description: Page number for pagination
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - name: limit
+        in: query
+        description: Number of items per page
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+      - name: category
+        in: query
+        description: Filter by category ID
+        schema:
+          type: string
+      - name: status
+        in: query
+        description: Filter by product status
+        schema:
+          type: string
+          enum: [active, inactive]
+    responses:
+      '200':
+        description: List of products
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: './schemas.yaml#/PaginatedResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: './schemas.yaml#/Product'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  post:
+    tags:
+      - Products
+    summary: Create new product
+    description: Create a new product
+    operationId: createProduct
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - category
+            properties:
+              name:
+                type: string
+                example: "Cà chua"
+              category:
+                type: string
+                description: Category ID
+                example: "60a1e2c3d4e5f6a7b8c9d0e1"
+              description:
+                type: string
+                example: "Cà chua đỏ"
+              status:
+                type: string
+                enum: [active, inactive]
+                default: active
+                example: "active"
+    responses:
+      '201':
+        description: Product created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Tạo sản phẩm thành công"
+                data:
+                  $ref: './schemas.yaml#/Product'
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+"/products/{id}":
+  get:
+    tags:
+      - Products
+    summary: Get product by ID
+    description: Retrieve a specific product by ID
+    operationId: getProductById
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Product ID
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Product found
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  $ref: './schemas.yaml#/Product'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Product not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  patch:
+    tags:
+      - Products
+    summary: Update product
+    description: Update an existing product
+    operationId: updateProduct
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Product ID
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Cà chua"
+              category:
+                type: string
+                description: Category ID
+                example: "60a1e2c3d4e5f6a7b8c9d0e1"
+              description:
+                type: string
+                example: "Cà chua đỏ hữu cơ"
+              status:
+                type: string
+                enum: [active, inactive]
+                example: "active"
+    responses:
+      '200':
+        description: Product updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Cập nhật sản phẩm thành công"
+                data:
+                  $ref: './schemas.yaml#/Product'
+      '400':
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Product not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+
+  delete:
+    tags:
+      - Products
+    summary: Delete product
+    description: Delete a product by ID
+    operationId: deleteProduct
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        description: Product ID
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Product deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: "Xóa sản phẩm thành công"
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '403':
+        description: Forbidden - Admin access required
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '404':
+        description: Product not found
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse'
+      '409':
+        description: Conflict - Product has related supplies
+        content:
+          application/json:
+            schema:
+              $ref: './schemas.yaml#/ErrorResponse' 
