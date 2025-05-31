@@ -264,17 +264,50 @@ export const createSupply = async (req: Request, res: Response) => {
     }
 
     // Validate category and product
-    if (!FOOD_CATEGORIES[category as keyof typeof FOOD_CATEGORIES]) {
+    const db = await getDb()
+    
+    // Use the category and product directly without converting to ObjectId
+    // if they are strings from the predefined categories and products
+    let categoryId, productId;
+    
+    // Check if the category is a valid ObjectId or a string key
+    if (ObjectId.isValid(category)) {
+      categoryId = new ObjectId(category);
+      
+      // Check if category exists in the database
+      const categoryExists = await db.collection("categories").findOne({ _id: categoryId })
+      if (!categoryExists) {
+        throw new AppError("Phân loại không hợp lệ", 400)
+      }
+    } else if (FOOD_CATEGORIES[category as keyof typeof FOOD_CATEGORIES]) {
+      // It's a string key from predefined categories
+      categoryId = category;
+    } else {
       throw new AppError("Phân loại không hợp lệ", 400)
     }
-
-    const categoryProducts = FOOD_PRODUCTS[category as keyof typeof FOOD_PRODUCTS] || []
-    const productExists = categoryProducts.find((p) => p.id === product)
-    if (!productExists) {
-      throw new AppError("Sản phẩm không hợp lệ", 400)
+    
+    // Check if the product is a valid ObjectId or a string key
+    if (ObjectId.isValid(product)) {
+      productId = new ObjectId(product);
+      
+      // Check if product exists in the database and belongs to the category
+      const productExists = await db.collection("products").findOne({ 
+        _id: productId,
+        category: categoryId instanceof ObjectId ? categoryId : { $in: [categoryId, new ObjectId(categoryId)] }
+      })
+      if (!productExists) {
+        throw new AppError("Sản phẩm không hợp lệ hoặc không thuộc phân loại đã chọn", 400)
+      }
+    } else {
+      // Check if product exists in predefined products for this category
+      const products = FOOD_PRODUCTS[categoryId as keyof typeof FOOD_PRODUCTS] || [];
+      const productExists = products.some(p => p.id === product);
+      
+      if (!productExists) {
+        throw new AppError("Sản phẩm không hợp lệ hoặc không thuộc phân loại đã chọn", 400)
+      }
+      productId = product;
     }
-
-    const db = await getDb()
 
     // Determine unit based on role
     let unitId = null
@@ -291,8 +324,8 @@ export const createSupply = async (req: Request, res: Response) => {
     // Create new supply
     const result = await db.collection("supplies").insertOne({
       unit: unitId,
-      category,
-      product,
+      category: categoryId,
+      product: productId,
       expectedQuantity: Number(expectedQuantity),
       expectedHarvestDate: new Date(expectedHarvestDate),
       stationEntryDate: null,
@@ -301,7 +334,7 @@ export const createSupply = async (req: Request, res: Response) => {
       price: null,
       totalPrice: null,
       expiryDate: null,
-      status: "pending",
+      status: "pending", // Default status is "pending" (waiting for approval)
       note: note || "",
       createdBy: new ObjectId(req.user!.id),
       approvedBy: null,
@@ -521,14 +554,29 @@ export const updateSupply = async (req: Request, res: Response) => {
       if (!category || !product || !expectedQuantity || !expectedHarvestDate) {
         throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
       }
+      
+      // Check if category exists
+      const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(category) })
+      if (!categoryExists) {
+        throw new AppError("Phân loại không hợp lệ", 400)
+      }
+      
+      // Check if product exists and belongs to the category
+      const productExists = await db.collection("products").findOne({ 
+        _id: new ObjectId(product),
+        category: new ObjectId(category)
+      })
+      if (!productExists) {
+        throw new AppError("Sản phẩm không hợp lệ hoặc không thuộc phân loại đã chọn", 400)
+      }
 
       // Update supply
       const result = await db.collection("supplies").updateOne(
         { _id: new ObjectId(supplyId) },
         {
           $set: {
-            category,
-            product,
+            category: new ObjectId(category),
+            product: new ObjectId(product),
             expectedQuantity: Number(expectedQuantity),
             expectedHarvestDate: new Date(expectedHarvestDate),
             note: note || "",

@@ -10,17 +10,21 @@ interface ApiResponse<T> {
   data: T
   message?: string
 }
-
 export interface User {
   id: string
   fullName: string
   username: string
-  role: string
+  rank: string
+  position: string
   unit: {
-    id: string
+    _id: string
     name: string
   }
+  role: string
+  status: string
 }
+
+
 
 export interface LoginResponse {
   token: string
@@ -190,8 +194,8 @@ export const authApi = {
 
 // Users API
 export const usersApi = {
-  async getAll() {
-    return apiClient.get<User[]>('/users')
+  async getAll(page = 1, limit = 10) {
+    return apiClient.getPaginated<User>('/users', page, limit)
   },
 
   async getById(id: string) {
@@ -244,12 +248,17 @@ export interface Supply {
   product: {
     _id: string
     name: string
+    unit: string  // Unit of measurement (kg, gram, ml, quả...)
   }
-  quantity: number
-  harvestDate: string
-  stationEntryDate: string | null
-  receivedQuantity: number | null
-  status: string
+  expectedQuantity: number       // Expected quantity 
+  expectedHarvestDate: string    // Expected harvest date from battalion
+  stationEntryDate: string | null // Station entry date (entered by brigade)
+  requiredQuantity: number | null // Required quantity input by brigade
+  actualQuantity: number | null  // Actual quantity measured
+  price: number | null           // Price per unit
+  totalPrice: number | null      // Total price
+  expiryDate: string | null      // Expiry date
+  status: string                 // 'pending' (waiting approval) or 'approved'
   note: string
   createdBy?: {
     id: string
@@ -259,8 +268,8 @@ export interface Supply {
     id: string
     name: string
   }
-  createdAt?: string
-  updatedAt?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export const suppliesApi = {
@@ -294,5 +303,13 @@ export const suppliesApi = {
 
   async delete(id: string) {
     return apiClient.delete<void>(`/supplies/${id}`);
+  },
+  
+  async getCategories() {
+    return apiClient.get<{_id: string, name: string}[]>('/supplies/categories');
+  },
+  
+  async getProductsByCategory(categoryId: string) {
+    return apiClient.get<{_id: string, name: string, unit: string}[]>(`/supplies/products/${categoryId}`);
   }
-} 
+}

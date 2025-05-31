@@ -8,6 +8,8 @@ import { Plus, Eye, Edit, Trash2, Calendar, User } from "lucide-react"
 import Link from "next/link"
 import { ArticleDialog } from "./articles/article-dialog"
 import { DeleteArticleDialog } from "./articles/delete-article-dialog"
+import { apiClient } from "@/lib/api-client"
+import { toast } from "@/hooks/use-toast"
 
 interface Article {
   id: string
@@ -21,6 +23,30 @@ interface Article {
   status: "published" | "draft"
 }
 
+// Content API
+const contentApi = {
+  async getAll(type?: string) {
+    const params = type ? { type } : undefined;
+    return apiClient.get<Article[]>('/content', params);
+  },
+  
+  async getById(id: string) {
+    return apiClient.get<Article>(`/content/${id}`);
+  },
+  
+  async create(data: any) {
+    return apiClient.post<{ contentId: string }>('/content', data);
+  },
+  
+  async update(id: string, data: any) {
+    return apiClient.patch<void>(`/content/${id}`, data);
+  },
+  
+  async delete(id: string) {
+    return apiClient.delete<void>(`/content/${id}`);
+  }
+}
+
 export function DashboardContent() {
   const [articles, setArticles] = useState<Article[]>([])
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
@@ -28,45 +54,34 @@ export function DashboardContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data - replace with actual API calls
+  // Fetch articles from API
   useEffect(() => {
-    const mockArticles: Article[] = [
-      {
-        id: "1",
-        title: "Lữ đoàn 279 đạt thành tích xuất sắc trong huấn luyện",
-        content: "Trong tháng vừa qua, Lữ đoàn 279 đã hoàn thành xuất sắc các nhiệm vụ huấn luyện được giao...",
-        type: "article",
-        imageUrl: "/placeholder.svg?height=200&width=300",
-        author: "Thiếu tá Nguyễn Văn A",
-        createdAt: "2024-01-15",
-        status: "published",
-      },
-      {
-        id: "2",
-        title: "Hội thi đơn vị nuôi quân giỏi năm 2024",
-        content: "Cuộc thi đánh giá chất lượng công tác hậu cần và quản lý quân nhu của các đơn vị...",
-        type: "article",
-        imageUrl: "/placeholder.svg?height=200&width=300",
-        author: "Đại úy Trần Thị B",
-        createdAt: "2024-01-10",
-        status: "published",
-      },
-      {
-        id: "3",
-        title: "Video giới thiệu trạm chế biến thực phẩm",
-        content: "Video giới thiệu quy trình chế biến thực phẩm tại trạm chế biến của Lữ đoàn 279...",
-        type: "video",
-        videoUrl: "https://example.com/video.mp4",
-        author: "Trung úy Lê Văn C",
-        createdAt: "2024-01-05",
-        status: "published",
-      },
-    ]
+    const fetchArticles = async () => {
+      try {
+        const response = await contentApi.getAll();
+        if (response.success && response.data) {
+          // Transform data if needed to match the Article interface
+          const fetchedArticles = response.data.map(article => ({
+            ...article,
+            // Add any missing fields or transform API data to match UI needs
+            author: article.author || "Admin",
+            status: "published" // Default status if not provided by API
+          }));
+          setArticles(fetchedArticles);
+        } else {
+          // Handle empty data or error
+          setArticles([]);
+        }
+      } catch (error) {
+        console.error('Error fetching articles:', error);
+        toast.error("Không thể tải dữ liệu bài viết. Vui lòng thử lại sau.");
+        setArticles([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    setTimeout(() => {
-      setArticles(mockArticles)
-      setIsLoading(false)
-    }, 1000)
+    fetchArticles();
   }, [])
 
   const handleAddArticle = () => {
@@ -84,38 +99,54 @@ export function DashboardContent() {
     setIsDeleteDialogOpen(true)
   }
 
-  const handleSaveArticle = (articleData: Partial<Article>) => {
-    if (selectedArticle) {
-      // Update existing article
-      setArticles((prev) =>
-        prev.map((article) =>
-          article.id === selectedArticle.id
-            ? { ...article, ...articleData, updatedAt: new Date().toISOString() }
-            : article,
-        ),
-      )
-    } else {
-      // Add new article
-      const newArticle: Article = {
-        id: Date.now().toString(),
-        title: articleData.title || "",
-        content: articleData.content || "",
-        type: articleData.type || "article",
-        imageUrl: articleData.imageUrl,
-        videoUrl: articleData.videoUrl,
-        author: "Current User", // Replace with actual user
-        createdAt: new Date().toISOString(),
-        status: "published",
+  const handleSaveArticle = async (articleData: Partial<Article>) => {
+    try {
+      if (selectedArticle) {
+        // Update existing article
+        await contentApi.update(selectedArticle.id, articleData)
+        setArticles((prev) =>
+          prev.map((article) =>
+            article.id === selectedArticle.id
+              ? { ...article, ...articleData, updatedAt: new Date().toISOString() }
+              : article,
+          ),
+        )
+        toast.success("Cập nhật bài viết thành công")
+      } else {
+        // Add new article
+        const response = await contentApi.create(articleData)
+        const newArticle: Article = {
+          id: response.contentId,
+          title: articleData.title || "",
+          content: articleData.content || "",
+          type: articleData.type || "article",
+          imageUrl: articleData.imageUrl,
+          videoUrl: articleData.videoUrl,
+          author: "Current User", // Replace with actual user
+          createdAt: new Date().toISOString(),
+          status: "published",
+        }
+        setArticles((prev) => [newArticle, ...prev])
+        toast.success("Thêm bài viết mới thành công")
       }
-      setArticles((prev) => [newArticle, ...prev])
+    } catch (error) {
+      toast.error("Đã xảy ra lỗi. Vui lòng thử lại.")
+    } finally {
+      setIsArticleDialogOpen(false)
     }
-    setIsArticleDialogOpen(false)
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (selectedArticle) {
-      setArticles((prev) => prev.filter((article) => article.id !== selectedArticle.id))
-      setIsDeleteDialogOpen(false)
+      try {
+        await contentApi.delete(selectedArticle.id)
+        setArticles((prev) => prev.filter((article) => article.id !== selectedArticle.id))
+        toast.success("Xóa bài viết thành công")
+      } catch (error) {
+        toast.error("Đã xảy ra lỗi. Vui lòng thử lại.")
+      } finally {
+        setIsDeleteDialogOpen(false)
+      }
     }
   }
 
