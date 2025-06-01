@@ -71,6 +71,7 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body
+    console.log(req.body)
     console.log(username, password)
     // Validate input
     if (!username || !password) {
@@ -132,59 +133,61 @@ export const login = async (req: Request, res: Response) => {
 // @access  Private
 export const getMe = async (req: Request, res: Response) => {
   try {
+    const userId = req.user?.id
+
+    if (!userId) {
+      throw new AppError("User not authenticated", 401)
+    }
+
     const db = await getDb()
 
-    // Get user from database with unit information
-    const user = await db
-      .collection("users")
-      .aggregate([
-        {
-          $match: { _id: new ObjectId(req.user!.id) },
-        },
-        {
-          $lookup: {
-            from: "units",
-            localField: "unit",
-            foreignField: "_id",
-            as: "unitInfo",
-          },
-        },
-        {
-          $unwind: "$unitInfo",
-        },
-        {
-          $project: {
-            password: 0, // Exclude password
-          },
-        },
-      ])
-      .toArray()
+    // Get user data
+    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) })
 
-    if (!user || user.length === 0) {
-      throw new AppError("Không tìm thấy thông tin người dùng", 404)
+    if (!user) {
+      throw new AppError("User not found", 404)
+    }
+
+    // Get unit data if user has a unit
+    let unitData = null
+    if (user.unit) {
+      unitData = await db.collection("units").findOne({ _id: new ObjectId(user.unit) })
+    }
+
+    // Debug logging
+    console.log("User role from database:", user.role)
+    console.log("User data:", {
+      id: user._id.toString(),
+      username: user.username,
+      role: user.role,
+      unit: user.unit
+    })
+
+    const userData = {
+      _id: user._id.toString(),
+      username: user.username,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      unit: unitData ? {
+        _id: unitData._id.toString(),
+        name: unitData.name,
+        code: unitData.code
+      } : null,
+      status: user.status,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     }
 
     res.status(200).json({
       success: true,
-      data: {
-        id: user[0]._id.toString(),
-        fullName: user[0].fullName,
-        username: user[0].username,
-        rank: user[0].rank,
-        position: user[0].position,
-        role: user[0].role,
-        unit: {
-          id: user[0].unit.toString(),
-          name: user[0].unitInfo.name,
-        },
-        status: user[0].status,
-      },
+      data: userData,
     })
   } catch (error) {
     if (error instanceof AppError) {
       throw error
     }
-    console.error("Get profile error:", error)
+    console.error("Error fetching user profile:", error)
     throw new AppError("Đã xảy ra lỗi khi lấy thông tin người dùng", 500)
   }
 }

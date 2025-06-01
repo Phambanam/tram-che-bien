@@ -1,19 +1,28 @@
-import express from "express"
-import { getAllDishes, getDishById, createDish, updateDish, deleteDish } from "../controllers/dish.controller"
+import { Router } from "express"
+import { 
+  getDishes, 
+  createDish, 
+  getDishById, 
+  updateDish, 
+  deleteDish,
+  getDishesByIngredient,
+  getDishesByMainLTTP
+} from "../controllers/dish.controller"
 import { protect, authorize } from "../middleware/auth.middleware"
 
-const router = express.Router()
+const router = Router()
 
-// Protected routes
-router.use(protect)
+// Public routes (with auth)
+router.get("/", protect, getDishes)
+router.get("/:id", protect, getDishById)
+router.get("/by-ingredient/:lttpId", protect, getDishesByIngredient)
+router.get("/by-main-lttp/:lttpId", protect, getDishesByMainLTTP)
 
-// Routes for all authenticated users
-router.get("/", getAllDishes)
-router.get("/:id", getDishById)
+// Protected routes (Admin, Brigade Assistant)
+router.post("/", protect, authorize("admin", "brigade_assistant", "brigadeAssistant"), createDish)
+router.patch("/:id", protect, authorize("admin", "brigade_assistant", "brigadeAssistant"), updateDish)
 
-// Routes for admin only
-router.post("/", authorize("admin"), createDish)
-router.patch("/:id", authorize("admin"), updateDish)
-router.delete("/:id", authorize("admin"), deleteDish)
+// Admin only routes
+router.delete("/:id", protect, authorize("admin"), deleteDish)
 
 export default router

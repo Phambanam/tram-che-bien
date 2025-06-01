@@ -3,6 +3,18 @@ import { ObjectId } from "mongodb"
 import { getDb } from "../config/database"
 import { AppError } from "../middleware/error.middleware"
 
+// Helper function to generate slug from name
+const generateSlug = (name: string): string => {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
+    .replace(/[^a-z0-9\s-]/g, "") // Remove special characters
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/-+/g, "-") // Replace multiple hyphens with single
+    .trim()
+}
+
 // @desc    Get all categories
 // @route   GET /api/categories
 // @access  Public
@@ -12,14 +24,24 @@ export const getCategories = async (req: Request, res: Response) => {
 
     const categories = await db.collection("categories").find().toArray()
 
-    // Transform data for response
-    const transformedCategories = categories.map((category) => ({
+    // Calculate item count for each category
+    const transformedCategories = await Promise.all(
+      categories.map(async (category) => {
+        const itemCount = await db.collection("products").countDocuments({ 
+          category: category._id 
+        })
+
+        return {
       _id: category._id.toString(),
       name: category.name,
+          slug: category.slug,
       description: category.description,
+          itemCount,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
-    }))
+        }
+      })
+    )
 
     res.status(200).json({
       success: true,
@@ -37,7 +59,7 @@ export const getCategories = async (req: Request, res: Response) => {
 // @access  Private (Admin, Brigade Assistant)
 export const createCategory = async (req: Request, res: Response) => {
   try {
-    const { name, description } = req.body
+    const { name, slug, description } = req.body
 
     // Validate input
     if (!name) {
@@ -46,8 +68,16 @@ export const createCategory = async (req: Request, res: Response) => {
 
     const db = await getDb()
 
-    // Check if category already exists
-    const existingCategory = await db.collection("categories").findOne({ name })
+    // Generate slug if not provided
+    const finalSlug = slug || generateSlug(name)
+
+    // Check if category already exists by name or slug
+    const existingCategory = await db.collection("categories").findOne({
+      $or: [
+        { name },
+        { slug: finalSlug }
+      ]
+    })
     if (existingCategory) {
       throw new AppError("Phân loại đã tồn tại", 400)
     }
@@ -55,6 +85,7 @@ export const createCategory = async (req: Request, res: Response) => {
     // Create new category
     const result = await db.collection("categories").insertOne({
       name,
+      slug: finalSlug,
       description: description || "",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -94,11 +125,18 @@ export const getCategoryById = async (req: Request, res: Response) => {
       throw new AppError("Không tìm thấy phân loại", 404)
     }
 
+    // Calculate item count
+    const itemCount = await db.collection("products").countDocuments({ 
+      category: category._id 
+    })
+
     // Transform data for response
     const transformedCategory = {
       _id: category._id.toString(),
       name: category.name,
+      slug: category.slug,
       description: category.description,
+      itemCount,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
     }
@@ -122,7 +160,7 @@ export const getCategoryById = async (req: Request, res: Response) => {
 export const updateCategory = async (req: Request, res: Response) => {
   try {
     const categoryId = req.params.id
-    const { name, description } = req.body
+    const { name, slug, description } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(categoryId)) {
@@ -136,14 +174,20 @@ export const updateCategory = async (req: Request, res: Response) => {
 
     const db = await getDb()
 
-    // Check if category with the same name already exists (excluding current category)
+    // Generate slug if not provided
+    const finalSlug = slug || generateSlug(name)
+
+    // Check if category with the same name or slug already exists (excluding current category)
     const existingCategory = await db.collection("categories").findOne({
       _id: { $ne: new ObjectId(categoryId) },
-      name,
+      $or: [
+        { name },
+        { slug: finalSlug }
+      ]
     })
 
     if (existingCategory) {
-      throw new AppError("Phân loại với tên này đã tồn tại", 400)
+      throw new AppError("Phân loại với tên hoặc slug này đã tồn tại", 400)
     }
 
     const result = await db.collection("categories").updateOne(
@@ -151,6 +195,7 @@ export const updateCategory = async (req: Request, res: Response) => {
       {
         $set: {
           name,
+          slug: finalSlug,
           description: description || "",
           updatedAt: new Date(),
         },

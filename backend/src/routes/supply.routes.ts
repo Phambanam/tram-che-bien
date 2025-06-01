@@ -6,6 +6,7 @@ import {
   updateSupply,
   deleteSupply,
   approveSupply,
+  rejectSupply,
   getFoodCategories,
   getFoodProducts,
 } from "../controllers/supply.controller"
@@ -28,6 +29,7 @@ router.patch("/:id", updateSupply) // Permission check inside controller
 
 // Routes for brigade assistants and admin
 router.patch("/:id/approve", authorize("brigadeAssistant", "admin"), approveSupply)
+router.patch("/:id/reject", authorize("brigadeAssistant", "admin"), rejectSupply)
 
 // Routes for unit assistants and admin
 router.delete("/:id", deleteSupply) // Permission check inside controller

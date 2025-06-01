@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { authApi } from "@/lib/api-client"
-import type { User } from "@/lib/api-client"
+import type { User } from "@/types"
 
 interface AuthContextType {
   user: User | null
@@ -27,9 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token && storedUser) {
         try {
           // Verify token by fetching user profile
-          const { data } = await authApi.getProfile()
-          const { rank, position, status, ...userData } = data
-          setUser(userData)
+          const response = await authApi.getProfile()
+          console.log("Profile response:", response)
+          
+          if (response && response.data) {
+            // Set user data from API response
+            setUser(response.data)
+          } else {
+            throw new Error("Invalid profile response")
+          }
         } catch (error) {
           console.error("Auth initialization error:", error)
           logout()
@@ -41,7 +47,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
   }, [])
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string):
+    Promise<{ token: string; user: User }> => {
     console.log('Auth provider login called with:', { username, password })
     
     try {

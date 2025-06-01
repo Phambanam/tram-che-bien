@@ -3,35 +3,81 @@ import { ObjectId } from "mongodb"
 import { getDb } from "../config/database"
 import { AppError } from "../middleware/error.middleware"
 
+interface DishIngredient {
+  lttpId: string
+  lttpName: string
+  quantity: number
+  unit: string
+  notes?: string
+}
+
+interface MainLTTP {
+  lttpId: string
+  lttpName: string
+  category: string
+}
+
 // @desc    Get all dishes
 // @route   GET /api/dishes
 // @access  Private
-export const getAllDishes = async (req: Request, res: Response) => {
+export const getDishes = async (req: Request, res: Response) => {
   try {
-    const { category } = req.query
-
     const db = await getDb()
 
-    let query = {}
+    // Pagination parameters
+    const page = parseInt(req.query.page as string) || 1
+    const limit = parseInt(req.query.limit as string) || 10
+    const skip = (page - 1) * limit
+    
+    // Filter parameters
+    const { category, lttpId, mainLttpId } = req.query
+    const filter: any = {}
+    
     if (category) {
-      query = { category }
+      filter.category = category
+    }
+    
+    if (lttpId) {
+      filter["ingredients.lttpId"] = lttpId
     }
 
-    const dishes = await db.collection("dishes").find(query).sort({ name: 1 }).toArray()
+    if (mainLttpId) {
+      filter["mainLTTP.lttpId"] = mainLttpId
+    }
+    
+    // Get total count for pagination
+    const totalCount = await db.collection("dishes").countDocuments(filter)
+    
+    // Get dishes
+    const dishes = await db
+      .collection("dishes")
+      .find(filter)
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray()
 
     // Transform data for response
     const transformedDishes = dishes.map((dish) => ({
-      id: dish._id.toString(),
+      _id: dish._id.toString(),
       name: dish.name,
-      ingredients: dish.ingredients,
       description: dish.description,
-      imageUrl: dish.imageUrl,
+      mainLTTP: dish.mainLTTP || null,
+      ingredients: dish.ingredients || [],
+      servings: dish.servings,
+      preparationTime: dish.preparationTime,
+      difficulty: dish.difficulty,
       category: dish.category,
+      createdAt: dish.createdAt,
+      updatedAt: dish.updatedAt,
     }))
 
     res.status(200).json({
       success: true,
       count: transformedDishes.length,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page,
       data: transformedDishes,
     })
   } catch (error) {
@@ -60,48 +106,19 @@ export const getDishById = async (req: Request, res: Response) => {
       throw new AppError("Không tìm thấy món ăn", 404)
     }
 
-    // Get recipe ingredients
-    const recipeIngredients = await db
-      .collection("recipeIngredients")
-      .aggregate([
-        {
-          $match: { dishId: new ObjectId(dishId) },
-        },
-        {
-          $lookup: {
-            from: "products",
-            localField: "productId",
-            foreignField: "_id",
-            as: "productInfo",
-          },
-        },
-        {
-          $unwind: "$productInfo",
-        },
-        {
-          $project: {
-            id: { $toString: "$_id" },
-            dishId: { $toString: "$dishId" },
-            product: {
-              id: { $toString: "$productId" },
-              name: "$productInfo.name",
-            },
-            quantity: 1,
-            unit: 1,
-          },
-        },
-      ])
-      .toArray()
-
     // Transform data for response
     const transformedDish = {
-      id: dish._id.toString(),
+      _id: dish._id.toString(),
       name: dish.name,
-      ingredients: dish.ingredients,
       description: dish.description,
-      imageUrl: dish.imageUrl,
+      mainLTTP: dish.mainLTTP || null,
+      ingredients: dish.ingredients || [],
+      servings: dish.servings,
+      preparationTime: dish.preparationTime,
+      difficulty: dish.difficulty,
       category: dish.category,
-      recipeIngredients: recipeIngredients,
+      createdAt: dish.createdAt,
+      updatedAt: dish.updatedAt,
     }
 
     res.status(200).json({
@@ -119,14 +136,27 @@ export const getDishById = async (req: Request, res: Response) => {
 
 // @desc    Create new dish
 // @route   POST /api/dishes
-// @access  Private (Admin only)
+// @access  Private (Admin, Brigade Assistant)
 export const createDish = async (req: Request, res: Response) => {
   try {
-    const { name, ingredients, description, imageUrl, category, recipeIngredients } = req.body
+    const { 
+      name, 
+      description, 
+      mainLTTP,
+      ingredients, 
+      servings, 
+      preparationTime, 
+      difficulty, 
+      category 
+    } = req.body
 
     // Validate input
-    if (!name || !category) {
-      throw new AppError("Tên món ăn và phân loại không được để trống", 400)
+    if (!name) {
+      throw new AppError("Tên món ăn không được để trống", 400)
+    }
+
+    if (!mainLTTP || !mainLTTP.lttpId || !mainLTTP.lttpName) {
+      throw new AppError("LTTP chính không được để trống", 400)
     }
 
     const db = await getDb()
@@ -137,30 +167,32 @@ export const createDish = async (req: Request, res: Response) => {
       throw new AppError("Món ăn đã tồn tại", 400)
     }
 
+    // Validate ingredients if provided
+    if (ingredients && Array.isArray(ingredients)) {
+      for (const ingredient of ingredients) {
+        if (!ingredient.lttpId || !ingredient.lttpName || !ingredient.quantity || !ingredient.unit) {
+          throw new AppError("Thông tin nguyên liệu không đầy đủ", 400)
+        }
+      }
+    }
+
     // Create new dish
     const result = await db.collection("dishes").insertOne({
       name,
-      ingredients: ingredients || "",
       description: description || "",
-      imageUrl: imageUrl || "",
-      category,
+      mainLTTP: {
+        lttpId: mainLTTP.lttpId,
+        lttpName: mainLTTP.lttpName,
+        category: mainLTTP.category || ""
+      },
+      ingredients: ingredients || [],
+      servings: servings || 1,
+      preparationTime: preparationTime || 0,
+      difficulty: difficulty || "medium",
+      category: category || "",
       createdAt: new Date(),
       updatedAt: new Date(),
     })
-
-    // Add recipe ingredients if provided
-    if (recipeIngredients && Array.isArray(recipeIngredients) && recipeIngredients.length > 0) {
-      const ingredientsToInsert = recipeIngredients.map((ingredient) => ({
-        dishId: result.insertedId,
-        productId: new ObjectId(ingredient.productId),
-        quantity: ingredient.quantity,
-        unit: ingredient.unit,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }))
-
-      await db.collection("recipeIngredients").insertMany(ingredientsToInsert)
-    }
 
     res.status(201).json({
       success: true,
@@ -178,11 +210,20 @@ export const createDish = async (req: Request, res: Response) => {
 
 // @desc    Update dish
 // @route   PATCH /api/dishes/:id
-// @access  Private (Admin only)
+// @access  Private (Admin, Brigade Assistant)
 export const updateDish = async (req: Request, res: Response) => {
   try {
     const dishId = req.params.id
-    const { name, ingredients, description, imageUrl, category, recipeIngredients } = req.body
+    const { 
+      name, 
+      description, 
+      mainLTTP,
+      ingredients, 
+      servings, 
+      preparationTime, 
+      difficulty, 
+      category 
+    } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(dishId)) {
@@ -190,8 +231,12 @@ export const updateDish = async (req: Request, res: Response) => {
     }
 
     // Validate input
-    if (!name || !category) {
-      throw new AppError("Tên món ăn và phân loại không được để trống", 400)
+    if (!name) {
+      throw new AppError("Tên món ăn không được để trống", 400)
+    }
+
+    if (!mainLTTP || !mainLTTP.lttpId || !mainLTTP.lttpName) {
+      throw new AppError("LTTP chính không được để trống", 400)
     }
 
     const db = await getDb()
@@ -206,16 +251,31 @@ export const updateDish = async (req: Request, res: Response) => {
       throw new AppError("Món ăn với tên này đã tồn tại", 400)
     }
 
-    // Update dish
+    // Validate ingredients if provided
+    if (ingredients && Array.isArray(ingredients)) {
+      for (const ingredient of ingredients) {
+        if (!ingredient.lttpId || !ingredient.lttpName || !ingredient.quantity || !ingredient.unit) {
+          throw new AppError("Thông tin nguyên liệu không đầy đủ", 400)
+        }
+      }
+    }
+
     const result = await db.collection("dishes").updateOne(
       { _id: new ObjectId(dishId) },
       {
         $set: {
           name,
-          ingredients: ingredients || "",
           description: description || "",
-          imageUrl: imageUrl || "",
-          category,
+          mainLTTP: {
+            lttpId: mainLTTP.lttpId,
+            lttpName: mainLTTP.lttpName,
+            category: mainLTTP.category || ""
+          },
+          ingredients: ingredients || [],
+          servings: servings || 1,
+          preparationTime: preparationTime || 0,
+          difficulty: difficulty || "medium",
+          category: category || "",
           updatedAt: new Date(),
         },
       },
@@ -223,26 +283,6 @@ export const updateDish = async (req: Request, res: Response) => {
 
     if (result.matchedCount === 0) {
       throw new AppError("Không tìm thấy món ăn", 404)
-    }
-
-    // Update recipe ingredients if provided
-    if (recipeIngredients && Array.isArray(recipeIngredients)) {
-      // Delete existing recipe ingredients
-      await db.collection("recipeIngredients").deleteMany({ dishId: new ObjectId(dishId) })
-
-      // Add new recipe ingredients
-      if (recipeIngredients.length > 0) {
-        const ingredientsToInsert = recipeIngredients.map((ingredient) => ({
-          dishId: new ObjectId(dishId),
-          productId: new ObjectId(ingredient.productId),
-          quantity: ingredient.quantity,
-          unit: ingredient.unit,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }))
-
-        await db.collection("recipeIngredients").insertMany(ingredientsToInsert)
-      }
     }
 
     res.status(200).json({
@@ -260,7 +300,7 @@ export const updateDish = async (req: Request, res: Response) => {
 
 // @desc    Delete dish
 // @route   DELETE /api/dishes/:id
-// @access  Private (Admin only)
+// @access  Private (Admin)
 export const deleteDish = async (req: Request, res: Response) => {
   try {
     const dishId = req.params.id
@@ -272,24 +312,11 @@ export const deleteDish = async (req: Request, res: Response) => {
 
     const db = await getDb()
 
-    // Check if dish is being used in any menu
-    const menuWithDish = await db.collection("meals").findOne({
-      dishes: { $elemMatch: { $eq: new ObjectId(dishId) } },
-    })
-
-    if (menuWithDish) {
-      throw new AppError("Không thể xóa món ăn đang được sử dụng trong thực đơn", 400)
-    }
-
-    // Delete dish
     const result = await db.collection("dishes").deleteOne({ _id: new ObjectId(dishId) })
 
     if (result.deletedCount === 0) {
       throw new AppError("Không tìm thấy món ăn", 404)
     }
-
-    // Delete recipe ingredients
-    await db.collection("recipeIngredients").deleteMany({ dishId: new ObjectId(dishId) })
 
     res.status(200).json({
       success: true,
@@ -301,5 +328,83 @@ export const deleteDish = async (req: Request, res: Response) => {
     }
     console.error("Error deleting dish:", error)
     throw new AppError("Đã xảy ra lỗi khi xóa món ăn", 500)
+  }
+}
+
+// @desc    Get dishes by main LTTP
+// @route   GET /api/dishes/by-main-lttp/:lttpId
+// @access  Private
+export const getDishesByMainLTTP = async (req: Request, res: Response) => {
+  try {
+    const lttpId = req.params.lttpId
+
+    const db = await getDb()
+
+    const dishes = await db
+      .collection("dishes")
+      .find({ "mainLTTP.lttpId": lttpId })
+      .sort({ name: 1 })
+      .toArray()
+
+    // Transform data for response
+    const transformedDishes = dishes.map((dish) => ({
+      _id: dish._id.toString(),
+      name: dish.name,
+      description: dish.description,
+      mainLTTP: dish.mainLTTP || null,
+      ingredients: dish.ingredients || [],
+      servings: dish.servings,
+      preparationTime: dish.preparationTime,
+      difficulty: dish.difficulty,
+      category: dish.category,
+    }))
+
+    res.status(200).json({
+      success: true,
+      count: transformedDishes.length,
+      data: transformedDishes,
+    })
+  } catch (error) {
+    console.error("Error fetching dishes by main LTTP:", error)
+    throw new AppError("Đã xảy ra lỗi khi lấy danh sách món ăn theo LTTP chính", 500)
+  }
+}
+
+// @desc    Get dishes by ingredient
+// @route   GET /api/dishes/by-ingredient/:lttpId
+// @access  Private
+export const getDishesByIngredient = async (req: Request, res: Response) => {
+  try {
+    const lttpId = req.params.lttpId
+
+    const db = await getDb()
+
+    const dishes = await db
+      .collection("dishes")
+      .find({ "ingredients.lttpId": lttpId })
+      .sort({ name: 1 })
+      .toArray()
+
+    // Transform data for response
+    const transformedDishes = dishes.map((dish) => ({
+      _id: dish._id.toString(),
+      name: dish.name,
+      description: dish.description,
+      mainLTTP: dish.mainLTTP || null,
+      ingredients: dish.ingredients || [],
+      servings: dish.servings,
+      preparationTime: dish.preparationTime,
+      difficulty: dish.difficulty,
+      category: dish.category,
+    }))
+
+    res.status(200).json({
+      success: true,
+      count: transformedDishes.length,
+      data: transformedDishes,
+    })
+  } catch (error) {
+    console.error("Error fetching dishes by ingredient:", error)
+    throw new AppError("Đã xảy ra lỗi khi lấy danh sách món ăn theo nguyên liệu", 500)
   }
 }

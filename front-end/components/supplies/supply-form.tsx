@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -13,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { User } from "@/lib/api-client"
+import { suppliesApi, unitsApi } from "@/lib/api-client"
 
 const formSchema = z.object({
   unit: z.string().optional(), // Only for admin
@@ -49,25 +50,17 @@ interface Product {
   unit: string
 }
 
-interface UserInfo {
-  id: string
-  name: string
-  username: string
-  role: string
-  unit: string
-}
-
 export function SupplyForm({ supplyId }: { supplyId?: string }) {
   const router = useRouter()
+  const { data: session, status: sessionStatus } = useSession()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [units, setUnits] = useState<Unit[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fetchingData, setFetchingData] = useState(true)
   const [categories, setCategories] = useState<Category[]>([])
-  const [userInfo, setUserInfo] = useState<User | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -83,34 +76,12 @@ export function SupplyForm({ supplyId }: { supplyId?: string }) {
 
   const selectedCategory = form.watch("category")
 
-  // Lấy thông tin người dùng từ JWT token
   useEffect(() => {
-    const getUserInfoFromToken = () => {
-      try {
-        const payload = localStorage.getItem("user")
-        if (!payload) return null
-        const user: User = JSON.parse(payload)
-        
-       
-        
-        setUserInfo(user)
-        console.log("User info extracted from JWT:", user)
-        return user
-      } catch (error) {
-        console.error("Error extracting user info from token:", error)
-        return null
-      }
-    }
-
-    getUserInfoFromToken()
-  }, [])
-
-  useEffect(() => {
-    // Đợi thông tin người dùng được lấy từ token
-    if (!userInfo) return
+    // Đợi session load xong
+    if (sessionStatus === "loading") return
 
     // Kiểm tra quyền truy cập
-    if (userInfo.role !== "admin" && userInfo.role !== "unitAssistant") {
+    if (session && session.user.role !== "admin" && session.user.role !== "unitAssistant") {
       toast({
         variant: "destructive",
         title: "Không có quyền truy cập",
@@ -126,44 +97,18 @@ export function SupplyForm({ supplyId }: { supplyId?: string }) {
 
       try {
         // Fetch units (only for admin)
-        if (userInfo.role === "admin") {
-          const unitsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/units`, {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "application/json",
-            },
-          })
-          
-          if (!unitsResponse.ok) {
-            throw new Error("Không thể tải danh sách đơn vị")
-          }
-          
-          const unitsData = await unitsResponse.json()
-          setUnits(unitsData.data || unitsData)
+        if (session?.user.role === "admin") {
+          const unitsData = await unitsApi.getUnits()
+          setUnits(unitsData)
         }
 
         // If editing, fetch supply details
         if (supplyId) {
           setIsEditing(true)
-          const supplyResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/supplies/${supplyId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-                "Content-Type": "application/json",
-              },
-            },
-          )
-
-          if (!supplyResponse.ok) {
-            const errorData = await supplyResponse.json()
-            throw new Error(errorData.message || "Không thể tải thông tin nguồn nhập")
-          }
-
-          const supplyData = await supplyResponse.json()
+          const supplyData = await suppliesApi.getSupplyById(supplyId)
 
           // Kiểm tra quyền chỉnh sửa
-          if (userInfo.role === "unitAssistant" && supplyData.unit._id !== userInfo.unit) {
+          if (session && session.user.role === "unitAssistant" && supplyData.unit._id !== session.user.unit) {
             throw new Error("Bạn chỉ có thể chỉnh sửa nguồn nhập của đơn vị mình")
           }
 
@@ -174,48 +119,14 @@ export function SupplyForm({ supplyId }: { supplyId?: string }) {
 
           form.setValue("unit", supplyData.unit._id)
           form.setValue("category", supplyData.category._id)
-          setSelectedCategory(supplyData.category._id)
+          form.setValue("product", supplyData.product._id)
           form.setValue("expectedQuantity", supplyData.expectedQuantity.toString())
           form.setValue("expectedHarvestDate", new Date(supplyData.expectedHarvestDate).toISOString().split("T")[0])
           form.setValue("note", supplyData.note || "")
-          
-          // Need to fetch products for this category first, then set the product
-          const productsResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/supplies/products/${supplyData.category._id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-                "Content-Type": "application/json",
-              },
-            }
-          )
-          
-          if (!productsResponse.ok) {
-            throw new Error("Không thể tải danh sách sản phẩm")
-          }
-          
-          const productsData = await productsResponse.json()
-          setFilteredProducts(productsData.data || productsData)
-          form.setValue("product", supplyData.product._id)
         }
 
-        // Fetch categories
-        const categoriesResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/supplies/categories`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "application/json",
-            },
-          },
-        )
-
-        if (!categoriesResponse.ok) {
-          throw new Error("Không thể tải danh sách phân loại")
-        }
-
-        const categoriesData = await categoriesResponse.json()
-        setCategories(categoriesData.data || categoriesData)
+        const categoriesResponse = await suppliesApi.getFoodCategories()
+        setCategories(categoriesResponse.data)
       } catch (error) {
         console.error("Error fetching data:", error)
         setError(error instanceof Error ? error.message : "Đã xảy ra lỗi khi tải dữ liệu")
@@ -230,36 +141,22 @@ export function SupplyForm({ supplyId }: { supplyId?: string }) {
     }
 
     fetchData()
-  }, [supplyId, form, userInfo, router, toast])
+  }, [supplyId, form, session, sessionStatus, router, toast])
 
   // Filter products when category changes
   useEffect(() => {
     const fetchProducts = async () => {
       if (selectedCategory) {
         try {
-          const productsResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/supplies/products/${selectedCategory}`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-                "Content-Type": "application/json",
-              },
-            },
-          )
-
-          if (!productsResponse.ok) {
-            throw new Error("Không thể tải danh sách sản phẩm")
-          }
-
-          const productsData = await productsResponse.json()
-          setFilteredProducts(productsData.data || productsData)
+          const productsResponse = await suppliesApi.getFoodProducts(selectedCategory)
+          setFilteredProducts(productsResponse.data)
           form.setValue("product", "") // Reset product selection
         } catch (error) {
           console.error("Error fetching products:", error)
           toast({
             variant: "destructive",
             title: "Lỗi",
-            description: "Không thể tải danh sách sản phẩm",
+            description: error instanceof Error ? error.message : "Failed to fetch products",
           })
         }
       } else {
@@ -275,11 +172,6 @@ export function SupplyForm({ supplyId }: { supplyId?: string }) {
     setError(null)
 
     try {
-      const url = isEditing
-        ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/supplies/${supplyId}`
-        : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/supplies`
-      const method = isEditing ? "PATCH" : "POST"
-
       // Prepare data
       const submitData = {
         category: values.category,
@@ -290,30 +182,21 @@ export function SupplyForm({ supplyId }: { supplyId?: string }) {
       }
 
       // Add unit for admin
-      if (userInfo?.role === "admin" && values.unit) {
+      if (session?.user.role === "admin" && values.unit) {
         Object.assign(submitData, { unit: values.unit })
       }
 
-      console.log(`${method} request to ${url} with data:`, submitData)
+      console.log(`${isEditing ? "PATCH" : "POST"} request with data:`, submitData)
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(submitData),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || `Đã xảy ra lỗi khi ${isEditing ? "cập nhật" : "thêm mới"} nguồn nhập`)
+      if (isEditing) {
+        await suppliesApi.updateSupply(supplyId!, submitData)
+      } else {
+        await suppliesApi.createSupply(submitData)
       }
 
       toast({
         title: isEditing ? "Cập nhật thành công" : "Thêm mới thành công",
-        description: data.message,
+        description: `Đã ${isEditing ? "cập nhật" : "thêm mới"} nguồn nhập thành công`,
       })
       router.push("/dashboard/supplies")
       router.refresh()
@@ -360,13 +243,13 @@ export function SupplyForm({ supplyId }: { supplyId?: string }) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Unit selection - only for admin */}
-        {userInfo?.role === "admin" && (
+        {session?.user.role === "admin" && (
           <FormField
             control={form.control}
             name="unit"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tên đơn vị</FormLabel>
+                <FormLabel>Đơn vị</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -514,5 +397,5 @@ export function SupplyForm({ supplyId }: { supplyId?: string }) {
         </div>
       </form>
     </Form>
-  );
+  )
 }

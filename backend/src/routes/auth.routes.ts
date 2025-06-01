@@ -1,8 +1,8 @@
-import express from "express"
+import { Router } from "express"
 import { register, login, getMe } from "../controllers/auth.controller"
 import { protect } from "../middleware/auth.middleware"
 
-const router = express.Router()
+const router = Router()
 
 /**
  * @swagger
@@ -111,5 +111,14 @@ router.post("/login", login)
  *         description: Not authenticated
  */
 router.get("/me", protect, getMe)
+
+// Debug endpoint
+router.get("/debug", protect, (req, res) => {
+  res.json({
+    success: true,
+    user: req.user,
+    message: "Debug endpoint working"
+  })
+})
 
 export default router

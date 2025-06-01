@@ -8,8 +8,8 @@ import { Plus, Eye, Edit, Trash2, Calendar, User } from "lucide-react"
 import Link from "next/link"
 import { ArticleDialog } from "./articles/article-dialog"
 import { DeleteArticleDialog } from "./articles/delete-article-dialog"
-import { apiClient } from "@/lib/api-client"
-import { toast } from "@/hooks/use-toast"
+import { contentApi } from "@/lib/api-client"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Article {
   id: string
@@ -23,28 +23,27 @@ interface Article {
   status: "published" | "draft"
 }
 
-// Content API
-const contentApi = {
+// API service for articles
+const articleService = {
   async getAll(type?: string) {
-    const params = type ? { type } : undefined;
-    return apiClient.get<Article[]>('/content', params);
+    return contentApi.getContent(type)
   },
-  
+
   async getById(id: string) {
-    return apiClient.get<Article>(`/content/${id}`);
+    return contentApi.getContentById(id)
   },
-  
-  async create(data: any) {
-    return apiClient.post<{ contentId: string }>('/content', data);
+
+  async create(data: Partial<Article>) {
+    return contentApi.createContent(data)
   },
-  
-  async update(id: string, data: any) {
-    return apiClient.patch<void>(`/content/${id}`, data);
+
+  async update(id: string, data: Partial<Article>) {
+    return contentApi.updateContent(id, data)
   },
-  
+
   async delete(id: string) {
-    return apiClient.delete<void>(`/content/${id}`);
-  }
+    return contentApi.deleteContent(id)
+  },
 }
 
 export function DashboardContent() {
@@ -53,36 +52,70 @@ export function DashboardContent() {
   const [isArticleDialogOpen, setIsArticleDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
 
-  // Fetch articles from API
   useEffect(() => {
     const fetchArticles = async () => {
       try {
-        const response = await contentApi.getAll();
-        if (response.success && response.data) {
-          // Transform data if needed to match the Article interface
-          const fetchedArticles = response.data.map(article => ({
-            ...article,
-            // Add any missing fields or transform API data to match UI needs
-            author: article.author || "Admin",
-            status: "published" // Default status if not provided by API
-          }));
-          setArticles(fetchedArticles);
+        // Try to fetch from API first
+        const data = await articleService.getAll()
+        if (data && Array.isArray(data)) {
+          setArticles(data)
         } else {
-          // Handle empty data or error
-          setArticles([]);
+          // Fallback to mock data if API returns unexpected format
+          setArticles(getMockArticles())
         }
       } catch (error) {
-        console.error('Error fetching articles:', error);
-        toast.error("Không thể tải dữ liệu bài viết. Vui lòng thử lại sau.");
-        setArticles([]);
+        console.error("Error fetching articles:", error)
+        toast({
+          title: "Lỗi",
+          description: "Không thể tải dữ liệu bài viết. Vui lòng thử lại sau.",
+          variant: "destructive",
+        })
+        setArticles(getMockArticles())
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    fetchArticles();
-  }, [])
+    fetchArticles()
+  }, [toast])
+
+  // Mock data function
+  const getMockArticles = (): Article[] => {
+    return [
+      {
+        id: "1",
+        title: "Lữ đoàn 279 đạt thành tích xuất sắc trong huấn luyện",
+        content: "Trong tháng vừa qua, Lữ đoàn 279 đã hoàn thành xuất sắc các nhiệm vụ huấn luyện được giao...",
+        type: "article",
+        imageUrl: "/placeholder.svg?height=200&width=300",
+        author: "Thiếu tá Nguyễn Văn A",
+        createdAt: "2024-01-15",
+        status: "published",
+      },
+      {
+        id: "2",
+        title: "Hội thi đơn vị nuôi quân giỏi năm 2024",
+        content: "Cuộc thi đánh giá chất lượng công tác hậu cần và quản lý quân nhu của các đơn vị...",
+        type: "article",
+        imageUrl: "/placeholder.svg?height=200&width=300",
+        author: "Đại úy Trần Thị B",
+        createdAt: "2024-01-10",
+        status: "published",
+      },
+      {
+        id: "3",
+        title: "Video giới thiệu trạm chế biến thực phẩm",
+        content: "Video giới thiệu quy trình chế biến thực phẩm tại trạm chế biến của Lữ đoàn 279...",
+        type: "video",
+        videoUrl: "https://example.com/video.mp4",
+        author: "Trung úy Lê Văn C",
+        createdAt: "2024-01-05",
+        status: "published",
+      },
+    ]
+  }
 
   const handleAddArticle = () => {
     setSelectedArticle(null)
@@ -103,7 +136,7 @@ export function DashboardContent() {
     try {
       if (selectedArticle) {
         // Update existing article
-        await contentApi.update(selectedArticle.id, articleData)
+        await articleService.update(selectedArticle.id, articleData)
         setArticles((prev) =>
           prev.map((article) =>
             article.id === selectedArticle.id
@@ -111,42 +144,60 @@ export function DashboardContent() {
               : article,
           ),
         )
-        toast.success("Cập nhật bài viết thành công")
+        toast({
+          title: "Thành công",
+          description: "Cập nhật bài viết thành công",
+        })
       } else {
         // Add new article
-        const response = await contentApi.create(articleData)
-        const newArticle: Article = {
-          id: response.contentId,
-          title: articleData.title || "",
-          content: articleData.content || "",
-          type: articleData.type || "article",
-          imageUrl: articleData.imageUrl,
-          videoUrl: articleData.videoUrl,
+        const newArticleData = {
+          ...articleData,
           author: "Current User", // Replace with actual user
           createdAt: new Date().toISOString(),
           status: "published",
         }
+
+        const response = await articleService.create(newArticleData)
+        const newArticle = response.data || {
+          id: Date.now().toString(),
+          ...newArticleData,
+        }
+
         setArticles((prev) => [newArticle, ...prev])
-        toast.success("Thêm bài viết mới thành công")
+        toast({
+          title: "Thành công",
+          description: "Thêm bài viết mới thành công",
+        })
       }
     } catch (error) {
-      toast.error("Đã xảy ra lỗi. Vui lòng thử lại.")
-    } finally {
-      setIsArticleDialogOpen(false)
+      console.error("Error saving article:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể lưu bài viết. Vui lòng thử lại sau.",
+        variant: "destructive",
+      })
     }
+    setIsArticleDialogOpen(false)
   }
 
   const handleConfirmDelete = async () => {
     if (selectedArticle) {
       try {
-        await contentApi.delete(selectedArticle.id)
+        await articleService.delete(selectedArticle.id)
         setArticles((prev) => prev.filter((article) => article.id !== selectedArticle.id))
-        toast.success("Xóa bài viết thành công")
+        toast({
+          title: "Thành công",
+          description: "Xóa bài viết thành công",
+        })
       } catch (error) {
-        toast.error("Đã xảy ra lỗi. Vui lòng thử lại.")
-      } finally {
-        setIsDeleteDialogOpen(false)
+        console.error("Error deleting article:", error)
+        toast({
+          title: "Lỗi",
+          description: "Không thể xóa bài viết. Vui lòng thử lại sau.",
+          variant: "destructive",
+        })
       }
+      setIsDeleteDialogOpen(false)
     }
   }
 

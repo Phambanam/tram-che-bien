@@ -11,14 +11,15 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
+import { authApi, unitsApi } from "@/lib/api-client"
 
 const formSchema = z
   .object({
     fullName: z.string().min(1, {
       message: "Họ và tên không được để trống",
     }),
-    username: z.string().min(1, {
-      message: "Tên đăng nhập không được để trống",
+    phoneNumber: z.string().min(1, {
+      message: "Số điện thoại không được để trống",
     }),
     password: z.string().min(6, {
       message: "Mật khẩu phải có ít nhất 6 ký tự",
@@ -59,7 +60,7 @@ export function RegisterForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       fullName: "",
-      username: "",
+      phoneNumber: "",
       password: "",
       confirmPassword: "",
       rank: "",
@@ -73,11 +74,8 @@ export function RegisterForm() {
     // Fetch units
     const fetchUnits = async () => {
       try {
-        const response = await fetch("/api/units")
-        if (response.ok) {
-          const data = await response.json()
-          setUnits(data)
-        }
+        const data = await unitsApi.getUnits()
+        setUnits(data)
       } catch (error) {
         console.error("Error fetching units:", error)
       }
@@ -90,34 +88,18 @@ export function RegisterForm() {
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(values),
+      await authApi.register(values)
+
+      toast({
+        title: "Đăng ký thành công",
+        description: "Tài khoản của bạn đang chờ phê duyệt",
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast({
-          title: "Đăng ký thành công",
-          description: data.message || "Tài khoản của bạn đang chờ phê duyệt",
-        })
-        router.push("/login")
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Đăng ký thất bại",
-          description: data.message || "Đã xảy ra lỗi khi đăng ký",
-        })
-      }
+      router.push("/login")
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Đăng ký thất bại",
-        description: "Đã xảy ra lỗi khi đăng ký",
+        description: error instanceof Error ? error.message : "Đã xảy ra lỗi khi đăng ký",
       })
     } finally {
       setIsLoading(false)
@@ -142,12 +124,12 @@ export function RegisterForm() {
         />
         <FormField
           control={form.control}
-          name="username"
+          name="phoneNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tên đăng nhập</FormLabel>
+              <FormLabel>Số điện thoại</FormLabel>
               <FormControl>
-                <Input placeholder="Nhập tên đăng nhập" {...field} />
+                <Input placeholder="Nhập số điện thoại" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -101,7 +101,7 @@ export const getMenuById = async (req: Request, res: Response) => {
         return {
           id: dailyMenu._id.toString(),
           menuId: dailyMenu.menuId.toString(),
-          date: dailyMenu.date,
+          date: dailyMenu.date.toISOString().split('T')[0],
           mealCount: dailyMenu.mealCount,
           status: dailyMenu.status,
           meals: meals,
@@ -522,6 +522,136 @@ export const updateMealDishes = async (req: Request, res: Response) => {
     }
     console.error("Error updating meal dishes:", error)
     throw new AppError("Đã xảy ra lỗi khi cập nhật món ăn", 500)
+  }
+}
+
+// @desc    Add dish to meal
+// @route   POST /api/menus/meals/:id/dishes
+// @access  Private (Admin only)
+export const addDishToMeal = async (req: Request, res: Response) => {
+  try {
+    const mealId = req.params.id
+    const { dishId, notes } = req.body
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(mealId)) {
+      throw new AppError("ID bữa ăn không hợp lệ", 400)
+    }
+
+    if (!ObjectId.isValid(dishId)) {
+      throw new AppError("ID món ăn không hợp lệ", 400)
+    }
+
+    const db = await getDb()
+
+    // Check if dish exists
+    const dish = await db.collection("dishes").findOne({ _id: new ObjectId(dishId) })
+    if (!dish) {
+      throw new AppError("Không tìm thấy món ăn", 404)
+    }
+
+    // Check if meal exists
+    const meal = await db.collection("meals").findOne({ _id: new ObjectId(mealId) })
+    if (!meal) {
+      throw new AppError("Không tìm thấy bữa ăn", 404)
+    }
+
+    // Check if dish already exists in meal - fix the comparison logic
+    const dishObjectId = new ObjectId(dishId)
+    console.log("Debug - Adding dish:", {
+      dishId: dishId,
+      dishObjectId: dishObjectId.toString(),
+      mealId: mealId,
+      existingDishes: meal.dishes.map((d: any) => ({
+        type: typeof d,
+        isObjectId: d instanceof ObjectId,
+        value: d.toString()
+      }))
+    })
+    
+    const dishExists = meal.dishes.some((d: any) => {
+      // Handle both ObjectId and string formats
+      if (d instanceof ObjectId) {
+        return d.equals(dishObjectId)
+      } else {
+        return d.toString() === dishId
+      }
+    })
+    
+    console.log("Debug - Dish exists check:", dishExists)
+    
+    if (dishExists) {
+      throw new AppError("Món ăn đã tồn tại trong bữa ăn này", 400)
+    }
+
+    // Add dish to meal
+    const result = await db.collection("meals").updateOne(
+      { _id: new ObjectId(mealId) },
+      {
+        $push: { dishes: new ObjectId(dishId) } as any,
+        $set: { updatedAt: new Date() },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      throw new AppError("Không tìm thấy bữa ăn", 404)
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Thêm món ăn thành công",
+    })
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
+    }
+    console.error("Error adding dish to meal:", error)
+    throw new AppError("Đã xảy ra lỗi khi thêm món ăn", 500)
+  }
+}
+
+// @desc    Remove dish from meal
+// @route   DELETE /api/menus/meals/:id/dishes/:dishId
+// @access  Private (Admin only)
+export const removeDishFromMeal = async (req: Request, res: Response) => {
+  try {
+    const mealId = req.params.id
+    const dishId = req.params.dishId
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(mealId)) {
+      throw new AppError("ID bữa ăn không hợp lệ", 400)
+    }
+
+    if (!ObjectId.isValid(dishId)) {
+      throw new AppError("ID món ăn không hợp lệ", 400)
+    }
+
+    const db = await getDb()
+
+    // Remove dish from meal
+    const result = await db.collection("meals").updateOne(
+      { _id: new ObjectId(mealId) },
+      {
+        $pull: { dishes: new ObjectId(dishId) } as any,
+        $set: { updatedAt: new Date() },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      throw new AppError("Không tìm thấy bữa ăn", 404)
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Xóa món ăn thành công",
+    })
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
+    }
+    console.error("Error removing dish from meal:", error)
+    throw new AppError("Đã xảy ra lỗi khi xóa món ăn", 500)
   }
 }
 

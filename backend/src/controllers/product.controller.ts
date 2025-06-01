@@ -58,12 +58,16 @@ export const getProducts = async (req: Request, res: Response) => {
 
     // Transform data for response
     const transformedProducts = products.map((product) => ({
-      id: product._id.toString(),
+      _id: product._id.toString(),
       name: product.name,
       description: product.description,
       unit: product.unit,
+      nutritionalValue: product.nutritionalValue,
+      storageCondition: product.storageCondition,
+      categoryId: product.category.toString(),
+      categoryName: product.categoryInfo.name,
       category: {
-        id: product.category.toString(),
+        _id: product.category.toString(),
         name: product.categoryInfo.name,
       },
       createdAt: product.createdAt,
@@ -89,7 +93,7 @@ export const getProducts = async (req: Request, res: Response) => {
 // @access  Private (Admin, Brigade Assistant)
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const { name, category, description, unit } = req.body
+    const { name, category, description, unit, nutritionalValue, storageCondition } = req.body
 
     // Validate input
     if (!name || !category) {
@@ -115,6 +119,8 @@ export const createProduct = async (req: Request, res: Response) => {
       category: new ObjectId(category),
       description: description || "",
       unit: unit || "kg",
+      nutritionalValue: nutritionalValue || "",
+      storageCondition: storageCondition || "",
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -176,12 +182,16 @@ export const getProductById = async (req: Request, res: Response) => {
     const transformedProduct = {
       _id: product[0]._id.toString(),
       name: product[0].name,
+      categoryId: product[0].category.toString(),
+      categoryName: product[0].categoryInfo.name,
       category: {
         _id: product[0].category.toString(),
         name: product[0].categoryInfo.name,
       },
       description: product[0].description,
       unit: product[0].unit,
+      nutritionalValue: product[0].nutritionalValue,
+      storageCondition: product[0].storageCondition,
       createdAt: product[0].createdAt,
       updatedAt: product[0].updatedAt,
     }
@@ -205,7 +215,7 @@ export const getProductById = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const productId = req.params.id
-    const { name, category, description, unit } = req.body
+    const { name, category, description, unit, nutritionalValue, storageCondition } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(productId)) {
@@ -238,6 +248,8 @@ export const updateProduct = async (req: Request, res: Response) => {
           category: new ObjectId(category),
           description: description || "",
           unit: unit || "kg",
+          nutritionalValue: nutritionalValue || "",
+          storageCondition: storageCondition || "",
           updatedAt: new Date(),
         },
       },

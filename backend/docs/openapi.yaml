@@ -18,15 +18,259 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    # Import common schemas - these will be referenced using '#/components/schemas/[SchemaName]'
+    # Common response schema definitions
     PaginatedResponse:
-      $ref: './openapi/schemas.yaml#/components/schemas/PaginatedResponse'
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+        count:
+          type: integer
+          description: Number of items in the current page
+          example: 10
+        totalCount:
+          type: integer
+          description: Total number of items across all pages
+          example: 50
+        currentPage:
+          type: integer
+          example: 1
+        totalPages: 
+          type: integer
+          example: 5
+        message:
+          type: string
+          nullable: true
+          
     ErrorResponse:
-      $ref: './openapi/schemas.yaml#/components/schemas/ErrorResponse'
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Đã xảy ra lỗi khi xử lý yêu cầu"
+        error:
+          type: object
+          nullable: true
+          properties:
+            code:
+              type: integer
+            details:
+              type: string
+              
+    # User schema definition
     User:
-      $ref: './openapi/schemas.yaml#/components/schemas/User'
+      type: object
+      properties:
+        id:
+          type: string
+          example: "60d21b4667d0d8992e610c85"
+        fullName:
+          type: string
+          example: "Nguyễn Văn A"
+        username:
+          type: string
+          example: "nguyenvana"
+        phoneNumber:
+          type: string
+          example: "0123456789"
+        role:
+          type: string
+          enum: [admin, commander, brigadeAssistant, unitAssistant]
+          example: "unitAssistant"
+        unit:
+          type: object
+          properties:
+            _id:
+              type: string
+              example: "60d21b4667d0d8992e610c80"
+            name:
+              type: string
+              example: "Tiểu đoàn 1"
+        rank:
+          type: string
+          example: "Thiếu úy"
+        position:
+          type: string
+          example: "Trợ lý tiểu đoàn"
+        status:
+          type: string
+          enum: [active, inactive]
+          example: "active"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          
+    # Supply schema definition
     Supply:
-      $ref: './openapi/schemas.yaml#/components/schemas/Supply'
+      type: object
+      properties:
+        id:
+          type: string
+          example: "60d21b4667d0d8992e610c86"
+        unit:
+          type: object
+          properties:
+            _id:
+              type: string
+              example: "60d21b4667d0d8992e610c80"
+            name:
+              type: string
+              example: "Tiểu đoàn 1"
+        category:
+          type: object
+          properties:
+            _id:
+              type: string
+              example: "luong-thuc"
+            name:
+              type: string
+              example: "Lương thực"
+        product:
+          type: object
+          properties:
+            _id:
+              type: string
+              example: "gao"
+            name:
+              type: string
+              example: "Gạo"
+            unit:
+              type: string
+              example: "kg"
+        supplyQuantity:
+          type: number
+          example: 100
+        expectedHarvestDate:
+          type: string
+          format: date
+          example: "2023-01-15"
+        stationEntryDate:
+          type: string
+          format: date
+          nullable: true
+        requestedQuantity:
+          type: number
+          nullable: true
+        actualQuantity:
+          type: number
+          nullable: true
+        unitPrice:
+          type: number
+          nullable: true
+        totalPrice:
+          type: number
+          nullable: true
+        expiryDate:
+          type: string
+          format: date
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved, rejected, deleted]
+          example: "pending"
+        note:
+          type: string
+          example: "Hàng tươi mới"
+        createdBy:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        approvedBy:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Unit schema definition
+    Unit:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60d21b4667d0d8992e610c80"
+        name:
+          type: string
+          example: "Tiểu đoàn 1"
+        code:
+          type: string
+          example: "TD001"
+        parentUnit:
+          type: string
+          nullable: true
+          example: "60d21b4667d0d8992e610c79"
+        commander:
+          type: string
+          nullable: true
+          example: "60d21b4667d0d8992e610c85"
+        assistant:
+          type: string
+          nullable: true
+          example: "60d21b4667d0d8992e610c86"
+        status:
+          type: string
+          enum: [active, inactive]
+          example: "active"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Product Category schema definition
+    ProductCategory:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "luong-thuc"
+        name:
+          type: string
+          example: "Lương thực"
+
+    # Product schema definition
+    Product:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "gao"
+        name:
+          type: string
+          example: "Gạo"
+        unit:
+          type: string
+          example: "kg"
+        category:
+          type: string
+          example: "luong-thuc"
+        standardAmount:
+          type: number
+          example: 0.5
 
 paths: {}
 

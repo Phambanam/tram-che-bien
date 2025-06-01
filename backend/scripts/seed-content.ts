@@ -1,6 +1,9 @@
 import { MongoClient } from "mongodb"
+import dotenv from "dotenv"
+import { connectToDatabase, closeConnection } from "../src/config/database"
 
-const MONGODB_URI = "mongodb://admin:password@localhost:27017/military-logistics?authSource=admin"
+// Load environment variables
+dotenv.config()
 
 const sampleContent = [
   {
@@ -112,12 +115,11 @@ const sampleContent = [
 ]
 
 async function seedContent() {
-  const client = new MongoClient(MONGODB_URI)
+  console.log("Seeding content...")
 
   try {
-    await client.connect()
-    console.log("Connected to MongoDB")
-
+    // Connect to database using configuration from database.ts
+    const client = await connectToDatabase()
     const db = client.db()
 
     // Clear existing content
@@ -132,7 +134,7 @@ async function seedContent() {
   } catch (error) {
     console.error("Error seeding content:", error)
   } finally {
-    await client.close()
+    await closeConnection()
   }
 }
 

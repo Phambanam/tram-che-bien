@@ -31,9 +31,46 @@ const router = express.Router()
  *                   type:
  *                     type: string
  */
+// Public routes (no authentication required)
 router.get("/", getUnits)
 
-// Protected routes
+/**
+ * @swagger
+ * /api/units/{id}:
+ *   get:
+ *     tags:
+ *       - Units
+ *     summary: Get unit by ID
+ *     description: Retrieve a single unit by its ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Unit ID
+ *     responses:
+ *       200:
+ *         description: Unit details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 location:
+ *                   type: string
+ *                 type:
+ *                   type: string
+ *       404:
+ *         description: Unit not found
+ */
+router.get("/:id", getUnitById)
+
+// Protected routes (require authentication)
 router.use(protect)
 
 /**
@@ -72,46 +109,6 @@ router.use(protect)
  *         description: Not authorized
  */
 router.post("/", authorize("admin", "brigadeAssistant"), createUnit)
-
-/**
- * @swagger
- * /api/units/{id}:
- *   get:
- *     tags:
- *       - Units
- *     summary: Get unit by ID
- *     description: Retrieve a single unit by its ID
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Unit ID
- *     responses:
- *       200:
- *         description: Unit details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                 name:
- *                   type: string
- *                 location:
- *                   type: string
- *                 type:
- *                   type: string
- *       401:
- *         description: Not authenticated
- *       404:
- *         description: Unit not found
- */
-router.get("/:id", getUnitById)
 
 /**
  * @swagger

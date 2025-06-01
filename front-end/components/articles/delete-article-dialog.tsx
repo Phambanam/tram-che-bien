@@ -1,15 +1,15 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { AlertTriangle } from "lucide-react"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Article {
   id: string
@@ -31,37 +31,24 @@ interface DeleteArticleDialogProps {
 }
 
 export function DeleteArticleDialog({ article, open, onOpenChange, onConfirm }: DeleteArticleDialogProps) {
+  if (!article) return null
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-            Xác nhận xóa bài viết
-          </DialogTitle>
-          <DialogDescription>
-            Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác.
-          </DialogDescription>
-        </DialogHeader>
-
-        {article && (
-          <div className="py-4">
-            <div className="bg-gray-50 p-3 rounded-md">
-              <p className="font-medium text-sm">Tiêu đề:</p>
-              <p className="text-sm text-gray-600">{article.title}</p>
-            </div>
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Hủy
-          </Button>
-          <Button type="button" variant="destructive" onClick={onConfirm}>
-            Xóa bài viết
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Hành động này sẽ xóa vĩnh viễn bài viết "{article.title}" và không thể khôi phục.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Hủy</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} className="bg-red-600 hover:bg-red-700">
+            Xóa
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

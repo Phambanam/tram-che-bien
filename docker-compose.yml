@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: mongo:latest
+    container_name: military_logistics_db
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: military-logistics
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

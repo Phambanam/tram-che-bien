@@ -24,13 +24,14 @@ import dishRoutes from "./routes/dish.routes"
 import menuRoutes from "./routes/menu.routes"
 import processingStationRoutes from "./routes/processing-station.routes"
 import supplyOutputRoutes from "./routes/supply-output.routes"
+import dailyRationRoutes from "./routes/daily-ration.routes"
 
 // Load environment variables
 dotenv.config()
 
 // Initialize Express app
 const app = express()
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5001
 
 // Setup Swagger API documentation
 setupSwagger(app) // Call the function to setup Swagger
@@ -79,6 +80,7 @@ app.use("/api/dishes", dishRoutes)
 app.use("/api/menus", menuRoutes)
 app.use("/api/processing-station", processingStationRoutes)
 app.use("/api/supply-outputs", supplyOutputRoutes)
+app.use("/api/daily-rations", dailyRationRoutes)
 // routes
 app.use("/api/upload", uploadRoutes)
 

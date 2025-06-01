@@ -16,6 +16,10 @@ export const getUnits = async (req: Request, res: Response) => {
     const transformedUnits = units.map((unit) => ({
       _id: unit._id.toString(),
       name: unit.name,
+      code: unit.code,
+      personnel: unit.personnel,
+      commander: unit.commander,
+      contact: unit.contact,
       description: unit.description,
       createdAt: unit.createdAt,
       updatedAt: unit.updatedAt,
@@ -37,7 +41,7 @@ export const getUnits = async (req: Request, res: Response) => {
 // @access  Private (Admin, Brigade Assistant)
 export const createUnit = async (req: Request, res: Response) => {
   try {
-    const { name, description } = req.body
+    const { name, code, personnel, commander, contact, description } = req.body
 
     // Validate input
     if (!name) {
@@ -46,8 +50,13 @@ export const createUnit = async (req: Request, res: Response) => {
 
     const db = await getDb()
 
-    // Check if unit already exists
-    const existingUnit = await db.collection("units").findOne({ name })
+    // Check if unit already exists by name or code
+    const existingUnit = await db.collection("units").findOne({
+      $or: [
+        { name },
+        ...(code ? [{ code }] : [])
+      ]
+    })
     if (existingUnit) {
       throw new AppError("Đơn vị đã tồn tại", 400)
     }
@@ -55,6 +64,10 @@ export const createUnit = async (req: Request, res: Response) => {
     // Create new unit
     const result = await db.collection("units").insertOne({
       name,
+      code: code || "",
+      personnel: personnel || 0,
+      commander: commander || "",
+      contact: contact || "",
       description: description || "",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -98,6 +111,10 @@ export const getUnitById = async (req: Request, res: Response) => {
     const transformedUnit = {
       _id: unit._id.toString(),
       name: unit.name,
+      code: unit.code,
+      personnel: unit.personnel,
+      commander: unit.commander,
+      contact: unit.contact,
       description: unit.description,
       createdAt: unit.createdAt,
       updatedAt: unit.updatedAt,
@@ -122,7 +139,7 @@ export const getUnitById = async (req: Request, res: Response) => {
 export const updateUnit = async (req: Request, res: Response) => {
   try {
     const unitId = req.params.id
-    const { name, description } = req.body
+    const { name, code, personnel, commander, contact, description } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(unitId)) {
@@ -136,14 +153,17 @@ export const updateUnit = async (req: Request, res: Response) => {
 
     const db = await getDb()
 
-    // Check if unit with the same name already exists (excluding current unit)
+    // Check if unit with the same name or code already exists (excluding current unit)
     const existingUnit = await db.collection("units").findOne({
       _id: { $ne: new ObjectId(unitId) },
-      name,
+      $or: [
+        { name },
+        ...(code ? [{ code }] : [])
+      ]
     })
 
     if (existingUnit) {
-      throw new AppError("Đơn vị với tên này đã tồn tại", 400)
+      throw new AppError("Đơn vị với tên hoặc mã này đã tồn tại", 400)
     }
 
     const result = await db.collection("units").updateOne(
@@ -151,6 +171,10 @@ export const updateUnit = async (req: Request, res: Response) => {
       {
         $set: {
           name,
+          code: code || "",
+          personnel: personnel || 0,
+          commander: commander || "",
+          contact: contact || "",
           description: description || "",
           updatedAt: new Date(),
         },
