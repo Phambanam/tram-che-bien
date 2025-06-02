@@ -2,6 +2,9 @@ import type { Request, Response } from "express"
 import { ObjectId } from "mongodb"
 import { getDb } from "../config/database"
 import { AppError } from "../middleware/error.middleware"
+import mongoose from "mongoose"
+import { Supply, Unit, User } from "../models"
+import { connectToDatabase } from "../config/database"
 
 // Predefined categories and products
 const FOOD_CATEGORIES = {
@@ -82,25 +85,49 @@ export const getSupplies = async (req: Request, res: Response) => {
   try {
     const { unit, category, status, fromDate, toDate } = req.query
 
-    const db = await getDb()
+    // Make sure the database is connected
+    await connectToDatabase()
 
-    // Build query based on role and filters
-    const query: any = {}
-
+    // Log user info for debugging
     console.log("DEBUG - getSupplies user info:", {
       role: req.user!.role,
       unit: req.user!.unit,
       userId: req.user!.id
     })
 
+    // Build query based on role and filters
+    const query: any = {}
+
+    // Don't filter by unit for admin or brigadeAssistant roles
+    if (req.user!.role === "admin" || req.user!.role === "brigadeAssistant") {
+      console.log("DEBUG - Not filtering by unit for admin/brigadeAssistant role")
+    } 
     // Unit assistants can only see their own unit's supplies
-    if (req.user!.role === "unitAssistant") {
-      query.unit = new ObjectId(req.user!.unit)
-      console.log("DEBUG - Adding unit filter:", query.unit.toString())
+    else if (req.user!.role === "unitAssistant") {
+      try {
+        // Convert unit to ObjectId if it's a string
+        if (typeof req.user!.unit === "string") {
+          query.unit = new mongoose.Types.ObjectId(req.user!.unit)
+        } else {
+          // Use as is if already ObjectId
+          query.unit = req.user!.unit
+        }
+        console.log("DEBUG - Filtering by unit for unitAssistant:", query.unit)
+      } catch (error) {
+        console.error("Error converting unit to ObjectId:", error)
+        query.unit = req.user!.unit // Fallback to using as-is
+      }
     }
-    // Filter by unit if specified
-    else if (unit && ObjectId.isValid(unit as string)) {
-      query.unit = new ObjectId(unit as string)
+
+    // Filter by unit parameter if specified
+    if (unit && unit !== "all" && mongoose.isValidObjectId(unit)) {
+      try {
+        query.unit = new mongoose.Types.ObjectId(unit as string)
+        console.log("DEBUG - Filtering by unit from query param:", query.unit)
+      } catch (error) {
+        console.error("Error converting unit param to ObjectId:", error)
+        query.unit = unit
+      }
     }
 
     // Filter by category if specified
@@ -109,7 +136,7 @@ export const getSupplies = async (req: Request, res: Response) => {
     }
 
     // Filter by status if specified
-    if (status) {
+    if (status && status !== 'all') {
       query.status = status
     }
 
@@ -126,143 +153,61 @@ export const getSupplies = async (req: Request, res: Response) => {
 
     console.log("DEBUG - Final query:", JSON.stringify(query, null, 2))
 
-    // Get supplies with related information
-    const supplies = await db
-      .collection("supplies")
-      .aggregate([
-        {
-          $match: query,
-        },
-        {
-          $lookup: {
-            from: "units",
-            localField: "unit",
-            foreignField: "_id",
-            as: "unitInfo",
-          },
-        },
-        {
-          $lookup: {
-            from: "users",
-            localField: "createdBy",
-            foreignField: "_id",
-            as: "createdByInfo",
-          },
-        },
-        {
-          $lookup: {
-            from: "users",
-            localField: "approvedBy",
-            foreignField: "_id",
-            as: "approvedByInfo",
-          },
-        },
-        {
-          $unwind: "$unitInfo",
-        },
-        {
-          $unwind: {
-            path: "$createdByInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $unwind: {
-            path: "$approvedByInfo",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $project: {
-            id: { $toString: "$_id" },
-            unit: {
-              _id: { $toString: "$unit" },
-              name: "$unitInfo.name",
-            },
-            category: {
-              _id: "$category",
-              name: {
-                $switch: {
-                  branches: Object.entries(FOOD_CATEGORIES).map(([key, value]) => ({
-                    case: { $eq: ["$category", key] },
-                    then: value,
-                  })),
-                  default: "$category",
-                },
-              },
-            },
-            product: {
-              _id: "$product",
-              name: {
-                $switch: {
-                  branches: Object.values(FOOD_PRODUCTS)
-                    .flat()
-                    .map((product) => ({
-                      case: { $eq: ["$product", product.id] },
-                      then: product.name,
-                    })),
-                  default: "$product",
-                },
-              },
-              unit: {
-                $switch: {
-                  branches: Object.values(FOOD_PRODUCTS)
-                    .flat()
-                    .map((product) => ({
-                      case: { $eq: ["$product", product.id] },
-                      then: product.unit,
-                    })),
-                  default: "kg",
-                },
-              },
-            },
-            supplyQuantity: 1,
-            expectedHarvestDate: 1,
-            stationEntryDate: 1,
-            requestedQuantity: 1,
-            actualQuantity: 1,
-            unitPrice: 1,
-            totalPrice: 1,
-            expiryDate: 1,
-            status: 1,
-            note: 1,
-            createdBy: {
-              $cond: [
-                { $ifNull: ["$createdByInfo", false] },
-                {
-                  id: { $toString: "$createdBy" },
-                  name: "$createdByInfo.fullName",
-                },
-                null,
-              ],
-            },
-            approvedBy: {
-              $cond: [
-                { $ifNull: ["$approvedByInfo", false] },
-                {
-                  id: { $toString: "$approvedBy" },
-                  name: "$approvedByInfo.fullName",
-                },
-                null,
-              ],
-            },
-            createdAt: 1,
-            updatedAt: 1,
-          },
-        },
-      ])
-      .toArray()
+    // Use Mongoose model to find supplies
+    const supplies = await Supply.find(query)
+      .populate({
+        path: 'unit',
+        select: 'name'
+      })
+      .lean() // Convert to plain JavaScript objects
+      .exec(); // Execute the query
 
-    console.log("DEBUG - Found supplies:", supplies.length)
-    if (supplies.length > 0) {
-      console.log("DEBUG - First supply:", JSON.stringify(supplies[0], null, 2))
+    // Format response for the frontend
+    const formattedSupplies = supplies.map(supply => {
+      const { _id, unit, category, product, ...rest } = supply;
+      
+      return {
+        id: _id.toString(),
+        unit: {
+          _id: unit && typeof unit === 'object' ? (unit._id ? unit._id.toString() : '') : '',
+          name: unit && typeof unit === 'object' && 'name' in unit ? unit.name : ''
+        },
+        category: {
+          _id: category,
+          name: FOOD_CATEGORIES[category as keyof typeof FOOD_CATEGORIES] || category
+        },
+        product: {
+          _id: product,
+          name: getProductName(product),
+          unit: getProductUnit(product)
+        },
+        ...rest
+      };
+    });
+
+    console.log(`DEBUG - Found ${formattedSupplies.length} supplies`);
+    if (formattedSupplies.length > 0) {
+      console.log("DEBUG - First supply:", JSON.stringify(formattedSupplies[0], null, 2));
     }
 
-    res.status(200).json(supplies)
+    res.status(200).json(formattedSupplies)
   } catch (error) {
     console.error("Error fetching supplies:", error)
     throw new AppError("Đã xảy ra lỗi khi lấy danh sách nguồn nhập", 500)
   }
+}
+
+// Helper functions to get product details
+function getProductName(productId: string): string {
+  const allProducts = Object.values(FOOD_PRODUCTS).flat();
+  const product = allProducts.find(p => p.id === productId);
+  return product ? product.name : productId;
+}
+
+function getProductUnit(productId: string): string {
+  const allProducts = Object.values(FOOD_PRODUCTS).flat();
+  const product = allProducts.find(p => p.id === productId);
+  return product ? product.unit : 'kg';
 }
 
 // @desc    Create new supply
@@ -299,14 +244,15 @@ export const createSupply = async (req: Request, res: Response) => {
     
     const categoryProducts = FOOD_PRODUCTS[category as keyof typeof FOOD_PRODUCTS] || []
     const productExists = categoryProducts.find((p) => p.id === product)
-      if (!productExists) {
+    if (!productExists) {
       throw new AppError("Sản phẩm không hợp lệ", 400)
-      }
+    }
 
-    const db = await getDb()
+    // Ensure database connection
+    await connectToDatabase()
 
     // Unit assistants can only create for their own unit
-    const unitId = new ObjectId(req.user!.unit)
+    const unitId = new mongoose.Types.ObjectId(req.user!.unit)
 
     console.log("DEBUG - createSupply user info:", {
       role: req.user!.role,
@@ -318,6 +264,10 @@ export const createSupply = async (req: Request, res: Response) => {
     // Calculate total price if both actualQuantity and unitPrice are provided
     const totalPrice = (actualQuantity && unitPrice) ? Number(actualQuantity) * Number(unitPrice) : null
 
+    // Get the user's full name for the createdBy field
+    const user = await User.findById(req.user!.id).select('fullName').lean()
+    
+    // Create new supply using Mongoose model
     const supplyData = {
       unit: unitId,
       category,
@@ -328,29 +278,34 @@ export const createSupply = async (req: Request, res: Response) => {
       requestedQuantity: null, // Will be filled by brigade assistant during approval
       actualQuantity: actualQuantity ? Number(actualQuantity) : null,
       unitPrice: unitPrice ? Number(unitPrice) : null,
-      totalPrice: totalPrice,
+      totalPrice,
       expiryDate: expiryDate ? new Date(expiryDate) : null,
       status: "pending", // Always starts as pending
       note: note || "",
-      createdBy: new ObjectId(req.user!.id),
-      approvedBy: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdBy: {
+        id: new mongoose.Types.ObjectId(req.user!.id),
+        name: user?.fullName || 'Unknown'
+      },
+      approvedBy: null
     }
 
     console.log("DEBUG - Creating supply with data:", JSON.stringify({
       ...supplyData,
       unit: supplyData.unit.toString(),
-      createdBy: supplyData.createdBy.toString()
+      createdBy: { 
+        id: supplyData.createdBy.id.toString(),
+        name: supplyData.createdBy.name
+      }
     }, null, 2))
 
     // Create new supply with pending status
-    const result = await db.collection("supplies").insertOne(supplyData)
+    const newSupply = new Supply(supplyData)
+    const savedSupply = await newSupply.save()
 
     res.status(201).json({
       success: true,
       message: "Thêm nguồn nhập thành công. Trạng thái: Chờ phê duyệt",
-      data: { supplyId: result.insertedId.toString() },
+      data: { supplyId: savedSupply._id.toString() },
     })
   } catch (error) {
     if (error instanceof AppError) {

@@ -1,83 +1,90 @@
-import { MongoClient, ServerApiVersion } from "mongodb"
-import dotenv from "dotenv"
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
 // Load environment variables
-dotenv.config()
+dotenv.config();
+
 if (!process.env.MONGODB_URI) {
-  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"')
+  throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
 }
 
+const MONGODB_URI: string = process.env.MONGODB_URI;
 
-const uri = process.env.MONGODB_URI
-const options = {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-}
+// Connection options
+const options: mongoose.ConnectOptions = {
+  // No need for serverApi with mongoose
+  // Mongoose will handle the connection pool
+};
 
-// Global variable to store the connection
-let client: MongoClient | null = null
-let clientPromise: Promise<MongoClient> | null = null
+// Global promise of the mongoose connection
+let mongoosePromise: Promise<typeof mongoose> | null = null;
 
-export async function connectToDatabase() {
+// Connect to MongoDB with Mongoose
+export const connectToDatabase = async (): Promise<typeof mongoose> => {
   try {
-    // If we already have a connection, reuse it
-    if (client) {
-      // Check if the client is connected by attempting a simple command
-      try {
-        await client.db("admin").command({ ping: 1 })
-        console.log("Reusing existing MongoDB connection")
-        return client
-      } catch (error) {
-        console.log("Existing connection is no longer valid, creating a new one")
-        // Connection is not valid, continue to create a new one
-      }
+    // If we already have a connection promise, reuse it
+    if (mongoosePromise) {
+      console.log('Reusing existing MongoDB connection');
+      return await mongoosePromise;
     }
 
-    // If we have a connection promise, reuse it
-    if (clientPromise) {
-      console.log("Waiting for existing connection promise")
-      client = await clientPromise
-      return client
-    }
+    // Create a new connection
+    console.log('Creating new MongoDB connection');
+    
+    // Create promise
+    mongoosePromise = mongoose.connect(MONGODB_URI, options);
 
-    // Create a new client and connect
-    console.log("Creating new MongoDB connection")
-    client = new MongoClient(uri, options)
-    clientPromise = client.connect()
+    // Add connection event handlers
+    mongoose.connection.on('connected', () => {
+      console.log('MongoDB connected successfully');
+    });
 
-    client = await clientPromise
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err);
+      // Reset promise on error
+      mongoosePromise = null;
+    });
 
-    // Verify connection by pinging
-    await client.db("admin").command({ ping: 1 })
-    console.log("MongoDB connected successfully")
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected');
+      // Reset promise when disconnected
+      mongoosePromise = null;
+    });
 
-    return client
+    // Handle process termination
+    process.on('SIGINT', async () => {
+      await mongoose.connection.close();
+      console.log('MongoDB connection closed due to app termination');
+      process.exit(0);
+    });
+
+    // Wait for connection to be established
+    await mongoosePromise;
+    return mongoose;
   } catch (error) {
-    console.error("Database connection error:", error)
-    // Reset global variables if connection fails
-    client = null
-    clientPromise = null
-    throw new Error(`Unable to connect to database: ${error instanceof Error ? error.message : String(error)}`)
+    console.error('Database connection error:', error);
+    // Reset promise if connection fails
+    mongoosePromise = null;
+    throw new Error(`Unable to connect to database: ${error instanceof Error ? error.message : String(error)}`);
   }
-}
+};
 
-// Function to close connection when needed (e.g., when shutting down server)
-export async function closeConnection() {
-  if (client) {
-    await client.close()
-    client = null
-    clientPromise = null
-    console.log("MongoDB connection closed")
+// Function to close connection when needed
+export const closeConnection = async (): Promise<void> => {
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.connection.close();
+    console.log('MongoDB connection closed');
+    mongoosePromise = null;
   }
-}
+};
 
-// Function to get database instance
-export async function getDb(dbName?: string) {
-  const conn = await connectToDatabase()
-  return conn.db(dbName)
-}
+// Function to get the mongoose instance
+export const getMongoose = async (): Promise<typeof mongoose> => {
+  return await connectToDatabase();
+};
+
+// For backward compatibility with existing code
+export const getDb = async () => {
+  await connectToDatabase();
+  return mongoose.connection.db;
+};
