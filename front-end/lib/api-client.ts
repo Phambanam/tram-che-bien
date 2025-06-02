@@ -26,23 +26,69 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
+    mode: 'cors',
+    credentials: 'include',
     ...options,
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config)
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    console.error('API Error:', {
+  try {
+    // Try using IP address first
+    let url = `${API_BASE_URL}${endpoint}`;
+    console.log(`Attempting fetch to: ${url}`);
+    
+    // First try with the configured URL
+    let response = await fetch(url, config);
+    
+    // If that fails, try with 127.0.0.1 instead of localhost
+    if (!response.ok && url.includes('localhost')) {
+      const altUrl = url.replace('localhost', '127.0.0.1');
+      console.log(`Retrying with IP address: ${altUrl}`);
+      response = await fetch(altUrl, config);
+    }
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('API Error:', {
+        endpoint,
+        status: response.status,
+        statusText: response.statusText,
+        errorData
+      });
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    // Handle network errors
+    console.error('Network Error:', {
       endpoint,
-      status: response.status,
-      statusText: response.statusText,
-      errorData
-    })
-    throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+      error: error instanceof Error ? error.message : String(error),
+      url: `${API_BASE_URL}${endpoint}`
+    });
+    
+    // Try alternative URL with IP if using localhost
+    if (API_BASE_URL.includes('localhost') && error instanceof Error && error.message.includes('Failed to fetch')) {
+      try {
+        const altUrl = `${API_BASE_URL.replace('localhost', '127.0.0.1')}${endpoint}`;
+        console.log(`Connection refused, trying IP address: ${altUrl}`);
+        
+        const response = await fetch(altUrl, config);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+        
+        return response.json();
+      } catch (retryError) {
+        console.error('Retry also failed:', retryError);
+        throw new Error('Unable to connect to the server. Please check your network connection and try again.');
+      }
+    }
+    
+    // Re-throw other errors
+    throw error;
   }
-
-  return response.json()
 }
 
 // Auth API
@@ -692,29 +738,30 @@ export const lttpApi = {
       })
     }
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-    return apiRequest<any>(`/lttp${query}`)
+    return apiRequest<any>(`/products${query}`)
   },
 
   getLTTPById: async (id: string) => {
-    return apiRequest<any>(`/lttp/${id}`)
+    return apiRequest<any>(`/products/${id}`)
   },
 
   createLTTP: async (data: any) => {
-    return apiRequest<{ success: boolean; message: string }>("/lttp", {
+    console.log(data)
+    return apiRequest<{ success: boolean; message: string }>("/products", {
       method: "POST",
       body: JSON.stringify(data),
     })
   },
 
   updateLTTP: async (id: string, data: any) => {
-    return apiRequest<{ success: boolean; message: string }>(`/lttp/${id}`, {
+    return apiRequest<{ success: boolean; message: string }>(`/products/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     })
   },
 
   deleteLTTP: async (id: string) => {
-    return apiRequest<{ success: boolean; message: string }>(`/lttp/${id}`, {
+    return apiRequest<{ success: boolean; message: string }>(`/products/${id}`, {
       method: "DELETE",
     })
   },
