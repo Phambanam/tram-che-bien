@@ -158,9 +158,14 @@ export function DataLibraryContent() {
 
       // Fetch products (LTTP Items)
       try {
+        console.log('Fetching products...')
         const productsResponse = await productsApi.getProducts()
+        console.log('Products response:', productsResponse)
+        
         const productsData = Array.isArray(productsResponse) ? productsResponse : (productsResponse as any).data || []
-        setLTTPItems(productsData.map((product: any) => ({
+        console.log('Products data:', productsData)
+        
+        const mappedLTTPItems = productsData.map((product: any) => ({
           _id: product._id,
           name: product.name,
           categoryId: product.categoryId || product.category?._id,
@@ -169,9 +174,13 @@ export function DataLibraryContent() {
           description: product.description,
           nutritionalValue: product.nutritionalValue,
           storageCondition: product.storageCondition,
-        })))
+        }))
+        
+        console.log('Mapped LTTP items:', mappedLTTPItems)
+        setLTTPItems(mappedLTTPItems)
+        console.log('LTTP items state updated')
       } catch (error) {
-        console.log("Could not fetch products, using sample data")
+        console.log("Could not fetch products, using sample data. Error:", error)
         
       }
 
@@ -310,6 +319,9 @@ export function DataLibraryContent() {
       // Prepare data based on active tab
       let dataToSave = { ...formData }
       
+      console.log('handleSave called for tab:', activeTab)
+      console.log('Data to save:', dataToSave)
+      
       // Special handling for dishes
       if (activeTab === "dishes") {
         dataToSave.ingredients = ingredients
@@ -339,10 +351,22 @@ export function DataLibraryContent() {
       } else if (activeTab === "lttp") {
         successMessage = dialogMode === "add" ? "Thêm LTTP thành công" : "Cập nhật LTTP thành công"
         
+        // For LTTP, use productsApi instead of lttpApi for consistency
         if (dialogMode === "add") {
-          apiCall = lttpApi.createLTTP(dataToSave)
+          // Make sure categoryId is included for product creation
+          if (!dataToSave.categoryId) {
+            toast({
+              title: "Lỗi",
+              description: "Vui lòng chọn phân loại cho LTTP",
+              variant: "destructive",
+            })
+            return
+          }
+          console.log('Creating LTTP with data:', dataToSave)
+          apiCall = productsApi.createProduct(dataToSave)
         } else {
-          apiCall = lttpApi.updateLTTP(selectedItem._id, dataToSave)
+          console.log('Updating LTTP with data:', dataToSave)
+          apiCall = productsApi.updateProduct(selectedItem._id, dataToSave)
         }
       } else if (activeTab === "rations") {
         successMessage = dialogMode === "add" ? "Thêm định lượng ăn thành công" : "Cập nhật định lượng ăn thành công"
@@ -355,11 +379,15 @@ export function DataLibraryContent() {
       }
 
       if (apiCall) {
-        await apiCall
+        console.log('Calling API...')
+        const result = await apiCall
+        console.log('API result:', result)
+        
         toast({
           title: "Thành công",
           description: successMessage,
         })
+        
         setDialogOpen(false)
         setFormData({})
         setIngredients([])
@@ -370,9 +398,13 @@ export function DataLibraryContent() {
           unit: "",
           notes: ""
         })
+        
+        console.log('Refreshing data...')
         await fetchData()
+        console.log('Data refreshed successfully')
       }
     } catch (error: any) {
+      console.error('Error in handleSave:', error)
       toast({
         title: "Lỗi",
         description: error.message || "Có lỗi xảy ra khi lưu dữ liệu",

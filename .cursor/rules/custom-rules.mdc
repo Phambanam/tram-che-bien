@@ -4,3 +4,4 @@ globs:
 alwaysApply: false
 ---
 luôn kiểm tra api trong backend trước để dùng api cho đúng 
+không bao giờ dùng các data tĩnh mà phải call từ backend, nếu backend không có hãy lên plan để tạo
