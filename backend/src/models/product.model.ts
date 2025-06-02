@@ -1,15 +1,27 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export interface IProduct extends Document {
-  _id: string; // Custom string ID like "gao"
+// Base interface for product attributes (without _id)
+export interface IProductAttributes {
   name: string;
   unit: string;
   category: string; // Reference to Category by string ID
   standardAmount: number;
   description?: string;
+  nutritionalValue?: string; // Additional field in existing data
+  storageCondition?: string; // Additional field in existing data
   status?: 'active' | 'inactive';
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Interface for product document
+export interface IProduct extends IProductAttributes, Document<string> {
+  // Using Document<string> to specify that _id is a string
+}
+
+// Interface for product model
+export interface IProductModel extends Model<IProduct> {
+  // Add any static methods here if needed
 }
 
 const ProductSchema: Schema = new Schema({
@@ -26,6 +38,8 @@ const ProductSchema: Schema = new Schema({
     default: 0 
   },
   description: { type: String },
+  nutritionalValue: { type: String }, // Additional field in existing data
+  storageCondition: { type: String }, // Additional field in existing data
   status: {
     type: String,
     enum: ['active', 'inactive'],
@@ -38,4 +52,6 @@ const ProductSchema: Schema = new Schema({
   _id: false // Use the _id field we provide
 });
 
-export const Product = mongoose.model<IProduct>('Product', ProductSchema); 
+// Add any middleware or methods here
+
+export const Product = mongoose.model<IProduct, IProductModel>('Product', ProductSchema); 

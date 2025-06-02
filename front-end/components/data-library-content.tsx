@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Pagination } from "@/components/ui/pagination"
 import { Search, Plus, Edit, Trash2, FileDown, FileUp, Users, Tag, Package, Utensils, Calculator } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { unitsApi, categoriesApi, productsApi, dishesApi, dailyRationsApi, lttpApi } from "@/lib/api-client"
@@ -86,6 +87,10 @@ export function DataLibraryContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
+
   // Data states
   const [units, setUnits] = useState<Unit[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -108,6 +113,11 @@ export function DataLibraryContent() {
     unit: "",
     notes: ""
   })
+
+  // Reset pagination when tab changes or search term changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab, searchTerm])
 
   // Fetch data
   const fetchData = async () => {
@@ -150,7 +160,7 @@ export function DataLibraryContent() {
       try {
         const productsResponse = await productsApi.getProducts()
         const productsData = Array.isArray(productsResponse) ? productsResponse : (productsResponse as any).data || []
-        setLTTPItems(productsData.map(product => ({
+        setLTTPItems(productsData.map((product: any) => ({
           _id: product._id,
           name: product.name,
           categoryId: product.categoryId || product.category?._id,
@@ -162,17 +172,7 @@ export function DataLibraryContent() {
         })))
       } catch (error) {
         console.log("Could not fetch products, using sample data")
-        setLTTPItems([
-          { _id: "1", name: "Rau cải", categoryId: "1", categoryName: "Rau củ quả", unit: "kg", description: "Rau cải xanh tươi", nutritionalValue: "Vitamin A, C", storageCondition: "Bảo quản lạnh 2-4°C" },
-          { _id: "2", name: "Cà rốt", categoryId: "1", categoryName: "Rau củ quả", unit: "kg", description: "Cà rốt tươi", nutritionalValue: "Beta-carotene, Vitamin A", storageCondition: "Bảo quản khô ráo" },
-          { _id: "3", name: "Bí đỏ", categoryId: "1", categoryName: "Rau củ quả", unit: "kg", description: "Bí đỏ tươi", nutritionalValue: "Vitamin A, C, chất xơ", storageCondition: "Nơi khô ráo, thoáng mát" },
-          { _id: "4", name: "Thịt lợn", categoryId: "2", categoryName: "Thịt", unit: "kg", description: "Thịt lợn tươi", nutritionalValue: "Protein, sắt", storageCondition: "Bảo quản lạnh 0-4°C" },
-          { _id: "5", name: "Thịt bò", categoryId: "2", categoryName: "Thịt", unit: "kg", description: "Thịt bò tươi", nutritionalValue: "Protein, sắt, kẽm", storageCondition: "Bảo quản lạnh 0-4°C" },
-          { _id: "6", name: "Cá biển", categoryId: "3", categoryName: "Hải sản", unit: "kg", description: "Cá biển tươi", nutritionalValue: "Protein, Omega-3", storageCondition: "Bảo quản lạnh -2°C" },
-          { _id: "7", name: "Gas", categoryId: "4", categoryName: "Chất đốt", unit: "bình", description: "Bình gas 12kg", nutritionalValue: "N/A", storageCondition: "Nơi khô ráo, thoáng mát" },
-          { _id: "8", name: "Muối", categoryId: "5", categoryName: "Gia vị", unit: "kg", description: "Muối tinh", nutritionalValue: "Natri", storageCondition: "Nơi khô ráo" },
-          { _id: "9", name: "Gạo tẻ", categoryId: "6", categoryName: "Lương thực", unit: "kg", description: "Gạo tẻ thơm", nutritionalValue: "Carbohydrate", storageCondition: "Nơi khô ráo, thoáng mát" },
-        ])
+        
       }
 
       // Fetch dishes
@@ -390,6 +390,22 @@ export function DataLibraryContent() {
     )
   }
 
+  // Pagination logic
+  const paginateData = (data: any[]) => {
+    const filtered = filteredData(data)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return {
+      data: filtered.slice(startIndex, endIndex),
+      totalPages: Math.ceil(filtered.length / itemsPerPage),
+      totalItems: filtered.length
+    }
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
   const tabs = [
     { id: "units", name: "Đơn vị", icon: Users, color: "bg-blue-100 text-blue-800" },
     { id: "categories", name: "Phân loại", icon: Tag, color: "bg-green-100 text-green-800" },
@@ -536,9 +552,9 @@ export function DataLibraryContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData(units).map((unit, index) => (
+                    {paginateData(units).data.map((unit, index) => (
                       <TableRow key={unit._id}>
-                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{unit.code}</TableCell>
                         <TableCell className="font-medium">{unit.name}</TableCell>
                         <TableCell>{unit.personnel}</TableCell>
@@ -558,6 +574,11 @@ export function DataLibraryContent() {
                     ))}
                   </TableBody>
                 </Table>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={paginateData(units).totalPages}
+                  onPageChange={handlePageChange}
+                />
               </CardContent>
             </Card>
           )}
@@ -579,26 +600,34 @@ export function DataLibraryContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData(categories).map((category, index) => (
+                    {paginateData(categories).data.map((category, index) => (
                       <TableRow key={category._id}>
-                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{category.name}</TableCell>
                         <TableCell>{category.slug}</TableCell>
-                        <TableCell>{category.itemCount}</TableCell>
+                        <TableCell>{category.description}</TableCell>
                         <TableCell>
-              <div className="flex gap-2">
+                          <Badge variant="secondary">{category.itemCount} mục</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => handleEdit(category, "categories")}>
                               Sửa
-                </Button>
+                            </Button>
                             <Button variant="outline" size="sm" onClick={() => handleDelete(category._id, "categories")}>
                               Xóa
-                </Button>
-              </div>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={paginateData(categories).totalPages}
+                  onPageChange={handlePageChange}
+                />
               </CardContent>
             </Card>
           )}
@@ -620,9 +649,9 @@ export function DataLibraryContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData(lttpItems).map((item, index) => (
+                    {paginateData(lttpItems).data.map((item, index) => (
                       <TableRow key={item._id}>
-                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell>{item.categoryName}</TableCell>
                         <TableCell>{item.unit}</TableCell>
@@ -640,6 +669,11 @@ export function DataLibraryContent() {
                     ))}
                   </TableBody>
                 </Table>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={paginateData(lttpItems).totalPages}
+                  onPageChange={handlePageChange}
+                />
               </CardContent>
             </Card>
           )}
@@ -665,9 +699,9 @@ export function DataLibraryContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData(dishes).map((dish, index) => (
+                    {paginateData(dishes).data.map((dish, index) => (
                       <TableRow key={dish._id}>
-                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{dish.name}</TableCell>
                         <TableCell>
                           {dish.mainLTTP ? (
@@ -709,6 +743,11 @@ export function DataLibraryContent() {
                     ))}
                   </TableBody>
                 </Table>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={paginateData(dishes).totalPages}
+                  onPageChange={handlePageChange}
+                />
               </CardContent>
             </Card>
           )}
@@ -731,9 +770,9 @@ export function DataLibraryContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData(dailyRations).map((ration, index) => (
+                    {paginateData(dailyRations).data.map((ration, index) => (
                       <TableRow key={ration._id}>
-                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{ration.name}</TableCell>
                         <TableCell>{ration.lttpName}</TableCell>
                         <TableCell>{ration.quantityPerPerson}</TableCell>
@@ -752,6 +791,11 @@ export function DataLibraryContent() {
                     ))}
                   </TableBody>
                 </Table>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={paginateData(dailyRations).totalPages}
+                  onPageChange={handlePageChange}
+                />
               </CardContent>
             </Card>
           )}

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Define a type for the creator/approver reference
 interface IUserReference {
@@ -6,25 +6,36 @@ interface IUserReference {
   name: string;
 }
 
-// Define the Supply schema interface
-export interface ISupply extends Document {
+// Base interface for supply attributes
+export interface ISupplyAttributes {
   unit: mongoose.Types.ObjectId;
   category: string;
   product: string;
   supplyQuantity: number;
   expectedHarvestDate: Date;
-  stationEntryDate?: Date;
-  requestedQuantity?: number;
-  actualQuantity?: number;
-  unitPrice?: number;
-  totalPrice?: number;
-  expiryDate?: Date;
+  stationEntryDate?: Date | null;
+  requestedQuantity?: number | null;
+  receivedQuantity?: number | null;
+  actualQuantity?: number | null;
+  unitPrice?: number | null;
+  totalPrice?: number | null;
+  expiryDate?: Date | null;
   status: 'pending' | 'approved' | 'rejected' | 'deleted';
   note?: string;
   createdBy?: IUserReference;
-  approvedBy?: IUserReference;
+  approvedBy?: IUserReference | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Interface for supply document (combines base interface with Document)
+export interface ISupply extends ISupplyAttributes, Document {
+  // Add any document methods here if needed
+}
+
+// Interface for supply model
+export interface ISupplyModel extends Model<ISupply> {
+  // Add any static methods here if needed
 }
 
 const SupplySchema: Schema = new Schema({
@@ -56,6 +67,10 @@ const SupplySchema: Schema = new Schema({
     default: null
   },
   requestedQuantity: {
+    type: Number,
+    default: null
+  },
+  receivedQuantity: {
     type: Number,
     default: null
   },
@@ -102,5 +117,7 @@ const SupplySchema: Schema = new Schema({
   timestamps: true
 });
 
+// Add any middleware or methods here
+
 // Create and export the model
-export const Supply = mongoose.model<ISupply>('Supply', SupplySchema); 
+export const Supply = mongoose.model<ISupply, ISupplyModel>('Supply', SupplySchema); 

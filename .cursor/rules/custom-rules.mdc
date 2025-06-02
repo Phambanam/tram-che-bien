@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+luôn kiểm tra api trong backend trước để dùng api cho đúng 

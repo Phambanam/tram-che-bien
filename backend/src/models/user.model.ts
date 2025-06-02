@@ -1,7 +1,8 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-export interface IUser extends Document {
+// Base interface for user attributes
+export interface IUserAttributes {
   username: string;
   phoneNumber?: string;
   password: string;
@@ -13,7 +14,16 @@ export interface IUser extends Document {
   status: 'active' | 'inactive';
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Interface for user document (combines base interface with Document)
+export interface IUser extends IUserAttributes, Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+// Interface for user model
+export interface IUserModel extends Model<IUser> {
+  // Add any static methods here if needed
 }
 
 const UserSchema: Schema = new Schema({
@@ -74,15 +84,13 @@ const UserSchema: Schema = new Schema({
 });
 
 // Hash password before saving
-UserSchema.pre('save', async function(next) {
-  const user = this as IUser;
-  
-  // Only hash if password is new or modified
-  if (!user.isModified('password')) return next();
+UserSchema.pre<IUser>('save', async function(next) {
+  // No need for type assertion here since we specified the generic type parameter
+  if (!this.isModified('password')) return next();
   
   try {
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(user.password, salt);
+    this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
     next(error as Error);
@@ -94,4 +102,4 @@ UserSchema.methods.comparePassword = async function(candidatePassword: string): 
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-export const User = mongoose.model<IUser>('User', UserSchema); 
+export const User = mongoose.model<IUser, IUserModel>('User', UserSchema); 

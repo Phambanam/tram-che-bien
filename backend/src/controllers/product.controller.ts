@@ -93,22 +93,22 @@ export const getProducts = async (req: Request, res: Response) => {
 // @access  Private (Admin, Brigade Assistant)
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const { name, category, description, unit, nutritionalValue, storageCondition } = req.body
+    const { name, categoryId, description, unit, nutritionalValue, storageCondition } = req.body
 
     // Validate input
-    if (!name || !category) {
+    if (!name || !categoryId) {
       throw new AppError("Tên sản phẩm và phân loại không được để trống", 400)
     }
 
     // Validate ObjectId
-    if (!ObjectId.isValid(category)) {
+    if (!ObjectId.isValid(categoryId)) {
       throw new AppError("ID phân loại không hợp lệ", 400)
     }
 
     const db = await getDb()
 
     // Check if category exists
-    const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(category) })
+    const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
     if (!categoryExists) {
       throw new AppError("Phân loại không tồn tại", 400)
     }
@@ -116,7 +116,7 @@ export const createProduct = async (req: Request, res: Response) => {
     // Create new product
     const result = await db.collection("products").insertOne({
       name,
-      category: new ObjectId(category),
+      category: new ObjectId(categoryId),
       description: description || "",
       unit: unit || "kg",
       nutritionalValue: nutritionalValue || "",
