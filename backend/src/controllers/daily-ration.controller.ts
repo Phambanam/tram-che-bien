@@ -61,10 +61,10 @@ export const getDailyRations = async (req: Request, res: Response) => {
       name: ration.name,
       categoryId: ration.categoryId,
       categoryName: ration.categoryName || (ration.categoryInfo[0]?.name || ""),
-      quantityPerPerson: 1, // Always 1 for daily rations
+      quantityPerPerson: ration.quantityPerPerson,
       unit: ration.unit,
       pricePerUnit: ration.pricePerUnit,
-      totalCostPerPerson: ration.pricePerUnit, // Since quantity is always 1
+      totalCostPerPerson: ration.totalCostPerPerson,
       notes: ration.notes,
       createdAt: ration.createdAt,
       updatedAt: ration.updatedAt,
@@ -93,14 +93,20 @@ export const createDailyRation = async (req: Request, res: Response) => {
       name, 
       categoryId,
       categoryName,
+      quantityPerPerson,
       unit, 
       pricePerUnit, 
       notes 
     } = req.body
 
     // Validate input
-    if (!name || !categoryId || !unit || !pricePerUnit) {
+    if (!name || !categoryId || !quantityPerPerson || !unit || !pricePerUnit) {
       throw new AppError("Các trường bắt buộc không được để trống", 400)
+    }
+
+    // Validate quantityPerPerson is a positive number
+    if (isNaN(quantityPerPerson) || quantityPerPerson <= 0) {
+      throw new AppError("Số lượng/người phải là số dương", 400)
     }
 
     const db = await getDb()
@@ -119,15 +125,15 @@ export const createDailyRation = async (req: Request, res: Response) => {
       }
     }
 
-    // Create new daily ration (quantityPerPerson is always 1)
+    // Create new daily ration with actual quantity per person
     const result = await db.collection("dailyRations").insertOne({
       name,
       categoryId,
       categoryName: categoryName || "",
-      quantityPerPerson: 1, // Always 1 for daily rations
+      quantityPerPerson: parseFloat(quantityPerPerson),
       unit,
       pricePerUnit: parseFloat(pricePerUnit),
-      totalCostPerPerson: parseFloat(pricePerUnit), // Since quantity is always 1
+      totalCostPerPerson: parseFloat(quantityPerPerson) * parseFloat(pricePerUnit),
       notes: notes || "",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -173,10 +179,10 @@ export const getDailyRationById = async (req: Request, res: Response) => {
       name: ration.name,
       categoryId: ration.categoryId,
       categoryName: ration.categoryName,
-      quantityPerPerson: 1, // Always 1 for daily rations
+      quantityPerPerson: ration.quantityPerPerson,
       unit: ration.unit,
       pricePerUnit: ration.pricePerUnit,
-      totalCostPerPerson: ration.pricePerUnit, // Since quantity is always 1
+      totalCostPerPerson: ration.totalCostPerPerson,
       notes: ration.notes,
       createdAt: ration.createdAt,
       updatedAt: ration.updatedAt,
@@ -205,6 +211,7 @@ export const updateDailyRation = async (req: Request, res: Response) => {
       name, 
       categoryId,
       categoryName,
+      quantityPerPerson,
       unit, 
       pricePerUnit, 
       notes 
@@ -216,8 +223,13 @@ export const updateDailyRation = async (req: Request, res: Response) => {
     }
 
     // Validate input
-    if (!name || !categoryId || !unit || !pricePerUnit) {
+    if (!name || !categoryId || !quantityPerPerson || !unit || !pricePerUnit) {
       throw new AppError("Các trường bắt buộc không được để trống", 400)
+    }
+
+    // Validate quantityPerPerson is a positive number
+    if (isNaN(quantityPerPerson) || quantityPerPerson <= 0) {
+      throw new AppError("Số lượng/người phải là số dương", 400)
     }
 
     const db = await getDb()
@@ -247,10 +259,10 @@ export const updateDailyRation = async (req: Request, res: Response) => {
           name,
           categoryId,
           categoryName: categoryName || "",
-          quantityPerPerson: 1, // Always 1 for daily rations
+          quantityPerPerson: parseFloat(quantityPerPerson),
           unit,
           pricePerUnit: parseFloat(pricePerUnit),
-          totalCostPerPerson: parseFloat(pricePerUnit), // Since quantity is always 1
+          totalCostPerPerson: parseFloat(quantityPerPerson) * parseFloat(pricePerUnit),
           notes: notes || "",
           updatedAt: new Date(),
         },
@@ -328,10 +340,10 @@ export const getDailyRationsByCategory = async (req: Request, res: Response) => 
       name: ration.name,
       categoryId: ration.categoryId,
       categoryName: ration.categoryName,
-      quantityPerPerson: 1, // Always 1 for daily rations
+      quantityPerPerson: ration.quantityPerPerson,
       unit: ration.unit,
       pricePerUnit: ration.pricePerUnit,
-      totalCostPerPerson: ration.pricePerUnit, // Since quantity is always 1
+      totalCostPerPerson: ration.totalCostPerPerson,
       notes: ration.notes,
     }))
 
@@ -359,7 +371,7 @@ export const getTotalDailyCost = async (req: Request, res: Response) => {
         {
           $group: {
             _id: null,
-            totalCost: { $sum: "$pricePerUnit" }, // Since quantity is always 1
+            totalCost: { $sum: "$totalCostPerPerson" },
             itemCount: { $sum: 1 }
           }
         }

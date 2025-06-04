@@ -19,6 +19,7 @@ router.get("/by-category/:category", getDailyRationsByCategory)
 router.get("/:id", getDailyRationById)
 router.post("/", createDailyRation)  // Temporarily public for development
 router.patch("/:id", updateDailyRation)  // Temporarily public for development
+router.delete("/:id", deleteDailyRation)  // Temporarily public for development
 
 // Protected routes (require authentication)
 router.use(protect)

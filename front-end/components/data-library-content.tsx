@@ -242,12 +242,12 @@ export function DataLibraryContent() {
       } catch (error) {
         console.log("Could not fetch daily rations, using sample data")
         setDailyRations([
-          { _id: "1", name: "Gạo tẻ", categoryId: "6", categoryName: "Lương thực", quantityPerPerson: 1, unit: "kg", pricePerUnit: 15000, totalCostPerPerson: 15000, notes: "Khẩu phần chính" },
-          { _id: "2", name: "Thịt heo", categoryId: "2", categoryName: "Thịt", quantityPerPerson: 1, unit: "kg", pricePerUnit: 27000, totalCostPerPerson: 27000, notes: "Protein chính" },
-          { _id: "3", name: "Rau cải", categoryId: "1", categoryName: "Rau củ quả", quantityPerPerson: 1, unit: "kg", pricePerUnit: 3000, totalCostPerPerson: 3000, notes: "Vitamin và chất xơ" },
-          { _id: "4", name: "Cá biển", categoryId: "3", categoryName: "Hải sản", quantityPerPerson: 1, unit: "kg", pricePerUnit: 12000, totalCostPerPerson: 12000, notes: "Protein bổ sung" },
-          { _id: "5", name: "Gia vị cơ bản", categoryId: "5", categoryName: "Gia vị", quantityPerPerson: 1, unit: "gói", pricePerUnit: 800, totalCostPerPerson: 800, notes: "Muối, đường, nước mắm" },
-          { _id: "6", name: "Gas nấu ăn", categoryId: "4", categoryName: "Chất đốt", quantityPerPerson: 1, unit: "kg", pricePerUnit: 800, totalCostPerPerson: 800, notes: "Năng lượng nấu ăn cho 1 người" },
+          { _id: "1", name: "Gạo tẻ", categoryId: "6", categoryName: "Lương thực", quantityPerPerson: 0.6, unit: "kg", pricePerUnit: 25000, totalCostPerPerson: 15000, notes: "Khẩu phần chính" },
+          { _id: "2", name: "Thịt heo", categoryId: "2", categoryName: "Thịt", quantityPerPerson: 0.15, unit: "kg", pricePerUnit: 180000, totalCostPerPerson: 27000, notes: "Protein chính" },
+          { _id: "3", name: "Rau cải", categoryId: "1", categoryName: "Rau củ quả", quantityPerPerson: 0.2, unit: "kg", pricePerUnit: 15000, totalCostPerPerson: 3000, notes: "Vitamin và chất xơ" },
+          { _id: "4", name: "Cá biển", categoryId: "3", categoryName: "Hải sản", quantityPerPerson: 0.1, unit: "kg", pricePerUnit: 120000, totalCostPerPerson: 12000, notes: "Protein bổ sung" },
+          { _id: "5", name: "Gia vị cơ bản", categoryId: "5", categoryName: "Gia vị", quantityPerPerson: 0.05, unit: "kg", pricePerUnit: 16000, totalCostPerPerson: 800, notes: "Muối, đường, nước mắm" },
+          { _id: "6", name: "Gas nấu ăn", categoryId: "4", categoryName: "Chất đốt", quantityPerPerson: 0.002, unit: "bình", pricePerUnit: 400000, totalCostPerPerson: 800, notes: "Năng lượng nấu ăn cho 1 người" },
         ])
       }
 
@@ -827,9 +827,10 @@ export function DataLibraryContent() {
                       <TableHead>STT</TableHead>
                       <TableHead>Tên định lượng ăn</TableHead>
                       <TableHead>Phân loại</TableHead>
-                      <TableHead>Số lượng</TableHead>
+                      <TableHead>Số lượng/người/ngày</TableHead>
                       <TableHead>Đơn vị</TableHead>
-                      <TableHead>Giá/đơn vị</TableHead>
+                      <TableHead>Giá/đơn vị (VND)</TableHead>
+                      <TableHead>Tổng chi phí/người/ngày (VND)</TableHead>
                       <TableHead>Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -846,6 +847,7 @@ export function DataLibraryContent() {
                         </TableCell>
                         <TableCell>{ration.unit}</TableCell>
                         <TableCell>{ration.pricePerUnit.toLocaleString()} đ</TableCell>
+                        <TableCell>{ration.totalCostPerPerson.toLocaleString()} đ</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => handleEdit(ration, "rations")}>
@@ -971,7 +973,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Tên LTTP *</label>
                     <Input
                       value={formData.name || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                       placeholder="VD: Rau cải"
                     />
                   </div>
@@ -1037,7 +1039,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Tên món ăn *</label>
                     <Input
                       value={formData.name || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                       placeholder="VD: Thịt lợn rang cháy cạnh"
                     />
                   </div>
@@ -1262,13 +1264,31 @@ export function DataLibraryContent() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="font-medium">Số lượng/người/ngày *</label>
+                    <Input
+                      type="number"
+                      step="0.001"
+                      value={formData.quantityPerPerson || ""}
+                      onChange={(e) => {
+                        const quantity = Number(e.target.value)
+                        const price = formData.pricePerUnit || 0
+                        setFormData((prev: any) => ({ 
+                          ...prev, 
+                          quantityPerPerson: quantity,
+                          totalCostPerPerson: quantity * price
+                        }))
+                      }}
+                      placeholder="VD: 0.6 hoặc 0.002"
+                    />
+                  </div>
                   <div className="space-y-2">
                     <label className="font-medium">Đơn vị *</label>
                     <Input
                       value={formData.unit || ""}
                       onChange={(e) => setFormData((prev: any) => ({ ...prev, unit: e.target.value }))}
-                      placeholder="VD: kg, lít, gói"
+                      placeholder="VD: kg, lít, bình"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1278,29 +1298,41 @@ export function DataLibraryContent() {
                       value={formData.pricePerUnit || ""}
                       onChange={(e) => {
                         const price = Number(e.target.value)
+                        const quantity = formData.quantityPerPerson || 0
                         setFormData((prev: any) => ({ 
                           ...prev, 
                           pricePerUnit: price,
-                          totalCostPerPerson: price // Since quantity is always 1
+                          totalCostPerPerson: quantity * price
                         }))
                       }}
                       placeholder="VD: 25000"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="font-medium">Ghi chú</label>
-                  <Input
-                    value={formData.notes || ""}
-                    onChange={(e) => setFormData((prev: any) => ({ ...prev, notes: e.target.value }))}
-                    placeholder="VD: Khẩu phần chính, định lượng cho 1 người"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="font-medium">Tổng chi phí/người/ngày (VND)</label>
+                    <Input
+                      type="number"
+                      value={formData.totalCostPerPerson || 0}
+                      disabled
+                      className="bg-gray-50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="font-medium">Ghi chú</label>
+                    <Input
+                      value={formData.notes || ""}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, notes: e.target.value }))}
+                      placeholder="VD: Khẩu phần chính"
+                    />
+                  </div>
                 </div>
                 
                 {/* Info note */}
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Lưu ý:</strong> Định lượng ăn luôn được tính cho 1 người. Giá/đơn vị chính là chi phí cho mỗi người cho thực phẩm này.
+                    <strong>Ví dụ:</strong> Gạo tẻ: 0.6 kg/người/ngày. Gas nấu ăn: 0.002 bình/người/ngày. Thịt heo: 0.15 kg/người/ngày.
                   </p>
                 </div>
               </>
