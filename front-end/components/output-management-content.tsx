@@ -15,6 +15,7 @@ import { format, startOfWeek, addDays, isSameDay, getWeek, getYear } from "date-
 import { vi } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
 import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi } from "@/lib/api-client"
+import { useAuth } from "@/components/auth/auth-provider"
 
 interface Unit {
   _id: string
@@ -123,6 +124,49 @@ export function OutputManagementContent() {
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false)
   
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  // Filter units based on user role
+  const getVisibleUnits = () => {
+    if (!user) return []
+    
+    // Admin and brigade assistant can see all units
+    if (user.role === 'admin' || user.role === 'brigadeAssistant') {
+      return units
+    }
+    
+    // Unit assistant can only see their own unit
+    if (user.role === 'unitAssistant' && user.unit) {
+      return units.filter(unit => unit._id === user.unit?.id)
+    }
+    
+    // Commander can see all units (read-only)
+    if (user.role === 'commander') {
+      return units
+    }
+    
+    return []
+  }
+
+  // Check if user can edit personnel for a specific unit
+  const canEditUnitPersonnel = (unitId: string) => {
+    if (!user) return false
+    
+    // Admin and brigade assistant can edit all units
+    if (user.role === 'admin' || user.role === 'brigadeAssistant') {
+      return true
+    }
+    
+    // Unit assistant can only edit their own unit
+    if (user.role === 'unitAssistant' && user.unit) {
+      return unitId === user.unit.id
+    }
+    
+    // Commander cannot edit
+    return false
+  }
+
+  const visibleUnits = getVisibleUnits()
 
   // Get week days starting from Monday
   const getWeekDays = (date: Date) => {
@@ -198,11 +242,16 @@ export function OutputManagementContent() {
       
       if (ingredientData.length > 0) {
         setDataSource("ingredients")
-        generateSupplyOutputFromIngredients(ingredientData, unitsData, personnelData)
+        // Call generateSupplyOutputFromIngredients after units state is updated
+        setTimeout(() => {
+          generateSupplyOutputFromIngredients(ingredientData, getVisibleUnits(), personnelData)
+        }, 0)
       } else {
         // Fallback to daily rations if no ingredient data
         setDataSource("dailyrations")
-        generateSupplyOutputData(dailyRationsData, unitsData, personnelData, selectedDate, selectedView)
+        setTimeout(() => {
+          generateSupplyOutputData(dailyRationsData, getVisibleUnits(), personnelData, selectedDate, selectedView)
+        }, 0)
         toast({
           title: "Thông báo",
           description: "Không có dữ liệu thực đơn. Hiển thị dữ liệu định mức cơ bản.",
@@ -243,9 +292,9 @@ export function OutputManagementContent() {
         let totalAmount = ingredient.totalQuantity
         
         // Calculate requirements per unit based on their personnel
-        unitsData.forEach((unit) => {
+        visibleUnits.forEach((unit) => {
           const personnel = personnelData[unit._id] || 0
-          const totalPeople = Object.values(personnelData).reduce((sum, p) => sum + p, 0)
+          const totalPeople = visibleUnits.reduce((sum, u) => sum + (personnelData[u._id] || 0), 0)
           
           // Distribute total quantity proportionally based on unit size
           const proportionalRequirement = totalPeople > 0 
@@ -342,7 +391,7 @@ export function OutputManagementContent() {
         dayMultiplier = 1.0
       }
 
-      unitsData.forEach((unit) => {
+      visibleUnits.forEach((unit) => {
         const personnel = personnelData[unit._id] || 0
         const baseRequirement = personnel * ration.quantityPerPerson
         const adjustedRequirement = baseRequirement * dayMultiplier
@@ -404,9 +453,9 @@ export function OutputManagementContent() {
       
       // Regenerate supply data with new personnel counts
       if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-        generateSupplyOutputFromIngredients(ingredientSummaries, units, updatedPersonnel)
+        generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, updatedPersonnel)
       } else {
-        generateSupplyOutputData(dailyRations, units, updatedPersonnel, selectedDate, selectedView)
+        generateSupplyOutputData(dailyRations, visibleUnits, updatedPersonnel, selectedDate, selectedView)
       }
       
       toast({
@@ -553,6 +602,11 @@ export function OutputManagementContent() {
                       📅 Tuần {getWeek(selectedDate, { locale: vi })}/{getYear(selectedDate)}
                     </span>
                   )}
+                  {user && user.role === 'unitAssistant' && (
+                    <span className="text-xs text-blue-600 font-medium">
+                      👤 Hiển thị dữ liệu của: {user.unit?.name || 'đơn vị của bạn'}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2">
@@ -582,7 +636,7 @@ export function OutputManagementContent() {
                     {dataSource === "ingredients" && (
                       <TableHead className="min-w-[150px]">Dùng trong món</TableHead>
                     )}
-                    {units.map((unit) => (
+                    {visibleUnits.map((unit) => (
                       <TableHead key={`${unit._id}-personnel`} className="text-center bg-blue-50">
                         <div className="flex flex-col">
                           <span className="font-medium">{unit.name}</span>
@@ -590,7 +644,7 @@ export function OutputManagementContent() {
                         </div>
                       </TableHead>
                     ))}
-                    {units.map((unit) => (
+                    {visibleUnits.map((unit) => (
                       <TableHead key={`${unit._id}-requirement`} className="text-center bg-green-50">
                         <div className="flex flex-col">
                           <span className="font-medium">{unit.name}</span>
@@ -653,25 +707,32 @@ export function OutputManagementContent() {
                       )}
                       
                       {/* Personnel columns */}
-                      {units.map((unit) => (
+                      {visibleUnits.map((unit) => (
                         <TableCell key={`${unit._id}-personnel`} className="text-center bg-blue-50">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-auto p-1 hover:bg-blue-100"
-                            onClick={() => handleEditPersonnel(unit._id, unit.name, unitPersonnel[unit._id] || 0)}
-                          >
-                            <div className="flex items-center gap-1">
+                          {canEditUnitPersonnel(unit._id) ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-auto p-1 hover:bg-blue-100"
+                              onClick={() => handleEditPersonnel(unit._id, unit.name, unitPersonnel[unit._id] || 0)}
+                            >
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                <span>{unitPersonnel[unit._id] || 0}</span>
+                                <Edit className="h-3 w-3" />
+                              </div>
+                            </Button>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
                               <Users className="h-3 w-3" />
                               <span>{unitPersonnel[unit._id] || 0}</span>
-                              <Edit className="h-3 w-3" />
                             </div>
-                          </Button>
+                          )}
                         </TableCell>
                       ))}
                       
                       {/* Requirement columns */}
-                      {units.map((unit) => (
+                      {visibleUnits.map((unit) => (
                         <TableCell key={`${unit._id}-requirement`} className="text-center bg-green-50">
                           {item.units[unit._id]?.requirement.toFixed(3) || "0.000"}
                         </TableCell>
@@ -692,12 +753,12 @@ export function OutputManagementContent() {
                   {/* Total Row */}
                   <TableRow className="bg-gray-100 font-bold">
                     <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center">TỔNG CỘNG</TableCell>
-                    {units.map((unit) => (
+                    {visibleUnits.map((unit) => (
                       <TableCell key={`${unit._id}-total-personnel`} className="text-center bg-blue-100">
                         {unitPersonnel[unit._id] || 0}
                       </TableCell>
                     ))}
-                    {units.map((unit) => (
+                    {visibleUnits.map((unit) => (
                       <TableCell key={`${unit._id}-total-requirement`} className="text-center bg-green-100">
                         {supplyData.reduce((sum, item) => sum + (item.units[unit._id]?.requirement || 0), 0).toFixed(3)}
                       </TableCell>
