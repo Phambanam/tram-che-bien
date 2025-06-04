@@ -1,0 +1,583 @@
+import type { Request, Response } from "express"
+import { ObjectId } from "mongodb"
+import { getDb } from "../config/database"
+import { AppError } from "../middleware/error.middleware"
+
+// Interface definitions
+interface IngredientAnalysis {
+  lttpId: string
+  lttpName: string
+  requiredQuantity: number
+  availableQuantity: number
+  unit: string
+  daysUntilExpiry: number
+  status: "sufficient" | "insufficient" | "expiring_soon" | "expired"
+}
+
+interface MenuSuggestion {
+  dishId: string
+  dishName: string
+  priority: "high" | "medium" | "low"
+  reason: string
+  ingredients: IngredientAnalysis[]
+  estimatedCost: number
+  suitableForUnits: string[]
+}
+
+interface InventoryAlert {
+  productId: string
+  productName: string
+  currentStock: number
+  daysUntilExpiry: number
+  alertLevel: "critical" | "warning" | "info"
+  recommendedAction: string
+}
+
+interface DailyMenuPlan {
+  date: string
+  totalPersonnel: number
+  meals: {
+    morning: MenuSuggestion[]
+    noon: MenuSuggestion[]
+    evening: MenuSuggestion[]
+  }
+  totalCost: number
+  budgetStatus: "under" | "within" | "over"
+}
+
+// @desc    Get smart menu suggestions
+// @route   GET /api/menu-planning/suggestions
+// @access  Private
+export const getMenuSuggestions = async (req: Request, res: Response) => {
+  try {
+    const db = await getDb()
+    
+    // Get all dishes with ingredients
+    const dishes = await db.collection("dishes").find({}).toArray()
+    
+    // Get food inventory
+    const inventory = await db
+      .collection("processingStation")
+      .aggregate([
+        { $match: { type: "food" } },
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "productInfo",
+          },
+        },
+        { $unwind: "$productInfo" },
+        {
+          $group: {
+            _id: "$productId",
+            product: { $first: "$productInfo" },
+            totalQuantity: { $sum: "$quantity" },
+            nonExpiredQuantity: { $sum: "$nonExpiredQuantity" },
+            expiredQuantity: { $sum: "$expiredQuantity" },
+            earliestExpiry: { $min: "$expiryDate" },
+          },
+        },
+      ])
+      .toArray()
+
+    // Get daily rations for pricing
+    const dailyRations = await db.collection("dailyRations").find({}).toArray()
+
+    const suggestions: MenuSuggestion[] = []
+
+    for (const dish of dishes) {
+      if (!dish.ingredients || dish.ingredients.length === 0) continue
+
+      let totalCost = 0
+      let priority: "high" | "medium" | "low" = "low"
+      const reasons: string[] = []
+
+      const ingredientAnalysis = dish.ingredients.map((ingredient: any) => {
+        const inventoryItem = inventory.find(
+          (inv) => inv.product._id.toString() === ingredient.lttpId
+        )
+        
+        const availableQuantity = inventoryItem?.nonExpiredQuantity || 0
+        const expiredQuantity = inventoryItem?.expiredQuantity || 0
+        
+        // Calculate days until expiry
+        let daysUntilExpiry = 30 // Default
+        if (inventoryItem?.earliestExpiry) {
+          const now = new Date()
+          const expiryDate = new Date(inventoryItem.earliestExpiry)
+          daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 3600 * 24))
+        }
+
+        let status: "sufficient" | "insufficient" | "expiring_soon" | "expired" = "insufficient"
+        
+        if (expiredQuantity > 0) {
+          status = "expired"
+          reasons.push(`${ingredient.lttpName} đã hết hạn`)
+        } else if (daysUntilExpiry <= 3) {
+          status = "expiring_soon"
+          reasons.push(`${ingredient.lttpName} sắp hết hạn (${daysUntilExpiry} ngày)`)
+          priority = "high"
+        } else if (availableQuantity >= ingredient.quantity) {
+          status = "sufficient"
+        }
+
+        // Calculate cost from daily rations
+        const rationItem = dailyRations.find((r: any) =>
+          r.name.toLowerCase().includes(ingredient.lttpName.toLowerCase())
+        )
+        const unitCost = rationItem?.pricePerUnit || 15000
+        totalCost += ingredient.quantity * unitCost
+
+        return {
+          lttpId: ingredient.lttpId,
+          lttpName: ingredient.lttpName,
+          requiredQuantity: ingredient.quantity,
+          availableQuantity,
+          unit: ingredient.unit,
+          daysUntilExpiry,
+          status,
+        }
+      })
+
+      // Determine if dish is feasible
+      const insufficientIngredients = ingredientAnalysis.filter(
+        (ing) => ing.status === "insufficient" || ing.status === "expired"
+      )
+      const expiringSoon = ingredientAnalysis.filter(
+        (ing) => ing.status === "expiring_soon"
+      )
+
+      if (insufficientIngredients.length === 0) {
+        if (expiringSoon.length > 0) {
+          priority = "high"
+          reasons.push("Sử dụng nguyên liệu sắp hết hạn")
+        } else if (priority === "low") {
+          priority = "medium"
+        }
+
+        // Get all units for suitability
+        const units = await db.collection("units").find({}).toArray()
+
+        suggestions.push({
+          dishId: dish._id.toString(),
+          dishName: dish.name,
+          priority,
+          reason: reasons.join(", ") || "Đủ nguyên liệu, phù hợp chế biến",
+          ingredients: ingredientAnalysis,
+          estimatedCost: totalCost,
+          suitableForUnits: units.map((u) => u._id.toString()),
+        })
+      }
+    }
+
+    // Sort by priority
+    const priorityOrder = { high: 3, medium: 2, low: 1 }
+    suggestions.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+
+    res.status(200).json({
+      success: true,
+      data: suggestions.slice(0, 20), // Top 20 suggestions
+    })
+  } catch (error) {
+    console.error("Error getting menu suggestions:", error)
+    throw new AppError("Đã xảy ra lỗi khi lấy gợi ý thực đơn", 500)
+  }
+}
+
+// @desc    Get inventory alerts
+// @route   GET /api/menu-planning/alerts
+// @access  Private
+export const getInventoryAlerts = async (req: Request, res: Response) => {
+  try {
+    const db = await getDb()
+
+    const inventory = await db
+      .collection("processingStation")
+      .aggregate([
+        { $match: { type: "food" } },
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "productInfo",
+          },
+        },
+        { $unwind: "$productInfo" },
+        {
+          $group: {
+            _id: "$productId",
+            product: { $first: "$productInfo" },
+            totalQuantity: { $sum: "$quantity" },
+            nonExpiredQuantity: { $sum: "$nonExpiredQuantity" },
+            expiredQuantity: { $sum: "$expiredQuantity" },
+            earliestExpiry: { $min: "$expiryDate" },
+          },
+        },
+      ])
+      .toArray()
+
+    const alerts: InventoryAlert[] = []
+
+    for (const item of inventory) {
+      // Calculate days until expiry
+      let daysUntilExpiry = 30
+      if (item.earliestExpiry) {
+        const now = new Date()
+        const expiryDate = new Date(item.earliestExpiry)
+        daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 3600 * 24))
+      }
+
+      let alertLevel: "critical" | "warning" | "info" = "info"
+      let recommendedAction = ""
+
+      if (item.expiredQuantity > 0) {
+        alertLevel = "critical"
+        recommendedAction = `Xử lý ${item.expiredQuantity}kg đã hết hạn ngay lập tức`
+      } else if (daysUntilExpiry <= 3) {
+        alertLevel = "critical"
+        recommendedAction = `Ưu tiên sử dụng trong 3 ngày tới (${item.nonExpiredQuantity}kg)`
+      } else if (daysUntilExpiry <= 7) {
+        alertLevel = "warning"
+        recommendedAction = `Lên kế hoạch sử dụng trong tuần (${item.nonExpiredQuantity}kg)`
+      } else if (item.nonExpiredQuantity < 10) {
+        alertLevel = "warning"
+        recommendedAction = "Tồn kho thấp, cân nhắc nhập thêm"
+      }
+
+      if (alertLevel !== "info") {
+        alerts.push({
+          productId: item.product._id.toString(),
+          productName: item.product.name,
+          currentStock: item.nonExpiredQuantity,
+          daysUntilExpiry,
+          alertLevel,
+          recommendedAction,
+        })
+      }
+    }
+
+    // Sort by alert level
+    const alertOrder = { critical: 3, warning: 2, info: 1 }
+    alerts.sort((a, b) => alertOrder[b.alertLevel] - alertOrder[a.alertLevel])
+
+    res.status(200).json({
+      success: true,
+      data: alerts,
+    })
+  } catch (error) {
+    console.error("Error getting inventory alerts:", error)
+    throw new AppError("Đã xảy ra lỗi khi lấy cảnh báo tồn kho", 500)
+  }
+}
+
+// @desc    Generate daily menu plan
+// @route   POST /api/menu-planning/daily-plan
+// @access  Private
+export const generateDailyMenuPlan = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.body
+
+    if (!date) {
+      throw new AppError("Ngày lập thực đơn là bắt buộc", 400)
+    }
+
+    const db = await getDb()
+
+    // Get menu suggestions
+    const suggestionsResponse = await getMenuSuggestionsInternal()
+    const suggestions = suggestionsResponse.data
+
+    // Get total personnel from all units
+    const units = await db.collection("units").find({}).toArray()
+    const totalPersonnel = units.reduce((sum, unit) => sum + (unit.personnel || 0), 0)
+    
+    const dailyBudget = totalPersonnel * 65000 // 65,000 VND per person per day
+
+    // Select dishes for each meal based on priority
+    const highPriority = suggestions.filter((s: MenuSuggestion) => s.priority === "high").slice(0, 2)
+    const mediumPriority = suggestions.filter((s: MenuSuggestion) => s.priority === "medium").slice(0, 3)
+    const lowPriority = suggestions.filter((s: MenuSuggestion) => s.priority === "low").slice(0, 3)
+
+    const morningMeals = [...highPriority.slice(0, 1), ...mediumPriority.slice(0, 1)]
+    const noonMeals = [...highPriority.slice(1, 2), ...mediumPriority.slice(1, 3)]
+    const eveningMeals = [...lowPriority.slice(0, 2)]
+
+    const totalCost = [...morningMeals, ...noonMeals, ...eveningMeals]
+      .reduce((sum, meal) => sum + (meal.estimatedCost * totalPersonnel), 0)
+
+    let budgetStatus: "under" | "within" | "over" = "within"
+    if (totalCost < dailyBudget * 0.8) budgetStatus = "under"
+    else if (totalCost > dailyBudget) budgetStatus = "over"
+
+    const dailyPlan: DailyMenuPlan = {
+      date,
+      totalPersonnel,
+      meals: {
+        morning: morningMeals,
+        noon: noonMeals,
+        evening: eveningMeals,
+      },
+      totalCost,
+      budgetStatus,
+    }
+
+    res.status(200).json({
+      success: true,
+      data: dailyPlan,
+    })
+  } catch (error) {
+    console.error("Error generating daily menu plan:", error)
+    throw new AppError("Đã xảy ra lỗi khi tạo kế hoạch thực đơn", 500)
+  }
+}
+
+// @desc    Get comprehensive menu planning data
+// @route   GET /api/menu-planning/overview
+// @access  Private
+export const getMenuPlanningOverview = async (req: Request, res: Response) => {
+  try {
+    const db = await getDb()
+
+    // Get all data in parallel
+    const [suggestionsResponse, alertsResponse, units, inventory] = await Promise.all([
+      getMenuSuggestionsInternal(),
+      getInventoryAlertsInternal(),
+      db.collection("units").find({}).toArray(),
+      db.collection("processingStation")
+        .aggregate([
+          { $match: { type: "food" } },
+          {
+            $group: {
+              _id: null,
+              totalNonExpired: { $sum: "$nonExpiredQuantity" },
+              totalExpired: { $sum: "$expiredQuantity" },
+            },
+          },
+        ])
+        .toArray(),
+    ])
+
+    const totalPersonnel = units.reduce((sum, unit) => sum + (unit.personnel || 0), 0)
+    const totalInventory = inventory[0]?.totalNonExpired || 0
+    const criticalAlerts = alertsResponse.data.filter((alert: InventoryAlert) => alert.alertLevel === "critical").length
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalPersonnel,
+        totalInventory,
+        criticalAlerts,
+        totalSuggestions: suggestionsResponse.data.length,
+        suggestions: suggestionsResponse.data,
+        alerts: alertsResponse.data,
+      },
+    })
+  } catch (error) {
+    console.error("Error getting menu planning overview:", error)
+    throw new AppError("Đã xảy ra lỗi khi lấy tổng quan lập thực đơn", 500)
+  }
+}
+
+// Internal helper functions
+async function getMenuSuggestionsInternal() {
+  const db = await getDb()
+  
+  const dishes = await db.collection("dishes").find({}).toArray()
+  const inventory = await db
+    .collection("processingStation")
+    .aggregate([
+      { $match: { type: "food" } },
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "productInfo",
+        },
+      },
+      { $unwind: "$productInfo" },
+      {
+        $group: {
+          _id: "$productId",
+          product: { $first: "$productInfo" },
+          totalQuantity: { $sum: "$quantity" },
+          nonExpiredQuantity: { $sum: "$nonExpiredQuantity" },
+          expiredQuantity: { $sum: "$expiredQuantity" },
+          earliestExpiry: { $min: "$expiryDate" },
+        },
+      },
+    ])
+    .toArray()
+
+  const dailyRations = await db.collection("dailyRations").find({}).toArray()
+  const suggestions: MenuSuggestion[] = []
+
+  for (const dish of dishes) {
+    if (!dish.ingredients || dish.ingredients.length === 0) continue
+
+    let totalCost = 0
+    let priority: "high" | "medium" | "low" = "low"
+    const reasons: string[] = []
+
+    const ingredientAnalysis = dish.ingredients.map((ingredient: any) => {
+      const inventoryItem = inventory.find(
+        (inv) => inv.product._id.toString() === ingredient.lttpId
+      )
+      
+      const availableQuantity = inventoryItem?.nonExpiredQuantity || 0
+      const expiredQuantity = inventoryItem?.expiredQuantity || 0
+      
+      let daysUntilExpiry = 30
+      if (inventoryItem?.earliestExpiry) {
+        const now = new Date()
+        const expiryDate = new Date(inventoryItem.earliestExpiry)
+        daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 3600 * 24))
+      }
+
+      let status: "sufficient" | "insufficient" | "expiring_soon" | "expired" = "insufficient"
+      
+      if (expiredQuantity > 0) {
+        status = "expired"
+        reasons.push(`${ingredient.lttpName} đã hết hạn`)
+      } else if (daysUntilExpiry <= 3) {
+        status = "expiring_soon"
+        reasons.push(`${ingredient.lttpName} sắp hết hạn (${daysUntilExpiry} ngày)`)
+        priority = "high"
+      } else if (availableQuantity >= ingredient.quantity) {
+        status = "sufficient"
+      }
+
+      const rationItem = dailyRations.find((r: any) =>
+        r.name.toLowerCase().includes(ingredient.lttpName.toLowerCase())
+      )
+      const unitCost = rationItem?.pricePerUnit || 15000
+      totalCost += ingredient.quantity * unitCost
+
+      return {
+        lttpId: ingredient.lttpId,
+        lttpName: ingredient.lttpName,
+        requiredQuantity: ingredient.quantity,
+        availableQuantity,
+        unit: ingredient.unit,
+        daysUntilExpiry,
+        status,
+      }
+    })
+
+    const insufficientIngredients = ingredientAnalysis.filter(
+      (ing) => ing.status === "insufficient" || ing.status === "expired"
+    )
+    const expiringSoon = ingredientAnalysis.filter(
+      (ing) => ing.status === "expiring_soon"
+    )
+
+    if (insufficientIngredients.length === 0) {
+      if (expiringSoon.length > 0) {
+        priority = "high"
+        reasons.push("Sử dụng nguyên liệu sắp hết hạn")
+      } else if (priority === "low") {
+        priority = "medium"
+      }
+
+      const units = await db.collection("units").find({}).toArray()
+
+      suggestions.push({
+        dishId: dish._id.toString(),
+        dishName: dish.name,
+        priority,
+        reason: reasons.join(", ") || "Đủ nguyên liệu, phù hợp chế biến",
+        ingredients: ingredientAnalysis,
+        estimatedCost: totalCost,
+        suitableForUnits: units.map((u) => u._id.toString()),
+      })
+    }
+  }
+
+  const priorityOrder = { high: 3, medium: 2, low: 1 }
+  suggestions.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
+
+  return {
+    success: true,
+    data: suggestions.slice(0, 20),
+  }
+}
+
+async function getInventoryAlertsInternal() {
+  const db = await getDb()
+
+  const inventory = await db
+    .collection("processingStation")
+    .aggregate([
+      { $match: { type: "food" } },
+      {
+        $lookup: {
+          from: "products",
+          localField: "productId",
+          foreignField: "_id",
+          as: "productInfo",
+        },
+      },
+      { $unwind: "$productInfo" },
+      {
+        $group: {
+          _id: "$productId",
+          product: { $first: "$productInfo" },
+          totalQuantity: { $sum: "$quantity" },
+          nonExpiredQuantity: { $sum: "$nonExpiredQuantity" },
+          expiredQuantity: { $sum: "$expiredQuantity" },
+          earliestExpiry: { $min: "$expiryDate" },
+        },
+      },
+    ])
+    .toArray()
+
+  const alerts: InventoryAlert[] = []
+
+  for (const item of inventory) {
+    let daysUntilExpiry = 30
+    if (item.earliestExpiry) {
+      const now = new Date()
+      const expiryDate = new Date(item.earliestExpiry)
+      daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 3600 * 24))
+    }
+
+    let alertLevel: "critical" | "warning" | "info" = "info"
+    let recommendedAction = ""
+
+    if (item.expiredQuantity > 0) {
+      alertLevel = "critical"
+      recommendedAction = `Xử lý ${item.expiredQuantity}kg đã hết hạn ngay lập tức`
+    } else if (daysUntilExpiry <= 3) {
+      alertLevel = "critical"
+      recommendedAction = `Ưu tiên sử dụng trong 3 ngày tới (${item.nonExpiredQuantity}kg)`
+    } else if (daysUntilExpiry <= 7) {
+      alertLevel = "warning"
+      recommendedAction = `Lên kế hoạch sử dụng trong tuần (${item.nonExpiredQuantity}kg)`
+    } else if (item.nonExpiredQuantity < 10) {
+      alertLevel = "warning"
+      recommendedAction = "Tồn kho thấp, cân nhắc nhập thêm"
+    }
+
+    if (alertLevel !== "info") {
+      alerts.push({
+        productId: item.product._id.toString(),
+        productName: item.product.name,
+        currentStock: item.nonExpiredQuantity,
+        daysUntilExpiry,
+        alertLevel,
+        recommendedAction,
+      })
+    }
+  }
+
+  const alertOrder = { critical: 3, warning: 2, info: 1 }
+  alerts.sort((a, b) => alertOrder[b.alertLevel] - alertOrder[a.alertLevel])
+
+  return {
+    success: true,
+    data: alerts,
+  }
+} 

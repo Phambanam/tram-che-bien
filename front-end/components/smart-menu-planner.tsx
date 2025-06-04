@@ -39,7 +39,7 @@ interface SmartMenuSuggestion {
     requiredQuantity: number
     availableQuantity: number
     unit: string
-    expiryDays: number
+    daysUntilExpiry: number
     status: "sufficient" | "insufficient" | "expiring_soon" | "expired"
   }[]
   estimatedCost: number
@@ -67,6 +67,66 @@ interface DailyMenuPlan {
   budgetStatus: "under" | "within" | "over"
 }
 
+// Menu Planning API Functions
+const menuPlanningApi = {
+  async getMenuSuggestions() {
+    const response = await fetch("/api/menu-planning/suggestions", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+    if (!response.ok) {
+      throw new Error("Failed to fetch menu suggestions")
+    }
+    return response.json()
+  },
+
+  async getInventoryAlerts() {
+    const response = await fetch("/api/menu-planning/alerts", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+    if (!response.ok) {
+      throw new Error("Failed to fetch inventory alerts")
+    }
+    return response.json()
+  },
+
+  async generateDailyPlan(date: string) {
+    const response = await fetch("/api/menu-planning/daily-plan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({ date }),
+    })
+    if (!response.ok) {
+      throw new Error("Failed to generate daily plan")
+    }
+    return response.json()
+  },
+
+  async getOverview() {
+    const response = await fetch("/api/menu-planning/overview", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+    if (!response.ok) {
+      throw new Error("Failed to fetch overview")
+    }
+    return response.json()
+  }
+}
+
 export function SmartMenuPlanner() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [units, setUnits] = useState<any[]>([])
@@ -76,15 +136,23 @@ export function SmartMenuPlanner() {
   const [menuSuggestions, setMenuSuggestions] = useState<SmartMenuSuggestion[]>([])
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryAlert[]>([])
   const [dailyMenuPlan, setDailyMenuPlan] = useState<DailyMenuPlan | null>(null)
+  const [overviewData, setOverviewData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   
   const { toast } = useToast()
 
-  // Fetch all required data
+  // Fetch all required data using backend APIs
   const fetchData = async () => {
     setIsLoading(true)
     try {
+      // First try to get overview data from backend
+      const overviewRes = await menuPlanningApi.getOverview()
+      setOverviewData(overviewRes.data)
+      setMenuSuggestions(overviewRes.data.suggestions || [])
+      setInventoryAlerts(overviewRes.data.alerts || [])
+
+      // Also fetch individual data for display
       const [unitsRes, dishesRes, rationsRes, inventoryRes] = await Promise.all([
         unitsApi.getUnits(),
         dishesApi.getDishes(),
@@ -92,21 +160,239 @@ export function SmartMenuPlanner() {
         processingStationApi.getFoodInventory()
       ])
 
-      setUnits(Array.isArray(unitsRes) ? unitsRes : unitsRes.data || [])
-      setDishes(Array.isArray(dishesRes) ? dishesRes : dishesRes.data || [])
-      setDailyRations(Array.isArray(rationsRes) ? rationsRes : rationsRes.data || [])
-      setInventory(Array.isArray(inventoryRes) ? inventoryRes : inventoryRes.data || [])
+      const unitsData = Array.isArray(unitsRes) ? unitsRes : (unitsRes as any).data || []
+      const dishesData = Array.isArray(dishesRes) ? dishesRes : (dishesRes as any).data || []
+      const rationsData = Array.isArray(rationsRes) ? rationsRes : (rationsRes as any).data || []
+      const inventoryData = Array.isArray(inventoryRes) ? inventoryRes : (inventoryRes as any).data || []
 
-      // Generate smart suggestions
-      generateSmartSuggestions()
-      generateInventoryAlerts()
-      generateDailyMenuPlan()
+      setUnits(unitsData)
+      setDishes(dishesData)
+      setDailyRations(rationsData)
+      setInventory(inventoryData)
+
+      toast({
+        title: "Thành công",
+        description: "Đã tải dữ liệu từ hệ thống backend",
+        variant: "default",
+      })
 
     } catch (error) {
-      console.error("Error fetching data:", error)
+      console.error("Error fetching data from backend:", error)
+      
+      // Fallback to sample data for demo purposes
+      console.log("Using fallback sample data for Smart Menu Planner")
+      
+      const sampleUnits = [
+        { _id: "1", name: "Tiểu đoàn 1", personnel: 150 },
+        { _id: "2", name: "Tiểu đoàn 2", personnel: 180 },
+        { _id: "3", name: "Tiểu đoàn 3", personnel: 120 }
+      ]
+      
+      const sampleDishes = [
+        { 
+          _id: "1", 
+          name: "Cơm rang thập cẩm", 
+          ingredients: [
+            { lttpId: "1", lttpName: "Gạo tẻ", quantity: 0.6, unit: "kg" },
+            { lttpId: "2", lttpName: "Thịt heo", quantity: 0.15, unit: "kg" },
+            { lttpId: "3", lttpName: "Rau cải", quantity: 0.1, unit: "kg" }
+          ]
+        },
+        { 
+          _id: "2", 
+          name: "Canh chua cá", 
+          ingredients: [
+            { lttpId: "4", lttpName: "Cá biển", quantity: 0.2, unit: "kg" },
+            { lttpId: "3", lttpName: "Rau cải", quantity: 0.1, unit: "kg" },
+            { lttpId: "5", lttpName: "Gia vị", quantity: 0.05, unit: "kg" }
+          ]
+        },
+        { 
+          _id: "3", 
+          name: "Thịt kho tàu", 
+          ingredients: [
+            { lttpId: "2", lttpName: "Thịt heo", quantity: 0.3, unit: "kg" },
+            { lttpId: "5", lttpName: "Gia vị", quantity: 0.03, unit: "kg" }
+          ]
+        }
+      ]
+      
+      const sampleRations = [
+        { _id: "1", name: "Gạo tẻ", quantityPerPerson: 0.6, unit: "kg", pricePerUnit: 25000, totalCostPerPerson: 15000 },
+        { _id: "2", name: "Thịt heo", quantityPerPerson: 0.15, unit: "kg", pricePerUnit: 180000, totalCostPerPerson: 27000 },
+        { _id: "3", name: "Rau cải", quantityPerPerson: 0.2, unit: "kg", pricePerUnit: 15000, totalCostPerPerson: 3000 },
+        { _id: "4", name: "Cá biển", quantityPerPerson: 0.1, unit: "kg", pricePerUnit: 120000, totalCostPerPerson: 12000 },
+        { _id: "5", name: "Gia vị", quantityPerPerson: 0.05, unit: "kg", pricePerUnit: 100000, totalCostPerPerson: 5000 }
+      ]
+      
+      const sampleInventory = [
+        { 
+          product: { id: "1", name: "Gạo tẻ" }, 
+          nonExpiredQuantity: 500, 
+          expiredQuantity: 0 
+        },
+        { 
+          product: { id: "2", name: "Thịt heo" }, 
+          nonExpiredQuantity: 80, 
+          expiredQuantity: 5 
+        },
+        { 
+          product: { id: "3", name: "Rau cải" }, 
+          nonExpiredQuantity: 30, 
+          expiredQuantity: 0 
+        },
+        { 
+          product: { id: "4", name: "Cá biển" }, 
+          nonExpiredQuantity: 25, 
+          expiredQuantity: 0 
+        },
+        { 
+          product: { id: "5", name: "Gia vị" }, 
+          nonExpiredQuantity: 15, 
+          expiredQuantity: 0 
+        }
+      ]
+
+      const sampleSuggestions: SmartMenuSuggestion[] = [
+        {
+          dishId: "1",
+          dishName: "Cơm rang thập cẩm",
+          priority: "high",
+          reason: "Thịt heo sắp hết hạn (2 ngày)",
+          ingredients: [
+            { lttpId: "1", lttpName: "Gạo tẻ", requiredQuantity: 0.6, availableQuantity: 500, unit: "kg", daysUntilExpiry: 30, status: "sufficient" },
+            { lttpId: "2", lttpName: "Thịt heo", requiredQuantity: 0.15, availableQuantity: 80, unit: "kg", daysUntilExpiry: 2, status: "expiring_soon" }
+          ],
+          estimatedCost: 42000,
+          suitableForUnits: ["1", "2", "3"]
+        },
+        {
+          dishId: "2",
+          dishName: "Canh chua cá",
+          priority: "medium",
+          reason: "Đủ nguyên liệu, phù hợp chế biến",
+          ingredients: [
+            { lttpId: "4", lttpName: "Cá biển", requiredQuantity: 0.2, availableQuantity: 25, unit: "kg", daysUntilExpiry: 5, status: "sufficient" }
+          ],
+          estimatedCost: 24000,
+          suitableForUnits: ["1", "2", "3"]
+        }
+      ]
+
+      const sampleAlerts: InventoryAlert[] = [
+        {
+          productId: "2",
+          productName: "Thịt heo",
+          currentStock: 80,
+          daysUntilExpiry: 2,
+          alertLevel: "critical",
+          recommendedAction: "Ưu tiên sử dụng trong 3 ngày tới (80kg)"
+        }
+      ]
+      
+      setUnits(sampleUnits)
+      setDishes(sampleDishes)
+      setDailyRations(sampleRations)
+      setInventory(sampleInventory)
+      setMenuSuggestions(sampleSuggestions)
+      setInventoryAlerts(sampleAlerts)
+      
+      setOverviewData({
+        totalPersonnel: 450,
+        totalInventory: 650,
+        criticalAlerts: 1,
+        totalSuggestions: 2
+      })
+      
+      toast({
+        title: "Thông báo",
+        description: "Đang sử dụng dữ liệu mẫu để demo. Kiểm tra kết nối backend.",
+        variant: "default",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Generate daily menu plan using backend API
+  const generateDailyMenuPlan = async () => {
+    if (!selectedDate) return
+    
+    setIsLoading(true)
+    try {
+      const dateStr = format(selectedDate, "yyyy-MM-dd")
+      const response = await menuPlanningApi.generateDailyPlan(dateStr)
+      setDailyMenuPlan(response.data)
+      
+      toast({
+        title: "Thành công",
+        description: "Đã tạo kế hoạch thực đơn từ hệ thống backend",
+        variant: "default",
+      })
+    } catch (error) {
+      console.error("Error generating daily plan:", error)
+      
+      // Fallback plan generation
+      if (menuSuggestions.length > 0) {
+        const totalPersonnel = overviewData?.totalPersonnel || 450
+        const dailyBudget = totalPersonnel * 65000
+
+        const highPriority = menuSuggestions.filter(s => s.priority === "high").slice(0, 2)
+        const mediumPriority = menuSuggestions.filter(s => s.priority === "medium").slice(0, 3)
+        const lowPriority = menuSuggestions.filter(s => s.priority === "low").slice(0, 3)
+
+        const morningMeals = [...highPriority.slice(0, 1), ...mediumPriority.slice(0, 1)]
+        const noonMeals = [...highPriority.slice(1, 2), ...mediumPriority.slice(1, 3)]
+        const eveningMeals = [...lowPriority.slice(0, 2)]
+
+        const totalCost = [...morningMeals, ...noonMeals, ...eveningMeals]
+          .reduce((sum, meal) => sum + (meal.estimatedCost * totalPersonnel), 0)
+
+        let budgetStatus: "under" | "within" | "over" = "within"
+        if (totalCost < dailyBudget * 0.8) budgetStatus = "under"
+        else if (totalCost > dailyBudget) budgetStatus = "over"
+
+        setDailyMenuPlan({
+          date: format(selectedDate, "yyyy-MM-dd"),
+          totalPersonnel,
+          meals: { morning: morningMeals, noon: noonMeals, evening: eveningMeals },
+          totalCost,
+          budgetStatus,
+        })
+
+        toast({
+          title: "Thông báo",
+          description: "Đã tạo kế hoạch thực đơn với dữ liệu mẫu",
+          variant: "default",
+        })
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Refresh suggestions using backend API
+  const refreshSuggestions = async () => {
+    setIsLoading(true)
+    try {
+      const [suggestionsRes, alertsRes] = await Promise.all([
+        menuPlanningApi.getMenuSuggestions(),
+        menuPlanningApi.getInventoryAlerts()
+      ])
+      
+      setMenuSuggestions(suggestionsRes.data || [])
+      setInventoryAlerts(alertsRes.data || [])
+      
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật gợi ý từ hệ thống backend",
+        variant: "default",
+      })
+    } catch (error) {
+      console.error("Error refreshing suggestions:", error)
       toast({
         title: "Lỗi",
-        description: "Không thể tải dữ liệu. Vui lòng thử lại.",
+        description: "Không thể cập nhật gợi ý từ backend",
         variant: "destructive",
       })
     } finally {
@@ -114,177 +400,25 @@ export function SmartMenuPlanner() {
     }
   }
 
-  // Generate smart menu suggestions based on inventory and expiry dates
-  const generateSmartSuggestions = () => {
-    const suggestions: SmartMenuSuggestion[] = []
-    
-    dishes.forEach(dish => {
-      if (!dish.ingredients || dish.ingredients.length === 0) return
-
-      let totalCost = 0
-      let priority: "high" | "medium" | "low" = "low"
-      let reasons: string[] = []
-      
-      const ingredientStatus = dish.ingredients.map((ingredient: any) => {
-        const inventoryItem = inventory.find(inv => inv.product.id === ingredient.lttpId)
-        const availableQuantity = inventoryItem?.nonExpiredQuantity || 0
-        const expiredQuantity = inventoryItem?.expiredQuantity || 0
-        
-        // Calculate days until expiry (simulated - in real app would use actual expiry dates)
-        const expiryDays = Math.floor(Math.random() * 30) + 1
-        
-        let status: "sufficient" | "insufficient" | "expiring_soon" | "expired" = "insufficient"
-        if (expiredQuantity > 0) {
-          status = "expired"
-          reasons.push(`${ingredient.lttpName} đã hết hạn`)
-        } else if (expiryDays <= 3) {
-          status = "expiring_soon"
-          reasons.push(`${ingredient.lttpName} sắp hết hạn (${expiryDays} ngày)`)
-          priority = "high"
-        } else if (availableQuantity >= ingredient.quantity) {
-          status = "sufficient"
-        }
-
-        // Calculate cost from daily rations
-        const rationItem = dailyRations.find(r => r.name.toLowerCase().includes(ingredient.lttpName.toLowerCase()))
-        const unitCost = rationItem?.pricePerUnit || 15000
-        totalCost += ingredient.quantity * unitCost
-
-        return {
-          lttpId: ingredient.lttpId,
-          lttpName: ingredient.lttpName,
-          requiredQuantity: ingredient.quantity,
-          availableQuantity,
-          unit: ingredient.unit,
-          expiryDays,
-          status
-        }
-      })
-
-      // Determine if dish is feasible
-      const insufficientIngredients = ingredientStatus.filter(ing => ing.status === "insufficient" || ing.status === "expired")
-      const expiringSoon = ingredientStatus.filter(ing => ing.status === "expiring_soon")
-      
-      if (insufficientIngredients.length === 0) {
-        if (expiringSoon.length > 0) {
-          priority = "high"
-          reasons.push("Sử dụng nguyên liệu sắp hết hạn")
-        } else if (priority === "low") {
-          priority = "medium"
-        }
-
-        suggestions.push({
-          dishId: dish._id,
-          dishName: dish.name,
-          priority,
-          reason: reasons.join(", ") || "Đủ nguyên liệu, phù hợp chế biến",
-          ingredients: ingredientStatus,
-          estimatedCost: totalCost,
-          suitableForUnits: units.map(u => u._id) // Simplified - all units for now
-        })
-      }
-    })
-
-    // Sort by priority
-    const priorityOrder = { high: 3, medium: 2, low: 1 }
-    suggestions.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority])
-    
-    setMenuSuggestions(suggestions.slice(0, 20)) // Top 20 suggestions
-  }
-
-  // Generate inventory alerts
-  const generateInventoryAlerts = () => {
-    const alerts: InventoryAlert[] = []
-    
-    inventory.forEach(item => {
-      const daysUntilExpiry = Math.floor(Math.random() * 30) + 1 // Simulated
-      let alertLevel: "critical" | "warning" | "info" = "info"
-      let recommendedAction = ""
-
-      if (item.expiredQuantity > 0) {
-        alertLevel = "critical"
-        recommendedAction = `Xử lý ${item.expiredQuantity}kg đã hết hạn ngay lập tức`
-      } else if (daysUntilExpiry <= 3) {
-        alertLevel = "critical"
-        recommendedAction = `Ưu tiên sử dụng trong 3 ngày tới (${item.nonExpiredQuantity}kg)`
-      } else if (daysUntilExpiry <= 7) {
-        alertLevel = "warning"
-        recommendedAction = `Lên kế hoạch sử dụng trong tuần (${item.nonExpiredQuantity}kg)`
-      } else if (item.nonExpiredQuantity < 10) {
-        alertLevel = "warning"
-        recommendedAction = "Tồn kho thấp, cân nhắc nhập thêm"
-      }
-
-      if (alertLevel !== "info") {
-        alerts.push({
-          productId: item.product.id,
-          productName: item.product.name,
-          currentStock: item.nonExpiredQuantity,
-          daysUntilExpiry,
-          alertLevel,
-          recommendedAction
-        })
-      }
-    })
-
-    // Sort by alert level
-    const alertOrder = { critical: 3, warning: 2, info: 1 }
-    alerts.sort((a, b) => alertOrder[b.alertLevel] - alertOrder[a.alertLevel])
-    
-    setInventoryAlerts(alerts)
-  }
-
-  // Generate daily menu plan
-  const generateDailyMenuPlan = () => {
-    const totalPersonnel = units.reduce((sum, unit) => sum + (unit.personnel || 0), 0)
-    const dailyBudget = totalPersonnel * 65000 // 65,000 VND per person per day
-    
-    // Select dishes for each meal
-    const highPriority = menuSuggestions.filter(s => s.priority === "high").slice(0, 2)
-    const mediumPriority = menuSuggestions.filter(s => s.priority === "medium").slice(0, 3)
-    const lowPriority = menuSuggestions.filter(s => s.priority === "low").slice(0, 3)
-    
-    const morningMeals = [...highPriority.slice(0, 1), ...mediumPriority.slice(0, 1)]
-    const noonMeals = [...highPriority.slice(1, 2), ...mediumPriority.slice(1, 3)]
-    const eveningMeals = [...lowPriority.slice(0, 2)]
-    
-    const totalCost = [...morningMeals, ...noonMeals, ...eveningMeals]
-      .reduce((sum, meal) => sum + (meal.estimatedCost * totalPersonnel), 0)
-    
-    let budgetStatus: "under" | "within" | "over" = "within"
-    if (totalCost < dailyBudget * 0.8) budgetStatus = "under"
-    else if (totalCost > dailyBudget) budgetStatus = "over"
-
-    setDailyMenuPlan({
-      date: format(selectedDate, "yyyy-MM-dd"),
-      totalPersonnel,
-      meals: {
-        morning: morningMeals,
-        noon: noonMeals,
-        evening: eveningMeals
-      },
-      totalCost,
-      budgetStatus
-    })
-  }
-
   useEffect(() => {
     fetchData()
-  }, [selectedDate])
+  }, [])
 
   const getBadgeVariant = (priority: string) => {
     switch (priority) {
       case "high": return "destructive"
       case "medium": return "default"
-      default: return "secondary"
+      case "low": return "secondary"
+      default: return "outline"
     }
   }
 
   const getAlertColor = (level: string) => {
     switch (level) {
-      case "critical": return "bg-red-100 text-red-800 border-red-200"
-      case "warning": return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      default: return "bg-blue-100 text-blue-800 border-blue-200"
+      case "critical": return "text-red-600 bg-red-50"
+      case "warning": return "text-yellow-600 bg-yellow-50"
+      case "info": return "text-blue-600 bg-blue-50"
+      default: return "text-gray-600 bg-gray-50"
     }
   }
 
@@ -350,7 +484,7 @@ export function SmartMenuPlanner() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {units.reduce((sum, unit) => sum + (unit.personnel || 0), 0).toLocaleString()}
+              {overviewData?.totalPersonnel?.toLocaleString() || units.reduce((sum, unit) => sum + (unit.personnel || 0), 0).toLocaleString()}
             </div>
             <p className="text-xs text-gray-500">người ăn/ngày</p>
           </CardContent>
@@ -365,7 +499,7 @@ export function SmartMenuPlanner() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {inventory.reduce((sum, item) => sum + item.nonExpiredQuantity, 0).toLocaleString()}
+              {overviewData?.totalInventory?.toLocaleString() || inventory.reduce((sum, item) => sum + item.nonExpiredQuantity, 0).toLocaleString()}
             </div>
             <p className="text-xs text-gray-500">kg thực phẩm</p>
           </CardContent>
@@ -380,7 +514,7 @@ export function SmartMenuPlanner() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {inventoryAlerts.filter(alert => alert.alertLevel === "critical").length}
+              {overviewData?.criticalAlerts || inventoryAlerts.filter(alert => alert.alertLevel === "critical").length}
             </div>
             <p className="text-xs text-gray-500">cấp độ nghiêm trọng</p>
           </CardContent>
@@ -395,7 +529,7 @@ export function SmartMenuPlanner() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {menuSuggestions.length}
+              {overviewData?.totalSuggestions || menuSuggestions.length}
             </div>
             <p className="text-xs text-gray-500">món có thể chế biến</p>
           </CardContent>
@@ -500,13 +634,21 @@ export function SmartMenuPlanner() {
         <TabsContent value="suggestions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lightbulb className="h-5 w-5" />
-                Gợi ý món ăn thông minh
-              </CardTitle>
-              <CardDescription>
-                Các món ăn được đề xuất dựa trên tồn kho hiện tại và hạn sử dụng
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5" />
+                    Gợi ý món ăn thông minh
+                  </CardTitle>
+                  <CardDescription>
+                    Các món ăn được đề xuất dựa trên tồn kho hiện tại và hạn sử dụng
+                  </CardDescription>
+                </div>
+                <Button onClick={refreshSuggestions} disabled={isLoading} className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Cập nhật gợi ý
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -647,13 +789,19 @@ export function SmartMenuPlanner() {
         <TabsContent value="planning" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ChefHat className="h-5 w-5" />
-                Thực đơn được đề xuất cho ngày {format(selectedDate, "dd/MM/yyyy", { locale: vi })}
-              </CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <ChefHat className="h-5 w-5" />
+                  Thực đơn được đề xuất cho ngày {format(selectedDate, "dd/MM/yyyy", { locale: vi })}
+                </CardTitle>
+                <Button onClick={generateDailyMenuPlan} disabled={isLoading} className="flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4" />
+                  Tạo kế hoạch thực đơn
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              {dailyMenuPlan && (
+              {dailyMenuPlan ? (
                 <div className="space-y-6">
                   {/* Budget Overview */}
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -739,6 +887,16 @@ export function SmartMenuPlanner() {
                       Chia sẻ với trợ lý
                     </Button>
                   </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <ChefHat className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium mb-2">Chưa có kế hoạch thực đơn</h3>
+                  <p className="mb-4">Nhấn "Tạo kế hoạch thực đơn" để hệ thống phân tích và đề xuất thực đơn cho ngày đã chọn</p>
+                  <Button onClick={generateDailyMenuPlan} disabled={isLoading} className="flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4" />
+                    Tạo kế hoạch thực đơn
+                  </Button>
                 </div>
               )}
             </CardContent>
