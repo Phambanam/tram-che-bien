@@ -29,13 +29,12 @@ interface Unit {
 interface DailyRation {
   _id: string
   name: string
-  lttpId: string
-  lttpName: string
-  quantityPerPerson: number
+  categoryId: string
+  categoryName: string
+  quantityPerPerson: number // Always 1
   unit: string
   pricePerUnit: number
   totalCostPerPerson: number
-  category: string
   notes?: string
 }
 
@@ -83,15 +82,15 @@ export function OutputManagementContent() {
   const [isLoading, setIsLoading] = useState(true)
   
   // AI Assistant states
-  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false)
-  const [aiFormData, setAIFormData] = useState({
-    foodName: "",
-    category: "",
-    unit: "kg",
-    quantityPerPerson: 0,
-    pricePerUnit: 0,
-    notes: ""
-  })
+  // const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false)
+  // const [aiFormData, setAIFormData] = useState({
+  //   foodName: "",
+  //   category: "",
+  //   unit: "kg",
+  //   quantityPerPerson: 0,
+  //   pricePerUnit: 0,
+  //   notes: ""
+  // })
   const [aiSuggestions, setAISuggestions] = useState<string[]>([])
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false)
   
@@ -201,8 +200,8 @@ export function OutputManagementContent() {
 
       return {
         id: ration._id,
-        foodName: ration.lttpName || ration.name,
-        category: ration.category,
+        foodName: ration.name,
+        category: ration.categoryName,
         unit: ration.unit,
         quantityPerPerson: ration.quantityPerPerson * dayMultiplier,
         pricePerUnit: ration.pricePerUnit,
@@ -304,111 +303,9 @@ export function OutputManagementContent() {
     }, 1500)
   }
 
-  const handleAISuggestionSelect = (suggestion: string) => {
-    // Parse suggestion to fill form data
-    if (suggestion.includes("gạo tẻ")) {
-      setAIFormData({
-        foodName: "Gạo tẻ",
-        category: "Lương thực",
-        unit: "kg",
-        quantityPerPerson: 0.6,
-        pricePerUnit: 25000,
-        notes: "Nguồn cung cấp năng lượng chính"
-      })
-    } else if (suggestion.includes("thịt heo")) {
-      setAIFormData({
-        foodName: "Thịt heo",
-        category: "Thịt",
-        unit: "kg", 
-        quantityPerPerson: 0.15,
-        pricePerUnit: 180000,
-        notes: "Nguồn protein chính"
-      })
-    } else if (suggestion.includes("cà chua")) {
-      setAIFormData({
-        foodName: "Cà chua",
-        category: "Rau củ quả",
-        unit: "kg",
-        quantityPerPerson: 0.1,
-        pricePerUnit: 15000,
-        notes: "Bổ sung vitamin C"
-      })
-    } else if (suggestion.includes("dầu ăn")) {
-      setAIFormData({
-        foodName: "Dầu ăn",
-        category: "Gia vị",
-        unit: "lít",
-        quantityPerPerson: 0.03,
-        pricePerUnit: 35000,
-        notes: "Chất béo thiết yếu"
-      })
-    } else if (suggestion.includes("muối")) {
-      setAIFormData({
-        foodName: "Muối",
-        category: "Gia vị", 
-        unit: "kg",
-        quantityPerPerson: 0.01,
-        pricePerUnit: 8000,
-        notes: "Gia vị cơ bản"
-      })
-    }
-  }
+ 
 
-  const handleAddNewSupplyItem = async () => {
-    try {
-      // Create new daily ration item
-      const newRationData = {
-        name: aiFormData.foodName,
-        lttpName: aiFormData.foodName,
-        quantityPerPerson: aiFormData.quantityPerPerson,
-        unit: aiFormData.unit,
-        pricePerUnit: aiFormData.pricePerUnit,
-        totalCostPerPerson: aiFormData.quantityPerPerson * aiFormData.pricePerUnit,
-        category: aiFormData.category,
-        notes: aiFormData.notes
-      }
 
-      // Add to API (commented out for now as we don't have the endpoint)
-      // await dailyRationsApi.createDailyRation(newRationData)
-      
-      // Add to local state for demonstration
-      const newRation: DailyRation = {
-        _id: `temp-${Date.now()}`,
-        lttpId: `lttp-${Date.now()}`,
-        ...newRationData
-      }
-
-      const updatedRations = [...dailyRations, newRation]
-      setDailyRations(updatedRations)
-      
-      // Regenerate supply data
-      generateSupplyOutputData(updatedRations, units, unitPersonnel, selectedDate, selectedView)
-      
-      toast({
-        title: "Thành công",
-        description: `Đã thêm ${aiFormData.foodName} vào nguồn xuất`,
-      })
-      
-      // Reset form
-      setAIFormData({
-        foodName: "",
-        category: "",
-        unit: "kg",
-        quantityPerPerson: 0,
-        pricePerUnit: 0,
-        notes: ""
-      })
-      setAISuggestions([])
-      setIsAIAssistantOpen(false)
-      
-    } catch (error) {
-      toast({
-        title: "Lỗi",
-        description: "Không thể thêm nguồn xuất mới",
-        variant: "destructive",
-      })
-    }
-  }
 
   if (isLoading) {
     return (
@@ -473,14 +370,7 @@ export function OutputManagementContent() {
                 📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : `${dayNames[weekDays.findIndex(day => isSameDay(day, selectedDate))]}`}
               </CardTitle>
               <div className="flex gap-2">
-                <Button
-                  onClick={() => setIsAIAssistantOpen(true)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-                >
-                  <Bot className="h-4 w-4" />
-                  <Sparkles className="h-3 w-3" />
-                  Trợ lý AI thêm nguồn xuất
-                </Button>
+                
                 <Button variant="outline" className="flex items-center gap-2">
                   <FileDown className="h-4 w-4" />
                   Xuất Excel
@@ -650,181 +540,6 @@ export function OutputManagementContent() {
             </div>
           </CardContent>
         </Card>
-
-        {/* AI Assistant Dialog */}
-        <Dialog open={isAIAssistantOpen} onOpenChange={setIsAIAssistantOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-purple-500" />
-                <Sparkles className="h-4 w-4 text-blue-500" />
-                Trợ lý AI - Thêm nguồn xuất mới
-              </DialogTitle>
-              <DialogDescription>
-                Trợ lý AI sẽ giúp bạn tạo nguồn xuất mới dựa trên kinh nghiệm quân đội và định mức ăn 65,000đ/người/ngày
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-6">
-              {/* AI Suggestions Section */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">🤖 Gợi ý từ AI</h3>
-                  <Button 
-                    onClick={generateAISuggestions}
-                    disabled={isGeneratingSuggestions}
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
-                    {isGeneratingSuggestions ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div>
-                        Đang phân tích...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Tạo gợi ý AI
-                      </>
-                    )}
-                  </Button>
-                </div>
-                
-                {aiSuggestions.length > 0 && (
-                  <div className="grid gap-3">
-                    {aiSuggestions.map((suggestion, index) => (
-                      <div 
-                        key={index}
-                        className="p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors"
-                        onClick={() => handleAISuggestionSelect(suggestion)}
-                      >
-                        <div className="flex items-start gap-2">
-                          <Badge variant="outline" className="mt-0.5">#{index + 1}</Badge>
-                          <p className="text-sm">{suggestion}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Manual Form Section */}
-              <div className="border-t pt-6">
-                <h3 className="text-lg font-semibold mb-4">✍️ Nhập thủ công</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="foodName">Tên thực phẩm *</Label>
-                    <Input
-                      id="foodName"
-                      value={aiFormData.foodName}
-                      onChange={(e) => setAIFormData({ ...aiFormData, foodName: e.target.value })}
-                      placeholder="VD: Gạo tẻ, Thịt heo..."
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Phân loại *</Label>
-                    <Select
-                      value={aiFormData.category}
-                      onValueChange={(value) => setAIFormData({ ...aiFormData, category: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn phân loại" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Lương thực">Lương thực</SelectItem>
-                        <SelectItem value="Thịt">Thịt</SelectItem>
-                        <SelectItem value="Hải sản">Hải sản</SelectItem>
-                        <SelectItem value="Rau củ quả">Rau củ quả</SelectItem>
-                        <SelectItem value="Gia vị">Gia vị</SelectItem>
-                        <SelectItem value="Chất đốt">Chất đốt</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="unit">Đơn vị tính *</Label>
-                    <Select
-                      value={aiFormData.unit}
-                      onValueChange={(value) => setAIFormData({ ...aiFormData, unit: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="kg">kg</SelectItem>
-                        <SelectItem value="gam">gam</SelectItem>
-                        <SelectItem value="lít">lít</SelectItem>
-                        <SelectItem value="ml">ml</SelectItem>
-                        <SelectItem value="bình">bình</SelectItem>
-                        <SelectItem value="hộp">hộp</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="quantityPerPerson">Định lượng/người *</Label>
-                    <Input
-                      id="quantityPerPerson"
-                      type="number"
-                      step="0.001"
-                      value={aiFormData.quantityPerPerson}
-                      onChange={(e) => setAIFormData({ ...aiFormData, quantityPerPerson: parseFloat(e.target.value) || 0 })}
-                      placeholder="0.000"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="pricePerUnit">Giá/đơn vị (VNĐ) *</Label>
-                    <Input
-                      id="pricePerUnit"
-                      type="number"
-                      value={aiFormData.pricePerUnit}
-                      onChange={(e) => setAIFormData({ ...aiFormData, pricePerUnit: parseInt(e.target.value) || 0 })}
-                      placeholder="0"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Ghi chú</Label>
-                    <Textarea
-                      id="notes"
-                      value={aiFormData.notes}
-                      onChange={(e) => setAIFormData({ ...aiFormData, notes: e.target.value })}
-                      placeholder="Mô tả thêm về thực phẩm..."
-                      rows={3}
-                    />
-                  </div>
-                </div>
-                
-                {/* Cost Preview */}
-                {aiFormData.quantityPerPerson > 0 && aiFormData.pricePerUnit > 0 && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                    <h4 className="font-medium text-green-800 mb-2">💰 Dự tính chi phí</h4>
-                    <div className="text-sm text-green-700">
-                      <p>Chi phí/người/ngày: <strong>{(aiFormData.quantityPerPerson * aiFormData.pricePerUnit).toLocaleString()}đ</strong></p>
-                      <p>Phần trăm so với mức ăn 65,000đ: <strong>{((aiFormData.quantityPerPerson * aiFormData.pricePerUnit / 65000) * 100).toFixed(1)}%</strong></p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <DialogFooter className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsAIAssistantOpen(false)}>
-                Hủy
-              </Button>
-              <Button 
-                onClick={handleAddNewSupplyItem}
-                disabled={!aiFormData.foodName || !aiFormData.category || aiFormData.quantityPerPerson <= 0 || aiFormData.pricePerUnit <= 0}
-                className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm nguồn xuất
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Edit Personnel Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
