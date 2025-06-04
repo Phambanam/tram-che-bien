@@ -100,9 +100,12 @@ export function OutputManagementContent() {
   const [categories, setCategories] = useState<Category[]>([])
   const [supplyData, setSupplyData] = useState<SupplyOutputData[]>([])
   const [unitPersonnel, setUnitPersonnel] = useState<UnitPersonnelData>({})
+  const [totalPersonnelInput, setTotalPersonnelInput] = useState<number>(0) // Tổng số người ăn do TLT nhập
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isEditTotalPersonnelDialogOpen, setIsEditTotalPersonnelDialogOpen] = useState(false)
   const [editingUnit, setEditingUnit] = useState<{ unitId: string; unitName: string; personnel: number } | null>(null)
   const [newPersonnelCount, setNewPersonnelCount] = useState<number>(0)
+  const [newTotalPersonnelCount, setNewTotalPersonnelCount] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(true)
   
   // New state for ingredient summaries
@@ -288,13 +291,12 @@ export function OutputManagementContent() {
     filteredIngredientData.forEach((dailySummary) => {
       dailySummary.ingredients.forEach((ingredient) => {
         const unitRequirements: { [unitId: string]: { personnel: number; requirement: number } } = {}
-        let totalPersonnel = 0
         let totalAmount = ingredient.totalQuantity
         
         // Calculate requirements per unit based on their personnel
         unitsData.forEach((unit) => {
           const personnel = personnelData[unit._id] || 0
-          const totalPeople = unitsData.reduce((sum, u) => sum + (personnelData[u._id] || 0), 0)
+          const totalPeople = totalPersonnelInput > 0 ? totalPersonnelInput : unitsData.reduce((sum, u) => sum + (personnelData[u._id] || 0), 0)
           
           // Distribute total quantity proportionally based on unit size
           const proportionalRequirement = totalPeople > 0 
@@ -305,8 +307,6 @@ export function OutputManagementContent() {
             personnel,
             requirement: proportionalRequirement
           }
-          
-          totalPersonnel += personnel
         })
 
         // Estimate price per unit (using default daily ration prices as reference)
@@ -325,15 +325,18 @@ export function OutputManagementContent() {
           ? ingredient.lttpName
           : `${ingredient.lttpName} (${dailySummary.dayName} - ${format(new Date(dailySummary.date), "dd/MM/yyyy")})`
         
+        // Use input total personnel or calculated total
+        const effectiveTotalPersonnel = totalPersonnelInput > 0 ? totalPersonnelInput : unitsData.reduce((sum, u) => sum + (personnelData[u._id] || 0), 0)
+        
         outputData.push({
           id: `${dailySummary.date}-${ingredient.lttpId}`,
           foodName: displayName,
           category: ingredient.category,
           unit: ingredient.unit,
-          quantityPerPerson: totalPersonnel > 0 ? ingredient.totalQuantity / totalPersonnel : 0,
+          quantityPerPerson: effectiveTotalPersonnel > 0 ? ingredient.totalQuantity / effectiveTotalPersonnel : 0,
           pricePerUnit,
           units: unitRequirements,
-          totalPersonnel,
+          totalPersonnel: effectiveTotalPersonnel,
           totalCost,
           totalAmount,
           sourceDate: dailySummary.date,
@@ -363,7 +366,6 @@ export function OutputManagementContent() {
     
     const outputData: SupplyOutputData[] = rations.map((ration, index) => {
       const unitRequirements: { [unitId: string]: { personnel: number; requirement: number } } = {}
-      let totalPersonnel = 0
       let totalAmount = 0
 
       // Apply day-specific variations to simulate different daily requirements
@@ -401,11 +403,13 @@ export function OutputManagementContent() {
           requirement: adjustedRequirement
         }
         
-        totalPersonnel += personnel
         totalAmount += adjustedRequirement
       })
 
       const totalCost = totalAmount * ration.pricePerUnit
+      
+      // Use input total personnel or calculated total
+      const effectiveTotalPersonnel = totalPersonnelInput > 0 ? totalPersonnelInput : visibleUnits.reduce((sum, unit) => sum + (personnelData[unit._id] || 0), 0)
 
       return {
         id: ration._id,
@@ -415,7 +419,7 @@ export function OutputManagementContent() {
         quantityPerPerson: ration.quantityPerPerson * dayMultiplier,
         pricePerUnit: ration.pricePerUnit,
         units: unitRequirements,
-        totalPersonnel,
+        totalPersonnel: effectiveTotalPersonnel,
         totalCost,
         totalAmount
       }
@@ -484,6 +488,32 @@ export function OutputManagementContent() {
     }
     setIsEditDialogOpen(false)
     setEditingUnit(null)
+  }
+
+  // Handle total personnel edit
+  const handleEditTotalPersonnel = () => {
+    const currentTotal = totalPersonnelInput > 0 ? totalPersonnelInput : visibleUnits.reduce((sum, unit) => sum + (unitPersonnel[unit._id] || 0), 0)
+    setNewTotalPersonnelCount(currentTotal)
+    setIsEditTotalPersonnelDialogOpen(true)
+  }
+
+  // Save total personnel count changes
+  const handleSaveTotalPersonnelCount = () => {
+    setTotalPersonnelInput(newTotalPersonnelCount)
+    
+    // Regenerate supply data with new total personnel count
+    if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
+      generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, unitPersonnel)
+    } else {
+      generateSupplyOutputData(dailyRations, visibleUnits, unitPersonnel, selectedDate, selectedView)
+    }
+    
+    toast({
+      title: "Thành công",
+      description: `Đã cập nhật tổng số người ăn thành ${newTotalPersonnelCount}`,
+    })
+    
+    setIsEditTotalPersonnelDialogOpen(false)
   }
 
   // Calculate category totals to check limits
@@ -783,7 +813,17 @@ export function OutputManagementContent() {
                       </TableCell>
                     ))}
                     <TableCell className="text-center bg-yellow-100">
-                      {visibleUnits.reduce((sum, unit) => sum + (unitPersonnel[unit._id] || 0), 0)}
+                      {totalPersonnelInput > 0 ? totalPersonnelInput : visibleUnits.reduce((sum, unit) => sum + (unitPersonnel[unit._id] || 0), 0)}
+                      {(user?.role === 'admin' || user?.role === 'brigadeAssistant' || user?.role === 'unitAssistant') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2 h-auto p-1 hover:bg-yellow-200"
+                          onClick={handleEditTotalPersonnel}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      )}
                     </TableCell>
                     <TableCell className="text-center bg-orange-100">-</TableCell>
                     <TableCell className="text-center bg-red-100">
@@ -890,6 +930,41 @@ export function OutputManagementContent() {
                 Hủy
               </Button>
               <Button onClick={handleSavePersonnelCount}>
+                Lưu
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Total Personnel Dialog */}
+        <Dialog open={isEditTotalPersonnelDialogOpen} onOpenChange={setIsEditTotalPersonnelDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Chỉnh sửa tổng số người ăn</DialogTitle>
+              <DialogDescription>
+                Cập nhật tổng số người ăn cho tất cả đơn vị
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Tổng số người ăn:</label>
+                <Input
+                  type="number"
+                  value={newTotalPersonnelCount}
+                  onChange={(e) => setNewTotalPersonnelCount(parseInt(e.target.value) || 0)}
+                  min="0"
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Tổng hiện tại từ các đơn vị: {visibleUnits.reduce((sum, unit) => sum + (unitPersonnel[unit._id] || 0), 0)} người
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditTotalPersonnelDialogOpen(false)}>
+                Hủy
+              </Button>
+              <Button onClick={handleSaveTotalPersonnelCount}>
                 Lưu
               </Button>
             </DialogFooter>
