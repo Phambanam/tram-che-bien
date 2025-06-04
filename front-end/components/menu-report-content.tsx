@@ -104,6 +104,10 @@ export function MenuReportContent() {
   const [availableDishes, setAvailableDishes] = useState<Dish[]>([])
   const [loading, setLoading] = useState(false)
   
+  // Ingredient tab specific states
+  const [selectedIngredientDate, setSelectedIngredientDate] = useState<Date | null>(null)
+  const [showAllDays, setShowAllDays] = useState(true)
+  
   // Form states
   const [dishForm, setDishForm] = useState({
     dishId: "",
@@ -229,6 +233,18 @@ export function MenuReportContent() {
         totalIngredientTypes: ingredients.length
       }
     })
+  }
+
+  // Filter ingredient summaries based on selected date
+  const getFilteredIngredientSummaries = (): DailyIngredientSummary[] => {
+    const allSummaries = calculateDailyIngredientSummaries()
+    
+    if (showAllDays || !selectedIngredientDate) {
+      return allSummaries
+    }
+    
+    const selectedDateStr = format(selectedIngredientDate, "yyyy-MM-dd")
+    return allSummaries.filter(summary => summary.date === selectedDateStr)
   }
 
   // Function to navigate to previous week
@@ -869,15 +885,76 @@ export function MenuReportContent() {
                 <CardTitle>Tổng hợp nguyên liệu theo ngày</CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex items-center space-x-2">
+                      <input 
+                        type="checkbox" 
+                        id="show-all-days" 
+                        checked={showAllDays}
+                        onChange={(e) => {
+                          setShowAllDays(e.target.checked)
+                          if (e.target.checked) {
+                            setSelectedIngredientDate(null)
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <Label htmlFor="show-all-days" className="text-sm font-medium">
+                        Hiển thị tất cả ngày
+                      </Label>
+                    </div>
+                    
+                    {!showAllDays && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedIngredientDate ? format(selectedIngredientDate, "PPP", { locale: vi }) : "Chọn ngày cụ thể"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={selectedIngredientDate || undefined}
+                            onSelect={(date) => setSelectedIngredientDate(date || null)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <FileDown className="h-4 w-4" />
+                      Xuất danh sách nguyên liệu
+                    </Button>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <Printer className="h-4 w-4" />
+                      In danh sách
+                    </Button>
+                  </div>
+                </div>
+                
                 {loading ? (
                   <div className="text-center py-8">Đang tải dữ liệu...</div>
                 ) : !currentMenu ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">Chưa có thực đơn cho tuần này</p>
                   </div>
+                ) : getFilteredIngredientSummaries().length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">
+                      {!showAllDays && selectedIngredientDate 
+                        ? `Không có thực đơn cho ngày ${format(selectedIngredientDate, "dd/MM/yyyy", { locale: vi })}`
+                        : "Chưa có dữ liệu nguyên liệu"
+                      }
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-6">
-                    {calculateDailyIngredientSummaries().map((dailySummary) => (
+                    {getFilteredIngredientSummaries().map((dailySummary) => (
                       <Card key={dailySummary.date} className="border-l-4 border-l-blue-500">
                         <CardHeader className="pb-3">
                           <div className="flex justify-between items-center">
@@ -944,32 +1021,57 @@ export function MenuReportContent() {
                     ))}
                     
                     {/* Summary statistics */}
-                    {calculateDailyIngredientSummaries().length > 0 && (
+                    {getFilteredIngredientSummaries().length > 0 && (
                       <Card className="border-2 border-dashed border-gray-300 bg-gray-50">
                         <CardHeader>
-                          <CardTitle className="text-lg text-gray-700">Thống kê tổng quan</CardTitle>
+                          <CardTitle className="text-lg text-gray-700">
+                            {showAllDays ? "Thống kê tổng quan tuần" : "Thống kê ngày được chọn"}
+                          </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-blue-600">
-                                {calculateDailyIngredientSummaries().length}
+                          {showAllDays ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-blue-600">
+                                  {getFilteredIngredientSummaries().length}
+                                </div>
+                                <div className="text-sm text-gray-600">Ngày có thực đơn</div>
                               </div>
-                              <div className="text-sm text-gray-600">Ngày có thực đơn</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-green-600">
-                                {Math.max(...calculateDailyIngredientSummaries().map(d => d.totalIngredientTypes), 0)}
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-green-600">
+                                  {Math.max(...getFilteredIngredientSummaries().map(d => d.totalIngredientTypes), 0)}
+                                </div>
+                                <div className="text-sm text-gray-600">Loại nguyên liệu nhiều nhất/ngày</div>
                               </div>
-                              <div className="text-sm text-gray-600">Loại nguyên liệu nhiều nhất/ngày</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-orange-600">
-                                {Math.round(calculateDailyIngredientSummaries().reduce((sum, d) => sum + d.mealCount, 0) / calculateDailyIngredientSummaries().length) || 0}
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-orange-600">
+                                  {Math.round(getFilteredIngredientSummaries().reduce((sum, d) => sum + d.mealCount, 0) / getFilteredIngredientSummaries().length) || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">Số người ăn trung bình/ngày</div>
                               </div>
-                              <div className="text-sm text-gray-600">Số người ăn trung bình/ngày</div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-blue-600">
+                                  {getFilteredIngredientSummaries()[0]?.totalIngredientTypes || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">Tổng loại nguyên liệu</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-green-600">
+                                  {getFilteredIngredientSummaries()[0]?.mealCount || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">Số người ăn</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-orange-600">
+                                  {getFilteredIngredientSummaries()[0]?.ingredients.reduce((sum, ing) => sum + ing.totalQuantity, 0).toFixed(1) || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">Tổng khối lượng (mix units)</div>
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     )}
