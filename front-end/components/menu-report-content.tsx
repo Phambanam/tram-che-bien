@@ -719,7 +719,7 @@ export function MenuReportContent() {
           quantity: ingredient.totalQuantity,
           unit: ingredient.unit,
           category: ingredient.category,
-          usedInDishes: ingredient.usedInDishes.join(', ')
+          usedInDishes: Array.isArray(ingredient.usedInDishes) ? ingredient.usedInDishes.join(', ') : String(ingredient.usedInDishes)
         }))
       }))
 
@@ -763,7 +763,7 @@ export function MenuReportContent() {
           quantity: ingredient.totalQuantity,
           unit: ingredient.unit,
           category: ingredient.category,
-          usedInDishes: ingredient.usedInDishes.join(', ')
+          usedInDishes: Array.isArray(ingredient.usedInDishes) ? ingredient.usedInDishes.join(', ') : String(ingredient.usedInDishes)
         }))
       }))
 
@@ -1169,11 +1169,15 @@ export function MenuReportContent() {
                                       </TableCell>
                                       <TableCell>
                                         <div className="flex flex-wrap gap-1">
-                                          {ingredient.usedInDishes.map((dishName, dishIndex) => (
+                                          {Array.isArray(ingredient.usedInDishes) ? ingredient.usedInDishes.map((dishName, dishIndex) => (
                                             <Badge key={dishIndex} variant="outline" className="text-xs">
                                               {dishName}
                                             </Badge>
-                                          ))}
+                                          )) : (
+                                            <Badge variant="outline" className="text-xs">
+                                              {String(ingredient.usedInDishes)}
+                                            </Badge>
+                                          )}
                                         </div>
                                       </TableCell>
                                     </TableRow>
