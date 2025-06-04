@@ -422,8 +422,14 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
       })
     }
 
-    // Ensure dailyMenus exists and is an array
-    if (!menu.dailyMenus || !Array.isArray(menu.dailyMenus)) {
+    // Get daily menus for this menu
+    const dailyMenus = await db
+      .collection("dailyMenus")
+      .find({ menuId: menu._id })
+      .sort({ date: 1 })
+      .toArray()
+
+    if (!dailyMenus || dailyMenus.length === 0) {
       return res.status(200).json({
         success: true,
         data: [],
@@ -434,44 +440,58 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
     // Calculate ingredient summaries for each day
     const dailyIngredientSummaries = []
 
-    for (const dailyMenu of menu.dailyMenus) {
+    for (const dailyMenu of dailyMenus) {
       // Skip if not showing all days and date doesn't match
-      if (!showAllDays && date && dailyMenu.date !== date) {
+      const dailyMenuDateStr = dailyMenu.date.toISOString().split('T')[0]
+      if (!showAllDays && date && dailyMenuDateStr !== date) {
         continue
       }
 
       const ingredientMap = new Map()
 
+      // Get meals for this daily menu
+      const meals = await db
+        .collection("meals")
+        .aggregate([
+          {
+            $match: { dailyMenuId: dailyMenu._id },
+          },
+          {
+            $lookup: {
+              from: "dishes",
+              localField: "dishes",
+              foreignField: "_id",
+              as: "dishDetails",
+            },
+          },
+        ])
+        .toArray()
+
       // Process each meal of the day
-      if (dailyMenu.meals && Array.isArray(dailyMenu.meals)) {
-        for (const meal of dailyMenu.meals) {
-          if (meal.dishes && Array.isArray(meal.dishes)) {
-            for (const dish of meal.dishes) {
-              // Get dish details with ingredients
-              const dishDetails = await db.collection("dishes").findOne({ name: dish })
-              
-              if (dishDetails && dishDetails.ingredients) {
-                // Process each ingredient in the dish
-                for (const ingredient of dishDetails.ingredients) {
-                  const key = ingredient.lttpId
-                  const quantityForMealCount = (ingredient.quantity * dailyMenu.mealCount) / (dishDetails.servings || 1)
-                  
-                  if (ingredientMap.has(key)) {
-                    const existing = ingredientMap.get(key)
-                    existing.totalQuantity += quantityForMealCount
-                    if (!existing.usedInDishes.includes(dishDetails.name)) {
-                      existing.usedInDishes.push(dishDetails.name)
-                    }
-                  } else {
-                    ingredientMap.set(key, {
-                      lttpId: ingredient.lttpId,
-                      lttpName: ingredient.lttpName,
-                      unit: ingredient.unit,
-                      totalQuantity: quantityForMealCount,
-                      category: dishDetails.category || 'Khác',
-                      usedInDishes: [dishDetails.name]
-                    })
+      for (const meal of meals) {
+        if (meal.dishDetails && Array.isArray(meal.dishDetails)) {
+          for (const dish of meal.dishDetails) {
+            if (dish.ingredients && Array.isArray(dish.ingredients)) {
+              // Process each ingredient in the dish
+              for (const ingredient of dish.ingredients) {
+                const key = ingredient.lttpId
+                const quantityForMealCount = (ingredient.quantity * dailyMenu.mealCount) / (dish.servings || 1)
+                
+                if (ingredientMap.has(key)) {
+                  const existing = ingredientMap.get(key)
+                  existing.totalQuantity += quantityForMealCount
+                  if (!existing.usedInDishes.includes(dish.name)) {
+                    existing.usedInDishes.push(dish.name)
                   }
+                } else {
+                  ingredientMap.set(key, {
+                    lttpId: ingredient.lttpId,
+                    lttpName: ingredient.lttpName,
+                    unit: ingredient.unit,
+                    totalQuantity: quantityForMealCount,
+                    category: dish.category || 'Khác',
+                    usedInDishes: [dish.name]
+                  })
                 }
               }
             }
@@ -495,7 +515,7 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
       }))
 
       dailyIngredientSummaries.push({
-        date: dailyMenu.date,
+        date: dailyMenuDateStr,
         dayName: new Date(dailyMenu.date).toLocaleDateString('vi-VN', { weekday: 'long' }),
         mealCount: dailyMenu.mealCount,
         ingredients: ingredientsWithSTT,
