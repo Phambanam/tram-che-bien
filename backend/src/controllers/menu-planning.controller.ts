@@ -3,6 +3,20 @@ import { ObjectId } from "mongodb"
 import { getDb } from "../config/database"
 import { AppError } from "../middleware/error.middleware"
 
+// Helper function to format date without timezone issues
+const formatDateToYMD = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// Helper function to get Vietnamese day name
+const getVietnameseDayName = (date: Date): string => {
+  const dayNames = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy']
+  return dayNames[date.getDay()]
+}
+
 // Interface definitions
 interface IngredientAnalysis {
   lttpId: string
@@ -462,7 +476,9 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
 
     for (const dailyMenu of dailyMenus) {
       // Skip if not showing all days and date doesn't match
-      const dailyMenuDateStr = dailyMenu.date.toISOString().split('T')[0]
+      const dailyMenuDate = new Date(dailyMenu.date)
+      const dailyMenuDateStr = formatDateToYMD(dailyMenuDate)
+      
       if (!showAllDays && date && dailyMenuDateStr !== date) {
         continue
       }
@@ -536,7 +552,7 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
 
       dailyIngredientSummaries.push({
         date: dailyMenuDateStr,
-        dayName: new Date(dailyMenu.date).toLocaleDateString('vi-VN', { weekday: 'long' }),
+        dayName: getVietnameseDayName(dailyMenuDate),
         mealCount: dailyMenu.mealCount,
         ingredients: ingredientsWithSTT,
         totalIngredientTypes: ingredients.length
