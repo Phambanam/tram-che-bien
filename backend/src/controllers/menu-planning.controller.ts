@@ -511,7 +511,7 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
       const ingredientsWithSTT = ingredients.map((ingredient, index) => ({
         stt: index + 1,
         ...ingredient,
-        usedInDishes: ingredient.usedInDishes.join(', ')
+        usedInDishes: ingredient.usedInDishes // Keep as array, don't join to string
       }))
 
       dailyIngredientSummaries.push({
