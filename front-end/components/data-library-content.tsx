@@ -827,6 +827,7 @@ export function DataLibraryContent() {
                       <TableHead>STT</TableHead>
                       <TableHead>Tên định lượng ăn</TableHead>
                       <TableHead>Phân loại</TableHead>
+                      <TableHead>Số lượng</TableHead>
                       <TableHead>Đơn vị</TableHead>
                       <TableHead>Giá/đơn vị</TableHead>
                       <TableHead>Thao tác</TableHead>
@@ -839,6 +840,9 @@ export function DataLibraryContent() {
                         <TableCell className="font-medium">{ration.name}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{ration.categoryName}</Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary">{ration.quantityPerPerson}</Badge>
                         </TableCell>
                         <TableCell>{ration.unit}</TableCell>
                         <TableCell>{ration.pricePerUnit.toLocaleString()} đ</TableCell>
