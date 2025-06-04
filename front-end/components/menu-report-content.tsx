@@ -26,6 +26,14 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { menusApi, dishesApi } from "@/lib/api-client"
 import { DishTooltip } from "@/components/dish-tooltip"
+import { 
+  exportMenuToExcel, 
+  exportIngredientsToExcel, 
+  printMenu, 
+  printIngredients,
+  type MenuExportData,
+  type IngredientExportData
+} from "@/lib/export-utils"
 
 interface Dish {
   _id: string
@@ -612,6 +620,174 @@ export function MenuReportContent() {
     setDishForm({...dishForm, mealType: newMealType})
   }
 
+  // Handle export menu to Excel
+  const handleExportMenuToExcel = () => {
+    if (!currentMenu) {
+      toast({
+        title: "Lỗi",
+        description: "Không có thực đơn để xuất",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const exportData: MenuExportData = {
+        week: selectedWeek,
+        year: selectedYear,
+        startDate: weekStart.toISOString(),
+        endDate: weekEnd.toISOString(),
+        dailyMenus: currentMenu.dailyMenus.map(dailyMenu => ({
+          date: dailyMenu.date,
+          dayName: format(parseISO(dailyMenu.date), "EEEE", { locale: vi }),
+          mealCount: dailyMenu.mealCount,
+          status: dailyMenu.status,
+          meals: dailyMenu.meals.map(meal => ({
+            type: meal.type,
+            dishes: meal.dishes.map(dish => dish.name)
+          }))
+        }))
+      }
+
+      exportMenuToExcel(exportData)
+      
+      toast({
+        title: "Thành công",
+        description: "Xuất thực đơn Excel thành công",
+      })
+    } catch (error) {
+      console.error("Error exporting menu:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xuất thực đơn Excel",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle print menu
+  const handlePrintMenu = () => {
+    if (!currentMenu) {
+      toast({
+        title: "Lỗi",
+        description: "Không có thực đơn để in",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const printData: MenuExportData = {
+        week: selectedWeek,
+        year: selectedYear,
+        startDate: weekStart.toISOString(),
+        endDate: weekEnd.toISOString(),
+        dailyMenus: currentMenu.dailyMenus.map(dailyMenu => ({
+          date: dailyMenu.date,
+          dayName: format(parseISO(dailyMenu.date), "EEEE", { locale: vi }),
+          mealCount: dailyMenu.mealCount,
+          status: dailyMenu.status,
+          meals: dailyMenu.meals.map(meal => ({
+            type: meal.type,
+            dishes: meal.dishes.map(dish => dish.name)
+          }))
+        }))
+      }
+
+      printMenu(printData)
+    } catch (error) {
+      console.error("Error printing menu:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể in thực đơn",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle export ingredients to Excel
+  const handleExportIngredientsToExcel = () => {
+    const ingredientSummaries = getFilteredIngredientSummaries()
+    
+    if (ingredientSummaries.length === 0) {
+      toast({
+        title: "Lỗi",
+        description: "Không có dữ liệu nguyên liệu để xuất",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const exportData: IngredientExportData[] = ingredientSummaries.map(summary => ({
+        date: summary.date,
+        dayName: summary.dayName,
+        mealCount: summary.mealCount,
+        ingredients: summary.ingredients.map((ingredient, index) => ({
+          stt: index + 1,
+          name: ingredient.lttpName,
+          quantity: ingredient.totalQuantity,
+          unit: ingredient.unit,
+          category: ingredient.category,
+          usedInDishes: ingredient.usedInDishes.join(', ')
+        }))
+      }))
+
+      exportIngredientsToExcel(exportData, showAllDays)
+      
+      toast({
+        title: "Thành công",
+        description: "Xuất danh sách nguyên liệu Excel thành công",
+      })
+    } catch (error) {
+      console.error("Error exporting ingredients:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xuất danh sách nguyên liệu Excel",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle print ingredients
+  const handlePrintIngredients = () => {
+    const ingredientSummaries = getFilteredIngredientSummaries()
+    
+    if (ingredientSummaries.length === 0) {
+      toast({
+        title: "Lỗi",
+        description: "Không có dữ liệu nguyên liệu để in",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const printData: IngredientExportData[] = ingredientSummaries.map(summary => ({
+        date: summary.date,
+        dayName: summary.dayName,
+        mealCount: summary.mealCount,
+        ingredients: summary.ingredients.map((ingredient, index) => ({
+          stt: index + 1,
+          name: ingredient.lttpName,
+          quantity: ingredient.totalQuantity,
+          unit: ingredient.unit,
+          category: ingredient.category,
+          usedInDishes: ingredient.usedInDishes.join(', ')
+        }))
+      }))
+
+      printIngredients(printData, showAllDays)
+    } catch (error) {
+      console.error("Error printing ingredients:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể in danh sách nguyên liệu",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="container mx-auto p-4">
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -637,11 +813,11 @@ export function MenuReportContent() {
                 Tạo thực đơn tuần
               </Button>
             )}
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={handlePrintMenu}>
               <Printer className="h-4 w-4" />
               In thực đơn
             </Button>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={handleExportMenuToExcel}>
               <FileDown className="h-4 w-4" />
               Xuất Excel
             </Button>
@@ -926,11 +1102,11 @@ export function MenuReportContent() {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex items-center gap-2">
+                    <Button variant="outline" className="flex items-center gap-2" onClick={handleExportIngredientsToExcel}>
                       <FileDown className="h-4 w-4" />
                       Xuất danh sách nguyên liệu
                     </Button>
-                    <Button variant="outline" className="flex items-center gap-2">
+                    <Button variant="outline" className="flex items-center gap-2" onClick={handlePrintIngredients}>
                       <Printer className="h-4 w-4" />
                       In danh sách
                     </Button>
