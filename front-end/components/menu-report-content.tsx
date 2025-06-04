@@ -1801,18 +1801,14 @@ export function MenuReportContent() {
                 </Label>
                 <Select value={supplyOutputForm.receivingUnitId} onValueChange={(value) => setSupplyOutputForm({...supplyOutputForm, receivingUnitId: value})}>
                   <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Chọn đơn vị nhận" />
+                    <SelectValue placeholder={Array.isArray(availableUnits) && availableUnits.length > 0 ? "Chọn đơn vị nhận" : "Không có đơn vị nào"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.isArray(availableUnits) ? availableUnits.map((unit) => (
+                    {Array.isArray(availableUnits) && availableUnits.length > 0 && availableUnits.map((unit) => (
                       <SelectItem key={unit._id} value={unit._id}>
                         {unit.name}
                       </SelectItem>
-                    )) : (
-                      <SelectItem value="" disabled>
-                        Không có đơn vị nào
-                      </SelectItem>
-                    )}
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
