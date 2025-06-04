@@ -782,6 +782,44 @@ export const lttpApi = {
   },
 }
 
+// Menu Planning API
+export const menuPlanningApi = {
+  getMenuSuggestions: async () => {
+    return apiRequest<any>("/menu-planning/suggestions")
+  },
+
+  getInventoryAlerts: async () => {
+    return apiRequest<any>("/menu-planning/alerts")
+  },
+
+  generateDailyPlan: async (date: string) => {
+    return apiRequest<any>("/menu-planning/daily-plan", {
+      method: "POST",
+      body: JSON.stringify({ date }),
+    })
+  },
+
+  getOverview: async () => {
+    return apiRequest<any>("/menu-planning/overview")
+  },
+
+  getDailyIngredientSummaries: async (params: {
+    week?: number
+    year?: number
+    date?: string
+    showAllDays?: boolean
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params.week) queryParams.append("week", params.week.toString())
+    if (params.year) queryParams.append("year", params.year.toString())
+    if (params.date) queryParams.append("date", params.date)
+    if (params.showAllDays !== undefined) queryParams.append("showAllDays", params.showAllDays.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<any>(`/menu-planning/ingredient-summaries${query}`)
+  },
+}
+
 // Export all APIs for convenience
 export const api = {
   auth: authApi,
@@ -803,4 +841,5 @@ export const api = {
   upload: uploadApi,
   dailyRations: dailyRationsApi,
   lttp: lttpApi,
+  menuPlanning: menuPlanningApi,
 }

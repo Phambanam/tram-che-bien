@@ -381,6 +381,138 @@ export const getMenuPlanningOverview = async (req: Request, res: Response) => {
   }
 }
 
+// @desc    Get daily ingredient summaries for menu planning
+// @route   GET /api/menu-planning/ingredient-summaries
+// @access  Private
+export const getDailyIngredientSummaries = async (req: Request, res: Response) => {
+  try {
+    const { week, year, date, showAllDays } = req.query
+    const db = await getDb()
+
+    let matchCriteria: any = {}
+
+    if (week && year) {
+      // Get menu by week and year
+      matchCriteria = { 
+        week: parseInt(week as string), 
+        year: parseInt(year as string) 
+      }
+    } else if (date) {
+      // Find menu that contains this specific date
+      const selectedDate = new Date(date as string)
+      const startOfWeekDate = new Date(selectedDate)
+      startOfWeekDate.setDate(selectedDate.getDate() - selectedDate.getDay() + 1) // Monday
+      const endOfWeekDate = new Date(startOfWeekDate)
+      endOfWeekDate.setDate(startOfWeekDate.getDate() + 6) // Sunday
+
+      matchCriteria = {
+        startDate: { $lte: selectedDate },
+        endDate: { $gte: selectedDate }
+      }
+    }
+
+    // Get the menu
+    const menu = await db.collection("menus").findOne(matchCriteria)
+
+    if (!menu) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: "Không tìm thấy thực đơn cho thời gian được chọn"
+      })
+    }
+
+    // Ensure dailyMenus exists and is an array
+    if (!menu.dailyMenus || !Array.isArray(menu.dailyMenus)) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: "Thực đơn không có dữ liệu ngày"
+      })
+    }
+
+    // Calculate ingredient summaries for each day
+    const dailyIngredientSummaries = []
+
+    for (const dailyMenu of menu.dailyMenus) {
+      // Skip if not showing all days and date doesn't match
+      if (!showAllDays && date && dailyMenu.date !== date) {
+        continue
+      }
+
+      const ingredientMap = new Map()
+
+      // Process each meal of the day
+      if (dailyMenu.meals && Array.isArray(dailyMenu.meals)) {
+        for (const meal of dailyMenu.meals) {
+          if (meal.dishes && Array.isArray(meal.dishes)) {
+            for (const dish of meal.dishes) {
+              // Get dish details with ingredients
+              const dishDetails = await db.collection("dishes").findOne({ name: dish })
+              
+              if (dishDetails && dishDetails.ingredients) {
+                // Process each ingredient in the dish
+                for (const ingredient of dishDetails.ingredients) {
+                  const key = ingredient.lttpId
+                  const quantityForMealCount = (ingredient.quantity * dailyMenu.mealCount) / (dishDetails.servings || 1)
+                  
+                  if (ingredientMap.has(key)) {
+                    const existing = ingredientMap.get(key)
+                    existing.totalQuantity += quantityForMealCount
+                    if (!existing.usedInDishes.includes(dishDetails.name)) {
+                      existing.usedInDishes.push(dishDetails.name)
+                    }
+                  } else {
+                    ingredientMap.set(key, {
+                      lttpId: ingredient.lttpId,
+                      lttpName: ingredient.lttpName,
+                      unit: ingredient.unit,
+                      totalQuantity: quantityForMealCount,
+                      category: dishDetails.category || 'Khác',
+                      usedInDishes: [dishDetails.name]
+                    })
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Convert map to array and sort by category then name
+      const ingredients = Array.from(ingredientMap.values()).sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category)
+        }
+        return a.lttpName.localeCompare(b.lttpName)
+      })
+
+      // Add STT numbers
+      const ingredientsWithSTT = ingredients.map((ingredient, index) => ({
+        stt: index + 1,
+        ...ingredient,
+        usedInDishes: ingredient.usedInDishes.join(', ')
+      }))
+
+      dailyIngredientSummaries.push({
+        date: dailyMenu.date,
+        dayName: new Date(dailyMenu.date).toLocaleDateString('vi-VN', { weekday: 'long' }),
+        mealCount: dailyMenu.mealCount,
+        ingredients: ingredientsWithSTT,
+        totalIngredientTypes: ingredients.length
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      data: dailyIngredientSummaries
+    })
+  } catch (error) {
+    console.error("Error getting daily ingredient summaries:", error)
+    throw new AppError("Đã xảy ra lỗi khi tính toán tổng hợp nguyên liệu", 500)
+  }
+}
+
 // Internal helper functions
 async function getMenuSuggestionsInternal() {
   const db = await getDb()

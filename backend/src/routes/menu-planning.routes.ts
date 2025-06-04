@@ -4,6 +4,7 @@ import {
   getInventoryAlerts,
   generateDailyMenuPlan,
   getMenuPlanningOverview,
+  getDailyIngredientSummaries,
 } from "../controllers/menu-planning.controller"
 // import { protect } from "../middleware/auth.middleware" // Temporarily disabled for development
 
@@ -31,5 +32,10 @@ router.post("/daily-plan", generateDailyMenuPlan)
 // @desc    Get comprehensive menu planning overview data
 // @access  Public (temporarily for development)
 router.get("/overview", getMenuPlanningOverview)
+
+// @route   GET /api/menu-planning/ingredient-summaries
+// @desc    Get daily ingredient summaries for menu planning
+// @access  Public (temporarily for development)
+router.get("/ingredient-summaries", getDailyIngredientSummaries)
 
 export default router 

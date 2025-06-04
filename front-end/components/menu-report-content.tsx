@@ -24,7 +24,7 @@ import { format, addDays, startOfWeek, endOfWeek, getWeek, getYear, parseISO } f
 import { vi } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { menusApi, dishesApi } from "@/lib/api-client"
+import { menusApi, dishesApi, menuPlanningApi } from "@/lib/api-client"
 import { DishTooltip } from "@/components/dish-tooltip"
 import { 
   exportMenuToExcel, 
@@ -111,6 +111,8 @@ export function MenuReportContent() {
   const [currentMenu, setCurrentMenu] = useState<Menu | null>(null)
   const [availableDishes, setAvailableDishes] = useState<Dish[]>([])
   const [loading, setLoading] = useState(false)
+  const [ingredientSummaries, setIngredientSummaries] = useState<DailyIngredientSummary[]>([])
+  const [loadingIngredients, setLoadingIngredients] = useState(false)
   
   // Ingredient tab specific states
   const [selectedIngredientDate, setSelectedIngredientDate] = useState<Date | null>(null)
@@ -144,6 +146,11 @@ export function MenuReportContent() {
     loadMenuData()
     loadAvailableDishes()
   }, [selectedWeek, selectedYear])
+
+  // Load ingredient summaries when parameters change
+  useEffect(() => {
+    loadIngredientSummaries()
+  }, [selectedWeek, selectedYear, showAllDays, selectedIngredientDate])
 
   const loadMenuData = async () => {
     try {
@@ -190,69 +197,52 @@ export function MenuReportContent() {
     }
   }
 
-  // Calculate ingredient summaries for each day
-  const calculateDailyIngredientSummaries = (): DailyIngredientSummary[] => {
-    if (!currentMenu) return []
-
-    return currentMenu.dailyMenus.map(dailyMenu => {
-      const ingredientMap = new Map<string, IngredientSummary>()
+  // Load ingredient summaries from backend API
+  const loadIngredientSummaries = async () => {
+    try {
+      setLoadingIngredients(true)
       
-      // Process each meal of the day
-      dailyMenu.meals.forEach(meal => {
-        meal.dishes.forEach(dish => {
-          // Process each ingredient in the dish
-          dish.ingredients.forEach((ingredient: any) => {
-            const key = ingredient.lttpId
-            const quantityForMealCount = (ingredient.quantity * dailyMenu.mealCount) / dish.servings
-            
-            if (ingredientMap.has(key)) {
-              const existing = ingredientMap.get(key)!
-              existing.totalQuantity += quantityForMealCount
-              if (!existing.usedInDishes.includes(dish.name)) {
-                existing.usedInDishes.push(dish.name)
-              }
-            } else {
-              ingredientMap.set(key, {
-                lttpId: ingredient.lttpId,
-                lttpName: ingredient.lttpName,
-                unit: ingredient.unit,
-                totalQuantity: quantityForMealCount,
-                category: dish.category || 'Khác',
-                usedInDishes: [dish.name]
-              })
-            }
-          })
-        })
-      })
-
-      // Convert map to array and sort by category then name
-      const ingredients = Array.from(ingredientMap.values()).sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category)
-        }
-        return a.lttpName.localeCompare(b.lttpName)
-      })
-
-      return {
-        date: dailyMenu.date,
-        dayName: format(parseISO(dailyMenu.date), "EEEE", { locale: vi }),
-        mealCount: dailyMenu.mealCount,
-        ingredients,
-        totalIngredientTypes: ingredients.length
+      const params: any = {
+        week: selectedWeek,
+        year: selectedYear,
+        showAllDays: showAllDays
       }
-    })
+      
+      if (!showAllDays && selectedIngredientDate) {
+        params.date = format(selectedIngredientDate, "yyyy-MM-dd")
+      }
+      
+      const response = await menuPlanningApi.getDailyIngredientSummaries(params)
+      console.log("Ingredient summaries from backend:", response)
+      
+      if (response.success) {
+        setIngredientSummaries(response.data || [])
+      } else {
+        setIngredientSummaries([])
+        toast({
+          title: "Thông báo",
+          description: response.message || "Không có dữ liệu nguyên liệu",
+          variant: "default",
+        })
+      }
+    } catch (error) {
+      console.error("Error loading ingredient summaries:", error)
+      setIngredientSummaries([])
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu tổng hợp nguyên liệu",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingIngredients(false)
+    }
   }
 
-  // Filter ingredient summaries based on selected date
-  const getFilteredIngredientSummaries = (): DailyIngredientSummary[] => {
-    const allSummaries = calculateDailyIngredientSummaries()
-    
-    if (showAllDays || !selectedIngredientDate) {
-      return allSummaries
-    }
-    
-    const selectedDateStr = format(selectedIngredientDate, "yyyy-MM-dd")
-    return allSummaries.filter(summary => summary.date === selectedDateStr)
+  // Calculate ingredient summaries for each day (DEPRECATED - now using backend API)
+  const calculateDailyIngredientSummaries = (): DailyIngredientSummary[] => {
+    // This function is deprecated and replaced by loadIngredientSummaries()
+    // Keeping for backwards compatibility only
+    return ingredientSummaries
   }
 
   // Function to navigate to previous week
@@ -707,9 +697,9 @@ export function MenuReportContent() {
 
   // Handle export ingredients to Excel
   const handleExportIngredientsToExcel = () => {
-    const ingredientSummaries = getFilteredIngredientSummaries()
+    const summaryData = calculateDailyIngredientSummaries()
     
-    if (ingredientSummaries.length === 0) {
+    if (summaryData.length === 0) {
       toast({
         title: "Lỗi",
         description: "Không có dữ liệu nguyên liệu để xuất",
@@ -719,7 +709,7 @@ export function MenuReportContent() {
     }
 
     try {
-      const exportData: IngredientExportData[] = ingredientSummaries.map(summary => ({
+      const exportData: IngredientExportData[] = summaryData.map(summary => ({
         date: summary.date,
         dayName: summary.dayName,
         mealCount: summary.mealCount,
@@ -751,9 +741,9 @@ export function MenuReportContent() {
 
   // Handle print ingredients
   const handlePrintIngredients = () => {
-    const ingredientSummaries = getFilteredIngredientSummaries()
+    const summaryData = calculateDailyIngredientSummaries()
     
-    if (ingredientSummaries.length === 0) {
+    if (summaryData.length === 0) {
       toast({
         title: "Lỗi",
         description: "Không có dữ liệu nguyên liệu để in",
@@ -763,7 +753,7 @@ export function MenuReportContent() {
     }
 
     try {
-      const printData: IngredientExportData[] = ingredientSummaries.map(summary => ({
+      const printData: IngredientExportData[] = summaryData.map(summary => ({
         date: summary.date,
         dayName: summary.dayName,
         mealCount: summary.mealCount,
@@ -1113,13 +1103,13 @@ export function MenuReportContent() {
                   </div>
                 </div>
                 
-                {loading ? (
-                  <div className="text-center py-8">Đang tải dữ liệu...</div>
+                {loadingIngredients ? (
+                  <div className="text-center py-8">Đang tải dữ liệu nguyên liệu...</div>
                 ) : !currentMenu ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">Chưa có thực đơn cho tuần này</p>
                   </div>
-                ) : getFilteredIngredientSummaries().length === 0 ? (
+                ) : calculateDailyIngredientSummaries().length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">
                       {!showAllDays && selectedIngredientDate 
@@ -1130,7 +1120,7 @@ export function MenuReportContent() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {getFilteredIngredientSummaries().map((dailySummary) => (
+                    {calculateDailyIngredientSummaries().map((dailySummary) => (
                       <Card key={dailySummary.date} className="border-l-4 border-l-blue-500">
                         <CardHeader className="pb-3">
                           <div className="flex justify-between items-center">
@@ -1197,7 +1187,7 @@ export function MenuReportContent() {
                     ))}
                     
                     {/* Summary statistics */}
-                    {getFilteredIngredientSummaries().length > 0 && (
+                    {calculateDailyIngredientSummaries().length > 0 && (
                       <Card className="border-2 border-dashed border-gray-300 bg-gray-50">
                         <CardHeader>
                           <CardTitle className="text-lg text-gray-700">
@@ -1209,19 +1199,19 @@ export function MenuReportContent() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-blue-600">
-                                  {getFilteredIngredientSummaries().length}
+                                  {calculateDailyIngredientSummaries().length}
                                 </div>
                                 <div className="text-sm text-gray-600">Ngày có thực đơn</div>
                               </div>
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-green-600">
-                                  {Math.max(...getFilteredIngredientSummaries().map(d => d.totalIngredientTypes), 0)}
+                                  {Math.max(...calculateDailyIngredientSummaries().map(d => d.totalIngredientTypes), 0)}
                                 </div>
                                 <div className="text-sm text-gray-600">Loại nguyên liệu nhiều nhất/ngày</div>
                               </div>
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-orange-600">
-                                  {Math.round(getFilteredIngredientSummaries().reduce((sum, d) => sum + d.mealCount, 0) / getFilteredIngredientSummaries().length) || 0}
+                                  {Math.round(calculateDailyIngredientSummaries().reduce((sum, d) => sum + d.mealCount, 0) / calculateDailyIngredientSummaries().length) || 0}
                                 </div>
                                 <div className="text-sm text-gray-600">Số người ăn trung bình/ngày</div>
                               </div>
@@ -1230,19 +1220,19 @@ export function MenuReportContent() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-blue-600">
-                                  {getFilteredIngredientSummaries()[0]?.totalIngredientTypes || 0}
+                                  {calculateDailyIngredientSummaries()[0]?.totalIngredientTypes || 0}
                                 </div>
                                 <div className="text-sm text-gray-600">Tổng loại nguyên liệu</div>
                               </div>
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-green-600">
-                                  {getFilteredIngredientSummaries()[0]?.mealCount || 0}
+                                  {calculateDailyIngredientSummaries()[0]?.mealCount || 0}
                                 </div>
                                 <div className="text-sm text-gray-600">Số người ăn</div>
                               </div>
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-orange-600">
-                                  {getFilteredIngredientSummaries()[0]?.ingredients.reduce((sum, ing) => sum + ing.totalQuantity, 0).toFixed(1) || 0}
+                                  {calculateDailyIngredientSummaries()[0]?.ingredients.reduce((sum, ing) => sum + ing.totalQuantity, 0).toFixed(1) || 0}
                                 </div>
                                 <div className="text-sm text-gray-600">Tổng khối lượng (mix units)</div>
                               </div>

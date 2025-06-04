@@ -267,7 +267,7 @@ export function OutputManagementContent() {
       "Gia vị": 0.05, // 50g per person
       "Chất đốt": 0.002 // 2g per person (for gas calculation)
     }
-
+    
     supplyData.forEach((item) => {
       if (!categoryTotals[item.category]) {
         categoryTotals[item.category] = {
