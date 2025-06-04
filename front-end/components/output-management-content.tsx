@@ -230,6 +230,18 @@ export function OutputManagementContent() {
       })
       setUnitPersonnel(personnelData)
 
+      // Load total personnel for current date if day view
+      if (selectedView === "day") {
+        try {
+          const totalPersonnelResponse = await unitsApi.getTotalPersonnel(format(selectedDate, "yyyy-MM-dd"))
+          if (totalPersonnelResponse.success && totalPersonnelResponse.data.exists) {
+            setTotalPersonnelInput(totalPersonnelResponse.data.totalPersonnel)
+          }
+        } catch (error) {
+          console.log("No total personnel data for current date")
+        }
+      }
+
       // Fetch daily rations (for fallback)
       const dailyRationsResponse = await dailyRationsApi.getDailyRations()
       const dailyRationsData = Array.isArray(dailyRationsResponse) ? dailyRationsResponse : (dailyRationsResponse as any).data || []
@@ -433,17 +445,69 @@ export function OutputManagementContent() {
   }, [])
 
   // Handle day/week selection
-  const handleDateSelect = (date: Date, view: "day" | "week") => {
+  const handleDateSelect = async (date: Date, view: "day" | "week") => {
     setSelectedDate(date)
     setSelectedView(view)
-    // Reload data for new selection with updated parameters
-    setTimeout(() => {
-      if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-        generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, unitPersonnel)
-      } else {
-        generateSupplyOutputData(dailyRations, visibleUnits, unitPersonnel, date, view)
+    setIsLoading(true)
+    
+    try {
+      // Fetch ingredient summaries for the new date/view
+      const params: any = {
+        week: getWeek(date, { locale: vi }),
+        year: getYear(date),
+        showAllDays: view === "week"
       }
-    }, 0)
+      
+      if (view === "day") {
+        params.date = format(date, "yyyy-MM-dd")
+      }
+      
+      const ingredientResponse = await menuPlanningApi.getDailyIngredientSummaries(params)
+      const ingredientData = ingredientResponse.success ? (ingredientResponse.data || []) : []
+      setIngredientSummaries(ingredientData)
+      
+      // Load total personnel for the selected date
+      if (view === "day") {
+        try {
+          const totalPersonnelResponse = await unitsApi.getTotalPersonnel(format(date, "yyyy-MM-dd"))
+          if (totalPersonnelResponse.success && totalPersonnelResponse.data.exists) {
+            setTotalPersonnelInput(totalPersonnelResponse.data.totalPersonnel)
+          } else {
+            setTotalPersonnelInput(0) // Reset if no data for this date
+          }
+        } catch (error) {
+          console.log("No total personnel data for this date")
+          setTotalPersonnelInput(0)
+        }
+      } else {
+        setTotalPersonnelInput(0) // Reset for week view
+      }
+      
+      // Generate supply output data
+      if (ingredientData.length > 0) {
+        setDataSource("ingredients")
+        generateSupplyOutputFromIngredients(ingredientData, visibleUnits, unitPersonnel)
+      } else {
+        setDataSource("dailyrations")
+        generateSupplyOutputData(dailyRations, visibleUnits, unitPersonnel, date, view)
+        if (view === "day") {
+          toast({
+            title: "Thông báo",
+            description: "Không có dữ liệu thực đơn cho ngày này. Hiển thị dữ liệu định mức cơ bản.",
+            variant: "default",
+          })
+        }
+      }
+    } catch (error) {
+      console.error("Error loading data for selected date:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu cho ngày được chọn",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Handle personnel count edit
@@ -498,22 +562,37 @@ export function OutputManagementContent() {
   }
 
   // Save total personnel count changes
-  const handleSaveTotalPersonnelCount = () => {
-    setTotalPersonnelInput(newTotalPersonnelCount)
-    
-    // Regenerate supply data with new total personnel count
-    if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-      generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, unitPersonnel)
-    } else {
-      generateSupplyOutputData(dailyRations, visibleUnits, unitPersonnel, selectedDate, selectedView)
+  const handleSaveTotalPersonnelCount = async () => {
+    try {
+      const dateStr = format(selectedDate, "yyyy-MM-dd")
+      
+      // Save to backend
+      await unitsApi.updateTotalPersonnel(dateStr, newTotalPersonnelCount)
+      
+      // Update frontend state
+      setTotalPersonnelInput(newTotalPersonnelCount)
+      
+      // Regenerate supply data with new total personnel count
+      if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
+        generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, unitPersonnel)
+      } else {
+        generateSupplyOutputData(dailyRations, visibleUnits, unitPersonnel, selectedDate, selectedView)
+      }
+      
+      toast({
+        title: "Thành công",
+        description: `Đã cập nhật tổng số người ăn thành ${newTotalPersonnelCount} cho ngày ${format(selectedDate, "dd/MM/yyyy")}`,
+      })
+      
+      setIsEditTotalPersonnelDialogOpen(false)
+    } catch (error) {
+      console.error("Error saving total personnel:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể lưu tổng số người ăn. Vui lòng thử lại.",
+        variant: "destructive",
+      })
     }
-    
-    toast({
-      title: "Thành công",
-      description: `Đã cập nhật tổng số người ăn thành ${newTotalPersonnelCount}`,
-    })
-    
-    setIsEditTotalPersonnelDialogOpen(false)
   }
 
   // Calculate category totals to check limits

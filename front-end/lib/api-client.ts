@@ -172,6 +172,18 @@ export const unitsApi = {
       method: "DELETE",
     })
   },
+
+  // Total personnel APIs
+  updateTotalPersonnel: async (date: string, totalPersonnel: number) => {
+    return apiRequest<{ success: boolean; message: string }>(`/units/total-personnel`, {
+      method: "PATCH",
+      body: JSON.stringify({ date, totalPersonnel }),
+    })
+  },
+
+  getTotalPersonnel: async (date: string) => {
+    return apiRequest<{ success: boolean; data: { date: string; totalPersonnel: number; exists: boolean } }>(`/units/total-personnel/${date}`)
+  },
 }
 
 // Categories API

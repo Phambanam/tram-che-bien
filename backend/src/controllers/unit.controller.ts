@@ -307,3 +307,88 @@ export const updateUnitPersonnel = async (req: Request, res: Response) => {
     throw new AppError("Đã xảy ra lỗi khi cập nhật số người ăn", 500)
   }
 }
+
+// @desc    Update total personnel count for a specific date
+// @route   PATCH /api/units/total-personnel
+// @access  Private (Admin, Brigade Assistant, Unit Assistant)
+export const updateTotalPersonnel = async (req: Request, res: Response) => {
+  try {
+    const { date, totalPersonnel } = req.body
+
+    // Validate input
+    if (!date || totalPersonnel === undefined || totalPersonnel === null || totalPersonnel < 0) {
+      throw new AppError("Ngày và tổng số người ăn là bắt buộc", 400)
+    }
+
+    const db = await getDb()
+
+    // Check authorization
+    if (!['admin', 'brigadeAssistant', 'unitAssistant'].includes(req.user?.role || '')) {
+      throw new AppError("Bạn không có quyền cập nhật tổng số người ăn", 403)
+    }
+
+    // Update or create total personnel record
+    const result = await db.collection("totalPersonnel").updateOne(
+      { date: date },
+      {
+        $set: {
+          totalPersonnel: Number(totalPersonnel),
+          updatedAt: new Date(),
+          updatedBy: req.user?.id || 'unknown'
+        },
+        $setOnInsert: {
+          createdAt: new Date()
+        }
+      },
+      { upsert: true }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật tổng số người ăn thành công",
+      data: {
+        date,
+        totalPersonnel: Number(totalPersonnel),
+        isNew: result.upsertedCount > 0
+      }
+    })
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
+    }
+    console.error("Error updating total personnel:", error)
+    throw new AppError("Đã xảy ra lỗi khi cập nhật tổng số người ăn", 500)
+  }
+}
+
+// @desc    Get total personnel count for a specific date
+// @route   GET /api/units/total-personnel/:date
+// @access  Private
+export const getTotalPersonnel = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+
+    if (!date) {
+      throw new AppError("Ngày là bắt buộc", 400)
+    }
+
+    const db = await getDb()
+
+    const record = await db.collection("totalPersonnel").findOne({ date })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        date,
+        totalPersonnel: record?.totalPersonnel || 0,
+        exists: !!record
+      }
+    })
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
+    }
+    console.error("Error getting total personnel:", error)
+    throw new AppError("Đã xảy ra lỗi khi lấy tổng số người ăn", 500)
+  }
+}
