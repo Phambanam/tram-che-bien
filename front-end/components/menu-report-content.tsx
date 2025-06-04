@@ -67,6 +67,24 @@ interface Menu {
   dailyMenus: DailyMenu[]
 }
 
+// Interface for ingredient aggregation
+interface IngredientSummary {
+  lttpId: string
+  lttpName: string
+  unit: string
+  totalQuantity: number
+  category: string
+  usedInDishes: string[]
+}
+
+interface DailyIngredientSummary {
+  date: string
+  dayName: string
+  mealCount: number
+  ingredients: IngredientSummary[]
+  totalIngredientTypes: number
+}
+
 export function MenuReportContent() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedWeek, setSelectedWeek] = useState<number>(getWeek(new Date(), { locale: vi }))
@@ -158,6 +176,59 @@ export function MenuReportContent() {
     } catch (error) {
       console.error("Error loading dishes:", error)
     }
+  }
+
+  // Calculate ingredient summaries for each day
+  const calculateDailyIngredientSummaries = (): DailyIngredientSummary[] => {
+    if (!currentMenu) return []
+
+    return currentMenu.dailyMenus.map(dailyMenu => {
+      const ingredientMap = new Map<string, IngredientSummary>()
+      
+      // Process each meal of the day
+      dailyMenu.meals.forEach(meal => {
+        meal.dishes.forEach(dish => {
+          // Process each ingredient in the dish
+          dish.ingredients.forEach((ingredient: any) => {
+            const key = ingredient.lttpId
+            const quantityForMealCount = (ingredient.quantity * dailyMenu.mealCount) / dish.servings
+            
+            if (ingredientMap.has(key)) {
+              const existing = ingredientMap.get(key)!
+              existing.totalQuantity += quantityForMealCount
+              if (!existing.usedInDishes.includes(dish.name)) {
+                existing.usedInDishes.push(dish.name)
+              }
+            } else {
+              ingredientMap.set(key, {
+                lttpId: ingredient.lttpId,
+                lttpName: ingredient.lttpName,
+                unit: ingredient.unit,
+                totalQuantity: quantityForMealCount,
+                category: dish.category || 'Khác',
+                usedInDishes: [dish.name]
+              })
+            }
+          })
+        })
+      })
+
+      // Convert map to array and sort by category then name
+      const ingredients = Array.from(ingredientMap.values()).sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category)
+        }
+        return a.lttpName.localeCompare(b.lttpName)
+      })
+
+      return {
+        date: dailyMenu.date,
+        dayName: format(parseISO(dailyMenu.date), "EEEE", { locale: vi }),
+        mealCount: dailyMenu.mealCount,
+        ingredients,
+        totalIngredientTypes: ingredients.length
+      }
+    })
   }
 
   // Function to navigate to previous week
@@ -562,9 +633,10 @@ export function MenuReportContent() {
         </div>
 
         <Tabs defaultValue="weekly" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="weekly">Thực đơn tuần</TabsTrigger>
             <TabsTrigger value="daily">Thực đơn ngày</TabsTrigger>
+            <TabsTrigger value="ingredients">Tổng hợp nguyên liệu</TabsTrigger>
           </TabsList>
 
           <TabsContent value="weekly" className="space-y-4">
@@ -789,6 +861,122 @@ export function MenuReportContent() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="ingredients" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tổng hợp nguyên liệu theo ngày</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8">Đang tải dữ liệu...</div>
+                ) : !currentMenu ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">Chưa có thực đơn cho tuần này</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {calculateDailyIngredientSummaries().map((dailySummary) => (
+                      <Card key={dailySummary.date} className="border-l-4 border-l-blue-500">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <CardTitle className="text-lg">
+                                {dailySummary.dayName}
+                              </CardTitle>
+                              <p className="text-sm text-gray-600">
+                                {format(parseISO(dailySummary.date), "dd/MM/yyyy")} - {dailySummary.mealCount} người ăn
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="bg-blue-50">
+                              {dailySummary.totalIngredientTypes} loại nguyên liệu
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {dailySummary.ingredients.length === 0 ? (
+                            <p className="text-gray-500 italic">Chưa có nguyên liệu nào</p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-[40px]">STT</TableHead>
+                                    <TableHead className="min-w-[200px]">Tên nguyên liệu</TableHead>
+                                    <TableHead className="w-[120px]">Số lượng</TableHead>
+                                    <TableHead className="w-[80px]">Đơn vị</TableHead>
+                                    <TableHead className="w-[120px]">Phân loại</TableHead>
+                                    <TableHead className="min-w-[200px]">Dùng trong món</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {dailySummary.ingredients.map((ingredient, index) => (
+                                    <TableRow key={ingredient.lttpId}>
+                                      <TableCell className="font-medium">{index + 1}</TableCell>
+                                      <TableCell className="font-medium">{ingredient.lttpName}</TableCell>
+                                      <TableCell className="text-right font-mono">
+                                        {ingredient.totalQuantity.toFixed(2)}
+                                      </TableCell>
+                                      <TableCell>{ingredient.unit}</TableCell>
+                                      <TableCell>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {ingredient.category}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                          {ingredient.usedInDishes.map((dishName, dishIndex) => (
+                                            <Badge key={dishIndex} variant="outline" className="text-xs">
+                                              {dishName}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                    
+                    {/* Summary statistics */}
+                    {calculateDailyIngredientSummaries().length > 0 && (
+                      <Card className="border-2 border-dashed border-gray-300 bg-gray-50">
+                        <CardHeader>
+                          <CardTitle className="text-lg text-gray-700">Thống kê tổng quan</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-blue-600">
+                                {calculateDailyIngredientSummaries().length}
+                              </div>
+                              <div className="text-sm text-gray-600">Ngày có thực đơn</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-green-600">
+                                {Math.max(...calculateDailyIngredientSummaries().map(d => d.totalIngredientTypes), 0)}
+                              </div>
+                              <div className="text-sm text-gray-600">Loại nguyên liệu nhiều nhất/ngày</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-orange-600">
+                                {Math.round(calculateDailyIngredientSummaries().reduce((sum, d) => sum + d.mealCount, 0) / calculateDailyIngredientSummaries().length) || 0}
+                              </div>
+                              <div className="text-sm text-gray-600">Số người ăn trung bình/ngày</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
