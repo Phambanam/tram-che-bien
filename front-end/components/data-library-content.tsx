@@ -302,11 +302,43 @@ export function DataLibraryContent() {
 
   const handleDelete = async (id: string, type: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa mục này?")) {
-      // In a real app, this would call the appropriate delete API
-      toast({
-        title: "Thành công",
-        description: "Đã xóa mục thành công!",
-      })
+      try {
+        let apiCall
+        let successMessage = ""
+
+        if (type === "units") {
+          apiCall = unitsApi.deleteUnit(id)
+          successMessage = "Đã xóa đơn vị thành công!"
+        } else if (type === "categories") {
+          apiCall = categoriesApi.deleteCategory(id)
+          successMessage = "Đã xóa phân loại thành công!"
+        } else if (type === "lttp") {
+          apiCall = productsApi.deleteProduct(id)
+          successMessage = "Đã xóa LTTP thành công!"
+        } else if (type === "dishes") {
+          apiCall = dishesApi.deleteDish(id)
+          successMessage = "Đã xóa món ăn thành công!"
+        } else if (type === "rations") {
+          apiCall = dailyRationsApi.deleteDailyRation(id)
+          successMessage = "Đã xóa định lượng ăn thành công!"
+        }
+
+        if (apiCall) {
+          await apiCall
+          toast({
+            title: "Thành công",
+            description: successMessage,
+          })
+          await fetchData() // Refresh data
+        }
+      } catch (error: any) {
+        console.error('Error in handleDelete:', error)
+        toast({
+          title: "Lỗi", 
+          description: error.message || "Có lỗi xảy ra khi xóa",
+          variant: "destructive",
+        })
+      }
     }
   }
 
