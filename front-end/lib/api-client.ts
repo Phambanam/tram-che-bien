@@ -23,8 +23,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const config: RequestInit = {
     headers: {
       "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
     },
     mode: 'cors',
     credentials: 'include',
@@ -817,6 +817,21 @@ export const menuPlanningApi = {
     
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<any>(`/menu-planning/ingredient-summaries${query}`)
+  },
+
+  createSupplyOutputsFromIngredients: async (data: {
+    week?: number
+    year?: number
+    date?: string
+    receivingUnitId: string
+    receiver: string
+    outputDate: string
+    notes?: string
+  }) => {
+    return apiRequest<any>("/menu-planning/create-supply-outputs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
   },
 }
 

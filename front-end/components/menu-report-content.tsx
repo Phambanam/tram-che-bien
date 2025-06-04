@@ -24,7 +24,7 @@ import { format, addDays, startOfWeek, endOfWeek, getWeek, getYear, parseISO } f
 import { vi } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { menusApi, dishesApi, menuPlanningApi } from "@/lib/api-client"
+import { menusApi, dishesApi, menuPlanningApi, unitsApi } from "@/lib/api-client"
 import { DishTooltip } from "@/components/dish-tooltip"
 import { 
   exportMenuToExcel, 
@@ -102,6 +102,7 @@ export function MenuReportContent() {
   const [isCopyMenuDialogOpen, setIsCopyMenuDialogOpen] = useState(false)
   const [isCreateMenuDialogOpen, setIsCreateMenuDialogOpen] = useState(false)
   const [isCreateDailyMenuDialogOpen, setIsCreateDailyMenuDialogOpen] = useState(false)
+  const [isCreateSupplyOutputDialogOpen, setIsCreateSupplyOutputDialogOpen] = useState(false)
   const [selectedMeal, setSelectedMeal] = useState<string>("morning")
   const [selectedDishId, setSelectedDishId] = useState<string | null>(null)
   const [selectedDailyMenuId, setSelectedDailyMenuId] = useState<string | null>(null)
@@ -133,6 +134,13 @@ export function MenuReportContent() {
       noon: [] as string[],
       evening: [] as string[]
     }
+  })
+  
+  const [supplyOutputForm, setSupplyOutputForm] = useState({
+    receivingUnitId: "",
+    receiver: "",
+    outputDate: format(new Date(), "yyyy-MM-dd"),
+    notes: ""
   })
   
   const { toast } = useToast()
@@ -778,6 +786,67 @@ export function MenuReportContent() {
     }
   }
 
+  // Handle create supply outputs from ingredients
+  const handleCreateSupplyOutputs = async () => {
+    if (!supplyOutputForm.receivingUnitId || !supplyOutputForm.receiver) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng điền đầy đủ thông tin đơn vị nhận và người nhận",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const data = {
+        week: selectedWeek,
+        year: selectedYear,
+        receivingUnitId: supplyOutputForm.receivingUnitId,
+        receiver: supplyOutputForm.receiver,
+        outputDate: supplyOutputForm.outputDate,
+        notes: supplyOutputForm.notes
+      }
+
+      const response = await menuPlanningApi.createSupplyOutputsFromIngredients(data)
+      
+      toast({
+        title: "Thành công",
+        description: response.message,
+      })
+      
+      setIsCreateSupplyOutputDialogOpen(false)
+      setSupplyOutputForm({
+        receivingUnitId: "",
+        receiver: "",
+        outputDate: format(new Date(), "yyyy-MM-dd"),
+        notes: ""
+      })
+    } catch (error: any) {
+      console.error("Error creating supply outputs:", error)
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể tạo phiếu xuất",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Load available units for supply output
+  const [availableUnits, setAvailableUnits] = useState<any[]>([])
+  
+  const loadAvailableUnits = async () => {
+    try {
+      const response = await unitsApi.getUnits()
+      setAvailableUnits(response || [])
+    } catch (error) {
+      console.error("Error loading units:", error)
+    }
+  }
+
+  useEffect(() => {
+    loadAvailableUnits()
+  }, [])
+
   return (
     <div className="container mx-auto p-4">
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -1033,7 +1102,7 @@ export function MenuReportContent() {
                     <Button onClick={() => setIsCreateDailyMenuDialogOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Tạo thực đơn ngày
-                    </Button>
+                          </Button>
                   ) : (
                     <Button onClick={() => setIsCreateMenuDialogOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -1069,7 +1138,7 @@ export function MenuReportContent() {
                       <Label htmlFor="show-all-days" className="text-sm font-medium">
                         Hiển thị tất cả ngày
                       </Label>
-                    </div>
+                        </div>
                     
                     {!showAllDays && (
                       <Popover>
@@ -1077,7 +1146,7 @@ export function MenuReportContent() {
                           <Button variant="outline" className="justify-start text-left font-normal">
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {selectedIngredientDate ? format(selectedIngredientDate, "PPP", { locale: vi }) : "Chọn ngày cụ thể"}
-                          </Button>
+                                </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                           <Calendar
@@ -1100,9 +1169,13 @@ export function MenuReportContent() {
                       <Printer className="h-4 w-4" />
                       In danh sách
                     </Button>
+                    <Button className="flex items-center gap-2" onClick={() => setIsCreateSupplyOutputDialogOpen(true)}>
+                      <Plus className="h-4 w-4" />
+                      Tạo phiếu xuất
+                    </Button>
                   </div>
                 </div>
-                
+
                 {loadingIngredients ? (
                   <div className="text-center py-8">Đang tải dữ liệu nguyên liệu...</div>
                 ) : !currentMenu ? (
@@ -1123,7 +1196,7 @@ export function MenuReportContent() {
                     {calculateDailyIngredientSummaries().map((dailySummary) => (
                       <Card key={dailySummary.date} className="border-l-4 border-l-blue-500">
                         <CardHeader className="pb-3">
-                          <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center">
                             <div>
                               <CardTitle className="text-lg">
                                 {dailySummary.dayName}
@@ -1131,11 +1204,11 @@ export function MenuReportContent() {
                               <p className="text-sm text-gray-600">
                                 {format(parseISO(dailySummary.date), "dd/MM/yyyy")} - {dailySummary.mealCount} người ăn
                               </p>
-                            </div>
+                        </div>
                             <Badge variant="outline" className="bg-blue-50">
                               {dailySummary.totalIngredientTypes} loại nguyên liệu
                             </Badge>
-                          </div>
+                              </div>
                         </CardHeader>
                         <CardContent>
                           {dailySummary.ingredients.length === 0 ? (
@@ -1184,12 +1257,12 @@ export function MenuReportContent() {
                                   ))}
                                 </TableBody>
                               </Table>
-                            </div>
+                      </div>
                           )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                    
+                  </CardContent>
+                </Card>
+              ))}
+
                     {/* Summary statistics */}
                     {calculateDailyIngredientSummaries().length > 0 && (
                       <Card className="border-2 border-dashed border-gray-300 bg-gray-50">
@@ -1242,9 +1315,9 @@ export function MenuReportContent() {
                               </div>
                             </div>
                           )}
-                        </CardContent>
-                      </Card>
-                    )}
+                </CardContent>
+              </Card>
+            )}
                   </div>
                 )}
               </CardContent>
@@ -1694,6 +1767,89 @@ export function MenuReportContent() {
               </Button>
               <Button type="submit" onClick={handleCreateDailyMenu}>
                 Tạo thực đơn ngày
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog for creating supply outputs from ingredients */}
+        <Dialog open={isCreateSupplyOutputDialogOpen} onOpenChange={setIsCreateSupplyOutputDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tạo phiếu xuất từ tổng hợp nguyên liệu</DialogTitle>
+              <DialogDescription>
+                Tự động tạo phiếu xuất cho tất cả nguyên liệu trong thực đơn tuần {selectedWeek}, {selectedYear}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="receiving-unit" className="text-right">
+                  Đơn vị nhận
+                </Label>
+                <Select value={supplyOutputForm.receivingUnitId} onValueChange={(value) => setSupplyOutputForm({...supplyOutputForm, receivingUnitId: value})}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Chọn đơn vị nhận" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableUnits.map((unit) => (
+                      <SelectItem key={unit._id} value={unit._id}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="receiver" className="text-right">
+                  Người nhận
+                </Label>
+                <Input 
+                  id="receiver" 
+                  className="col-span-3" 
+                  value={supplyOutputForm.receiver}
+                  onChange={(e) => setSupplyOutputForm({...supplyOutputForm, receiver: e.target.value})}
+                  placeholder="Nhập tên người nhận"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="output-date" className="text-right">
+                  Ngày xuất
+                </Label>
+                <Input 
+                  id="output-date" 
+                  className="col-span-3" 
+                  type="date"
+                  value={supplyOutputForm.outputDate}
+                  onChange={(e) => setSupplyOutputForm({...supplyOutputForm, outputDate: e.target.value})}
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="supply-notes" className="text-right">
+                  Ghi chú
+                </Label>
+                <Textarea 
+                  id="supply-notes" 
+                  className="col-span-3" 
+                  value={supplyOutputForm.notes}
+                  onChange={(e) => setSupplyOutputForm({...supplyOutputForm, notes: e.target.value})}
+                  placeholder="Ghi chú cho phiếu xuất (tùy chọn)"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setIsCreateSupplyOutputDialogOpen(false)
+                setSupplyOutputForm({
+                  receivingUnitId: "",
+                  receiver: "",
+                  outputDate: format(new Date(), "yyyy-MM-dd"),
+                  notes: ""
+                })
+              }}>
+                Hủy
+              </Button>
+              <Button type="submit" onClick={handleCreateSupplyOutputs}>
+                Tạo phiếu xuất
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -82,30 +82,30 @@ export function SupplyManagementContent() {
     console.log("Active tab changed:", activeTab)
   }, [activeTab])
 
-  const fetchSupplies = async () => {
-    try {
+    const fetchSupplies = async () => {
+      try {
       console.log("Fetching supplies...")
       setIsLoading(true)
-      setError(null)
+        setError(null)
 
       const response = await suppliesApi.getSupplies()
       console.log("Raw API Response:", response) // Debug log
-      
-      // Handle different response formats
-      if (Array.isArray(response)) {
+        
+        // Handle different response formats
+        if (Array.isArray(response)) {
         console.log("Response is array, setting supplies:", response.length, "items")
         setSupplies(response)
       } else if (response && Array.isArray((response as any).data)) {
         console.log("Response has data array, setting supplies:", (response as any).data.length, "items")
         setSupplies((response as any).data)
-      } else {
+        } else {
         console.warn("Unexpected response format:", response)
         setSupplies([])
       }
       
       console.log("Supplies state updated")
-    } catch (error) {
-      console.error("Error fetching supplies:", error)
+      } catch (error) {
+        console.error("Error fetching supplies:", error)
     
       if (error instanceof Error && error.message.includes("Failed to fetch")) {
         setError("Không thể kết nối đến server. Vui lòng kiểm tra xem backend đã được khởi động chưa.")
@@ -125,7 +125,7 @@ export function SupplyManagementContent() {
 
       // Use fallback data
       setSupplies([])
-    } finally {
+      } finally {
       console.log("Fetch supplies completed")
       setIsLoading(false)
     }
@@ -246,7 +246,7 @@ export function SupplyManagementContent() {
       if (isEditing && editingSupply) {
         // Update existing supply
         response = await suppliesApi.updateSupply(editingSupply.id, formData)
-      } else {
+          } else {
         // Create new supply
         response = await suppliesApi.createSupply(formData)
       }
@@ -271,13 +271,13 @@ export function SupplyManagementContent() {
         
         // Switch back to list tab
         setActiveTab("list")
-      }
-    } catch (error) {
+          }
+        } catch (error) {
       console.error("Error saving supply:", error)
-      toast({
+          toast({
         title: "Lỗi kết nối",
         description: "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và thử lại.",
-        variant: "destructive",
+            variant: "destructive",
       })
     } finally {
       setIsSubmitting(false)

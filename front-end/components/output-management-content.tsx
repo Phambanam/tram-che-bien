@@ -381,12 +381,12 @@ export function OutputManagementContent() {
                 </Button>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
+              </CardHeader>
+              <CardContent>
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
                     <TableHead className="w-12">STT</TableHead>
                     <TableHead className="min-w-[150px]">Tên thực phẩm</TableHead>
                     <TableHead>Phân loại</TableHead>
@@ -411,14 +411,14 @@ export function OutputManagementContent() {
                     <TableHead className="text-center bg-yellow-50">Tổng - Số người ăn</TableHead>
                     <TableHead className="text-center bg-orange-50">Tổng - Giá thành</TableHead>
                     <TableHead className="text-center bg-red-50">Tổng - Thành tiền</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                   {supplyData.map((item, index) => (
                     <TableRow key={item.id}>
-                      <TableCell>{index + 1}</TableCell>
+                        <TableCell>{index + 1}</TableCell>
                       <TableCell className="font-medium">{item.foodName}</TableCell>
-                      <TableCell>
+                        <TableCell>
                         <Badge variant="outline" className={
                           categoryTotals[item.category] && 
                           categoryTotals[item.category].total > categoryTotals[item.category].limit
@@ -466,8 +466,8 @@ export function OutputManagementContent() {
                       </TableCell>
                       <TableCell className="text-center bg-red-50 font-medium">
                         {item.totalCost.toLocaleString()} đ
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
                   ))}
                   
                   {/* Total Row */}
@@ -491,18 +491,18 @@ export function OutputManagementContent() {
                       {supplyData.reduce((sum, item) => sum + item.totalCost, 0).toLocaleString()} đ
                     </TableCell>
                   </TableRow>
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
             </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
         {/* Notes Section */}
         <Card className="mt-6">
-          <CardHeader>
+              <CardHeader>
             <CardTitle>📝 Chú thích</CardTitle>
-          </CardHeader>
-          <CardContent>
+              </CardHeader>
+              <CardContent>
             <div className="space-y-3 text-sm">
               <p>
                 <strong>Chú ý:</strong> Từ khi lên thực đơn các món từng bữa thì phần nhu cầu sử dụng sẽ xuất hiện tên thực phẩm theo thực đơn món 
@@ -535,11 +535,11 @@ export function OutputManagementContent() {
                       )}
                     </div>
                   ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    </div>
+                  </div>
+                  </div>
+              </CardContent>
+            </Card>
 
         {/* Edit Personnel Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

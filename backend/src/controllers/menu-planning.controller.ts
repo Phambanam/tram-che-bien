@@ -533,6 +533,237 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
   }
 }
 
+// @desc    Auto create supply outputs from ingredient summaries
+// @route   POST /api/menu-planning/create-supply-outputs
+// @access  Private
+export const createSupplyOutputsFromIngredients = async (req: Request, res: Response) => {
+  try {
+    const { week, year, date, receivingUnitId, receiver, outputDate, notes } = req.body
+
+    if (!receivingUnitId || !receiver || !outputDate) {
+      throw new AppError("Vui lòng điền đầy đủ thông tin: đơn vị nhận, người nhận, ngày xuất", 400)
+    }
+
+    const db = await getDb()
+
+    // Get ingredient summaries
+    let matchCriteria: any = {}
+    if (week && year) {
+      matchCriteria = { 
+        week: parseInt(week as string), 
+        year: parseInt(year as string) 
+      }
+    } else if (date) {
+      const selectedDate = new Date(date as string)
+      matchCriteria = {
+        startDate: { $lte: selectedDate },
+        endDate: { $gte: selectedDate }
+      }
+    } else {
+      throw new AppError("Vui lòng cung cấp week/year hoặc date", 400)
+    }
+
+    // Get the menu
+    const menu = await db.collection("menus").findOne(matchCriteria)
+    if (!menu) {
+      throw new AppError("Không tìm thấy thực đơn cho thời gian được chọn", 404)
+    }
+
+    // Get daily menus for this menu
+    const dailyMenus = await db
+      .collection("dailyMenus")
+      .find({ menuId: menu._id })
+      .sort({ date: 1 })
+      .toArray()
+
+    if (!dailyMenus || dailyMenus.length === 0) {
+      throw new AppError("Thực đơn không có dữ liệu ngày", 404)
+    }
+
+    // Calculate total ingredients needed
+    const ingredientMap = new Map()
+
+    for (const dailyMenu of dailyMenus) {
+      // Skip if specific date and doesn't match
+      const dailyMenuDateStr = dailyMenu.date.toISOString().split('T')[0]
+      if (date && dailyMenuDateStr !== date) {
+        continue
+      }
+
+      // Get meals for this daily menu
+      const meals = await db
+        .collection("meals")
+        .aggregate([
+          { $match: { dailyMenuId: dailyMenu._id } },
+          {
+            $lookup: {
+              from: "dishes",
+              localField: "dishes",
+              foreignField: "_id",
+              as: "dishDetails",
+            },
+          },
+        ])
+        .toArray()
+
+      // Process each meal
+      for (const meal of meals) {
+        if (meal.dishDetails && Array.isArray(meal.dishDetails)) {
+          for (const dish of meal.dishDetails) {
+            if (dish.ingredients && Array.isArray(dish.ingredients)) {
+              for (const ingredient of dish.ingredients) {
+                const key = ingredient.lttpId
+                const quantityForMealCount = (ingredient.quantity * dailyMenu.mealCount) / (dish.servings || 1)
+                
+                if (ingredientMap.has(key)) {
+                  const existing = ingredientMap.get(key)
+                  existing.totalQuantity += quantityForMealCount
+                } else {
+                  ingredientMap.set(key, {
+                    lttpId: ingredient.lttpId,
+                    lttpName: ingredient.lttpName,
+                    unit: ingredient.unit,
+                    totalQuantity: quantityForMealCount,
+                  })
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const ingredients = Array.from(ingredientMap.values())
+    
+    if (ingredients.length === 0) {
+      throw new AppError("Không có nguyên liệu nào để tạo phiếu xuất", 400)
+    }
+
+    // Validate receiving unit
+    const unit = await db.collection("units").findOne({ _id: new ObjectId(receivingUnitId) })
+    if (!unit) {
+      throw new AppError("Đơn vị nhận không tồn tại", 400)
+    }
+
+    // Create supply outputs for each ingredient
+    const createdOutputs = []
+    const errors = []
+
+    for (const ingredient of ingredients) {
+      try {
+        // Find product by lttpId
+        const product = await db.collection("products").findOne({ _id: new ObjectId(ingredient.lttpId) })
+        if (!product) {
+          errors.push(`Không tìm thấy sản phẩm: ${ingredient.lttpName}`)
+          continue
+        }
+
+        // Check inventory
+        const inventory = await db
+          .collection("processingStation")
+          .aggregate([
+            {
+              $match: {
+                type: "food",
+                productId: new ObjectId(ingredient.lttpId),
+                nonExpiredQuantity: { $gt: 0 },
+              },
+            },
+            {
+              $group: {
+                _id: "$productId",
+                totalNonExpired: { $sum: "$nonExpiredQuantity" },
+              },
+            },
+          ])
+          .toArray()
+
+        const availableQuantity = inventory.length > 0 ? inventory[0].totalNonExpired : 0
+
+        if (availableQuantity < ingredient.totalQuantity) {
+          errors.push(`${ingredient.lttpName}: không đủ tồn kho (có ${availableQuantity}${ingredient.unit}, cần ${ingredient.totalQuantity}${ingredient.unit})`)
+          continue
+        }
+
+        // Create supply output
+        const outputNote = `Xuất nguyên liệu cho thực đơn ${week ? `tuần ${week}/${year}` : `ngày ${date}`}. ${notes || ''}`
+        
+        const result = await db.collection("supplyOutputs").insertOne({
+          receivingUnit: new ObjectId(receivingUnitId),
+          productId: new ObjectId(ingredient.lttpId),
+          quantity: Number(ingredient.totalQuantity.toFixed(2)),
+          outputDate: new Date(outputDate),
+          receiver,
+          status: "completed",
+          note: outputNote,
+          createdBy: new ObjectId(req.user?.id || "000000000000000000000000"),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+
+        // Update inventory (reduce from non-expired items)
+        let remainingQuantity = ingredient.totalQuantity
+        const inventoryItems = await db
+          .collection("processingStation")
+          .find({
+            type: "food",
+            productId: new ObjectId(ingredient.lttpId),
+            nonExpiredQuantity: { $gt: 0 },
+          })
+          .sort({ expiryDate: 1 }) // Use oldest items first
+          .toArray()
+
+        for (const item of inventoryItems) {
+          if (remainingQuantity <= 0) break
+
+          const reduceAmount = Math.min(item.nonExpiredQuantity, remainingQuantity)
+          remainingQuantity -= reduceAmount
+
+          await db.collection("processingStation").updateOne(
+            { _id: item._id },
+            {
+              $inc: { nonExpiredQuantity: -reduceAmount, quantity: -reduceAmount },
+              $set: { updatedAt: new Date() },
+            }
+          )
+        }
+
+        createdOutputs.push({
+          id: result.insertedId.toString(),
+          productName: ingredient.lttpName,
+          quantity: ingredient.totalQuantity,
+          unit: ingredient.unit
+        })
+
+      } catch (error) {
+        console.error(`Error creating supply output for ${ingredient.lttpName}:`, error)
+        errors.push(`${ingredient.lttpName}: ${error instanceof Error ? error.message : 'Lỗi không xác định'}`)
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Tạo thành công ${createdOutputs.length} phiếu xuất${errors.length > 0 ? `, ${errors.length} lỗi` : ''}`,
+      data: {
+        created: createdOutputs,
+        errors: errors,
+        summary: {
+          totalIngredients: ingredients.length,
+          successCount: createdOutputs.length,
+          errorCount: errors.length
+        }
+      }
+    })
+
+  } catch (error) {
+    console.error("Error creating supply outputs from ingredients:", error)
+    if (error instanceof AppError) {
+      throw error
+    }
+    throw new AppError("Đã xảy ra lỗi khi tạo phiếu xuất từ tổng hợp nguyên liệu", 500)
+  }
+}
+
 // Internal helper functions
 async function getMenuSuggestionsInternal() {
   const db = await getDb()
