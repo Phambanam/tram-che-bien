@@ -292,9 +292,9 @@ export function OutputManagementContent() {
         let totalAmount = ingredient.totalQuantity
         
         // Calculate requirements per unit based on their personnel
-        visibleUnits.forEach((unit) => {
+        unitsData.forEach((unit) => {
           const personnel = personnelData[unit._id] || 0
-          const totalPeople = visibleUnits.reduce((sum, u) => sum + (personnelData[u._id] || 0), 0)
+          const totalPeople = unitsData.reduce((sum, u) => sum + (personnelData[u._id] || 0), 0)
           
           // Distribute total quantity proportionally based on unit size
           const proportionalRequirement = totalPeople > 0 
@@ -432,8 +432,14 @@ export function OutputManagementContent() {
   const handleDateSelect = (date: Date, view: "day" | "week") => {
     setSelectedDate(date)
     setSelectedView(view)
-    // Reload data for new selection
-    fetchData()
+    // Reload data for new selection with updated parameters
+    setTimeout(() => {
+      if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
+        generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, unitPersonnel)
+      } else {
+        generateSupplyOutputData(dailyRations, visibleUnits, unitPersonnel, date, view)
+      }
+    }, 0)
   }
 
   // Handle personnel count edit
@@ -633,12 +639,12 @@ export function OutputManagementContent() {
                 </Button>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
+              </CardHeader>
+              <CardContent>
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
                     <TableHead className="w-12">STT</TableHead>
                     <TableHead className="min-w-[200px]">
                       {dataSource === "ingredients" ? "Nguyên liệu" : "Tên thực phẩm"}
@@ -668,12 +674,12 @@ export function OutputManagementContent() {
                     <TableHead className="text-center bg-yellow-50">Tổng - Số người ăn</TableHead>
                     <TableHead className="text-center bg-orange-50">Tổng - Giá thành</TableHead>
                     <TableHead className="text-center bg-red-50">Tổng - Thành tiền</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                   {supplyData.map((item, index) => (
                     <TableRow key={item.id}>
-                      <TableCell>{index + 1}</TableCell>
+                        <TableCell>{index + 1}</TableCell>
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
                           <span>{item.foodName}</span>
@@ -695,7 +701,7 @@ export function OutputManagementContent() {
                         </Badge>
                       </TableCell>
                       <TableCell>{item.unit}</TableCell>
-                      <TableCell>
+                        <TableCell>
                         <div className="flex flex-col items-center">
                           <span className="font-medium">
                             {item.quantityPerPerson.toFixed(3)}/người
@@ -706,7 +712,7 @@ export function OutputManagementContent() {
                             </span>
                           )}
                         </div>
-                      </TableCell>
+                        </TableCell>
                       {dataSource === "ingredients" && (
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
@@ -739,7 +745,7 @@ export function OutputManagementContent() {
                             <div className="flex items-center justify-center gap-1">
                               <Users className="h-3 w-3" />
                               <span>{unitPersonnel[unit._id] || 0}</span>
-                            </div>
+                          </div>
                           )}
                         </TableCell>
                       ))}
@@ -759,8 +765,8 @@ export function OutputManagementContent() {
                       </TableCell>
                       <TableCell className="text-center bg-red-50 font-medium">
                         {item.totalCost.toLocaleString()} đ
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
                   ))}
                   
                   {/* Total Row */}
@@ -777,25 +783,25 @@ export function OutputManagementContent() {
                       </TableCell>
                     ))}
                     <TableCell className="text-center bg-yellow-100">
-                      {supplyData.reduce((sum, item) => sum + item.totalPersonnel, 0)}
+                      {visibleUnits.reduce((sum, unit) => sum + (unitPersonnel[unit._id] || 0), 0)}
                     </TableCell>
                     <TableCell className="text-center bg-orange-100">-</TableCell>
                     <TableCell className="text-center bg-red-100">
                       {supplyData.reduce((sum, item) => sum + item.totalCost, 0).toLocaleString()} đ
                     </TableCell>
                   </TableRow>
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
             </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
         {/* Notes Section */}
         <Card className="mt-6">
-          <CardHeader>
+              <CardHeader>
             <CardTitle>📝 Chú thích</CardTitle>
-          </CardHeader>
-          <CardContent>
+              </CardHeader>
+              <CardContent>
             <div className="space-y-3 text-sm">
               {dataSource === "ingredients" ? (
                 <>
@@ -852,11 +858,11 @@ export function OutputManagementContent() {
                       )}
                     </div>
                   ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    </div>
+                  </div>
+                  </div>
+              </CardContent>
+            </Card>
 
         {/* Edit Personnel Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
