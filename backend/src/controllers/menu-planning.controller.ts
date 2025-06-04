@@ -52,6 +52,10 @@ export const getMenuSuggestions = async (req: Request, res: Response) => {
   try {
     const db = await getDb()
     
+    if (!db) {
+      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+    }
+    
     // Get all dishes with ingredients
     const dishes = await db.collection("dishes").find({}).toArray()
     
@@ -143,10 +147,10 @@ export const getMenuSuggestions = async (req: Request, res: Response) => {
 
       // Determine if dish is feasible
       const insufficientIngredients = ingredientAnalysis.filter(
-        (ing) => ing.status === "insufficient" || ing.status === "expired"
+        (ing: IngredientAnalysis) => ing.status === "insufficient" || ing.status === "expired"
       )
       const expiringSoon = ingredientAnalysis.filter(
-        (ing) => ing.status === "expiring_soon"
+        (ing: IngredientAnalysis) => ing.status === "expiring_soon"
       )
 
       if (insufficientIngredients.length === 0) {
@@ -192,6 +196,10 @@ export const getMenuSuggestions = async (req: Request, res: Response) => {
 export const getInventoryAlerts = async (req: Request, res: Response) => {
   try {
     const db = await getDb()
+
+    if (!db) {
+      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+    }
 
     const inventory = await db
       .collection("processingStation")
@@ -286,6 +294,10 @@ export const generateDailyMenuPlan = async (req: Request, res: Response) => {
 
     const db = await getDb()
 
+    if (!db) {
+      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+    }
+
     // Get menu suggestions
     const suggestionsResponse = await getMenuSuggestionsInternal()
     const suggestions = suggestionsResponse.data
@@ -341,6 +353,10 @@ export const getMenuPlanningOverview = async (req: Request, res: Response) => {
   try {
     const db = await getDb()
 
+    if (!db) {
+      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+    }
+
     // Get all data in parallel
     const [suggestionsResponse, alertsResponse, units, inventory] = await Promise.all([
       getMenuSuggestionsInternal(),
@@ -388,6 +404,10 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
   try {
     const { week, year, date, showAllDays } = req.query
     const db = await getDb()
+
+    if (!db) {
+      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+    }
 
     let matchCriteria: any = {}
 
@@ -537,6 +557,10 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
 async function getMenuSuggestionsInternal() {
   const db = await getDb()
   
+  if (!db) {
+    throw new Error("Không thể kết nối cơ sở dữ liệu")
+  }
+  
   const dishes = await db.collection("dishes").find({}).toArray()
   const inventory = await db
     .collection("processingStation")
@@ -620,10 +644,10 @@ async function getMenuSuggestionsInternal() {
     })
 
     const insufficientIngredients = ingredientAnalysis.filter(
-      (ing) => ing.status === "insufficient" || ing.status === "expired"
+      (ing: IngredientAnalysis) => ing.status === "insufficient" || ing.status === "expired"
     )
     const expiringSoon = ingredientAnalysis.filter(
-      (ing) => ing.status === "expiring_soon"
+      (ing: IngredientAnalysis) => ing.status === "expiring_soon"
     )
 
     if (insufficientIngredients.length === 0) {
@@ -659,6 +683,10 @@ async function getMenuSuggestionsInternal() {
 
 async function getInventoryAlertsInternal() {
   const db = await getDb()
+
+  if (!db) {
+    throw new Error("Không thể kết nối cơ sở dữ liệu")
+  }
 
   const inventory = await db
     .collection("processingStation")

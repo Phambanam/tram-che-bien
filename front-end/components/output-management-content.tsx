@@ -11,10 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { CalendarIcon, Search, FileDown, FileUp, Users, Calculator, Edit, Plus, Bot, Sparkles } from "lucide-react"
-import { format, startOfWeek, addDays, isSameDay } from "date-fns"
+import { format, startOfWeek, addDays, isSameDay, getWeek, getYear } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
-import { unitsApi, dailyRationsApi, categoriesApi } from "@/lib/api-client"
+import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi } from "@/lib/api-client"
 
 interface Unit {
   _id: string
@@ -46,6 +46,24 @@ interface Category {
   itemCount?: number
 }
 
+// New interface for ingredient summaries
+interface IngredientSummary {
+  lttpId: string
+  lttpName: string
+  unit: string
+  totalQuantity: number
+  category: string
+  usedInDishes: string[]
+}
+
+interface DailyIngredientSummary {
+  date: string
+  dayName: string
+  mealCount: number
+  ingredients: (IngredientSummary & { stt: number })[]
+  totalIngredientTypes: number
+}
+
 interface SupplyOutputData {
   id: string
   foodName: string
@@ -62,6 +80,11 @@ interface SupplyOutputData {
   totalPersonnel: number
   totalCost: number
   totalAmount: number
+  // Additional fields for ingredient summaries
+  sourceDate?: string
+  dayName?: string
+  usedInDishes?: string[]
+  baseTotalQuantity?: number
 }
 
 interface UnitPersonnelData {
@@ -80,6 +103,11 @@ export function OutputManagementContent() {
   const [editingUnit, setEditingUnit] = useState<{ unitId: string; unitName: string; personnel: number } | null>(null)
   const [newPersonnelCount, setNewPersonnelCount] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(true)
+  
+  // New state for ingredient summaries
+  const [ingredientSummaries, setIngredientSummaries] = useState<DailyIngredientSummary[]>([])
+  const [loadingIngredients, setLoadingIngredients] = useState(false)
+  const [dataSource, setDataSource] = useState<"ingredients" | "dailyrations">("ingredients")
   
   // AI Assistant states
   // const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false)
@@ -105,6 +133,40 @@ export function OutputManagementContent() {
   const weekDays = getWeekDays(selectedDate)
   const dayNames = ["Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy", "Chủ nhật"]
 
+  // Fetch ingredient summaries from menu planning API
+  const fetchIngredientSummaries = async () => {
+    try {
+      setLoadingIngredients(true)
+      
+      const params: any = {
+        week: getWeek(selectedDate, { locale: vi }),
+        year: getYear(selectedDate),
+        showAllDays: selectedView === "week"
+      }
+      
+      if (selectedView === "day") {
+        params.date = format(selectedDate, "yyyy-MM-dd")
+      }
+      
+      const response = await menuPlanningApi.getDailyIngredientSummaries(params)
+      console.log("Ingredient summaries for supply output:", response)
+      
+      if (response.success) {
+        setIngredientSummaries(response.data || [])
+        return response.data || []
+      } else {
+        setIngredientSummaries([])
+        return []
+      }
+    } catch (error) {
+      console.error("Error fetching ingredient summaries:", error)
+      setIngredientSummaries([])
+      return []
+    } finally {
+      setLoadingIngredients(false)
+    }
+  }
+
   // Fetch data from APIs
   const fetchData = async () => {
     setIsLoading(true)
@@ -121,7 +183,7 @@ export function OutputManagementContent() {
       })
       setUnitPersonnel(personnelData)
 
-      // Fetch daily rations
+      // Fetch daily rations (for fallback)
       const dailyRationsResponse = await dailyRationsApi.getDailyRations()
       const dailyRationsData = Array.isArray(dailyRationsResponse) ? dailyRationsResponse : (dailyRationsResponse as any).data || []
       setDailyRations(dailyRationsData)
@@ -131,8 +193,22 @@ export function OutputManagementContent() {
       const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : (categoriesResponse as any).data || []
       setCategories(categoriesData)
 
-      // Generate supply output data
-      generateSupplyOutputData(dailyRationsData, unitsData, personnelData, selectedDate, selectedView)
+      // Fetch ingredient summaries and generate supply output data
+      const ingredientData = await fetchIngredientSummaries()
+      
+      if (ingredientData.length > 0) {
+        setDataSource("ingredients")
+        generateSupplyOutputFromIngredients(ingredientData, unitsData, personnelData)
+      } else {
+        // Fallback to daily rations if no ingredient data
+        setDataSource("dailyrations")
+        generateSupplyOutputData(dailyRationsData, unitsData, personnelData, selectedDate, selectedView)
+        toast({
+          title: "Thông báo",
+          description: "Không có dữ liệu thực đơn. Hiển thị dữ liệu định mức cơ bản.",
+          variant: "default",
+        })
+      }
 
     } catch (error) {
       console.error("Error fetching data:", error)
@@ -146,7 +222,77 @@ export function OutputManagementContent() {
     }
   }
 
-  // Generate supply output data based on daily rations and units
+  // Generate supply output data from ingredient summaries
+  const generateSupplyOutputFromIngredients = (ingredientData: DailyIngredientSummary[], unitsData: Unit[], personnelData: UnitPersonnelData) => {
+    const outputData: SupplyOutputData[] = []
+    
+    ingredientData.forEach((dailySummary) => {
+      dailySummary.ingredients.forEach((ingredient) => {
+        const unitRequirements: { [unitId: string]: { personnel: number; requirement: number } } = {}
+        let totalPersonnel = 0
+        let totalAmount = ingredient.totalQuantity
+        
+        // Calculate requirements per unit based on their personnel
+        unitsData.forEach((unit) => {
+          const personnel = personnelData[unit._id] || 0
+          const totalPeople = Object.values(personnelData).reduce((sum, p) => sum + p, 0)
+          
+          // Distribute total quantity proportionally based on unit size
+          const proportionalRequirement = totalPeople > 0 
+            ? (ingredient.totalQuantity * personnel) / totalPeople 
+            : 0
+          
+          unitRequirements[unit._id] = {
+            personnel,
+            requirement: proportionalRequirement
+          }
+          
+          totalPersonnel += personnel
+        })
+
+        // Estimate price per unit (using default daily ration prices as reference)
+        const defaultPrice = 15000 // Default price per kg if no match found
+        const matchingRation = dailyRations.find(ration => 
+          ration.name.toLowerCase().includes(ingredient.lttpName.toLowerCase()) ||
+          ingredient.lttpName.toLowerCase().includes(ration.name.toLowerCase())
+        )
+        const pricePerUnit = matchingRation?.pricePerUnit || defaultPrice
+        
+        const totalCost = totalAmount * pricePerUnit
+        
+        const displayName = `${ingredient.lttpName} (${dailySummary.dayName} - ${format(new Date(dailySummary.date), "dd/MM/yyyy")})`
+        
+        outputData.push({
+          id: `${dailySummary.date}-${ingredient.lttpId}`,
+          foodName: displayName,
+          category: ingredient.category,
+          unit: ingredient.unit,
+          quantityPerPerson: totalPersonnel > 0 ? ingredient.totalQuantity / totalPersonnel : 0,
+          pricePerUnit,
+          units: unitRequirements,
+          totalPersonnel,
+          totalCost,
+          totalAmount,
+          sourceDate: dailySummary.date,
+          dayName: dailySummary.dayName,
+          usedInDishes: ingredient.usedInDishes,
+          baseTotalQuantity: ingredient.totalQuantity
+        })
+      })
+    })
+    
+    // Sort by date then by ingredient name
+    outputData.sort((a, b) => {
+      if (a.sourceDate !== b.sourceDate) {
+        return (a.sourceDate || "").localeCompare(b.sourceDate || "")
+      }
+      return a.foodName.localeCompare(b.foodName)
+    })
+    
+    setSupplyData(outputData)
+  }
+
+  // Generate supply output data based on daily rations and units (FALLBACK)
   const generateSupplyOutputData = (rations: DailyRation[], unitsData: Unit[], personnelData: UnitPersonnelData, selectedDate?: Date, selectedView?: "day" | "week") => {
     // Simulate day-specific data variations
     const dateModifier = selectedDate ? selectedDate.getDay() : 1 // Monday = 1, Sunday = 0
@@ -223,8 +369,8 @@ export function OutputManagementContent() {
   const handleDateSelect = (date: Date, view: "day" | "week") => {
     setSelectedDate(date)
     setSelectedView(view)
-    // Regenerate data for the new selection
-    generateSupplyOutputData(dailyRations, units, unitPersonnel, date, view)
+    // Reload data for new selection
+    fetchData()
   }
 
   // Handle personnel count edit
@@ -243,7 +389,11 @@ export function OutputManagementContent() {
       setUnitPersonnel(updatedPersonnel)
       
       // Regenerate supply data with new personnel counts
-      generateSupplyOutputData(dailyRations, units, updatedPersonnel, selectedDate, selectedView)
+      if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
+        generateSupplyOutputFromIngredients(ingredientSummaries, units, updatedPersonnel)
+      } else {
+        generateSupplyOutputData(dailyRations, units, updatedPersonnel, selectedDate, selectedView)
+      }
       
       toast({
         title: "Thành công",
@@ -302,10 +452,6 @@ export function OutputManagementContent() {
       setIsGeneratingSuggestions(false)
     }, 1500)
   }
-
- 
-
-
 
   if (isLoading) {
     return (
@@ -366,11 +512,27 @@ export function OutputManagementContent() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>
-                📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : `${dayNames[weekDays.findIndex(day => isSameDay(day, selectedDate))]}`}
-              </CardTitle>
+              <div>
+                <CardTitle>
+                  📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : `${dayNames[weekDays.findIndex(day => isSameDay(day, selectedDate))]}`}
+                </CardTitle>
+                <div className="flex items-center gap-4 mt-2">
+                  <Badge variant={dataSource === "ingredients" ? "default" : "secondary"} className="text-xs">
+                    {dataSource === "ingredients" ? "📋 Từ thực đơn" : "📝 Từ định mức"}
+                  </Badge>
+                  {dataSource === "ingredients" && (
+                    <span className="text-xs text-gray-600">
+                      {loadingIngredients ? "Đang tải..." : `${ingredientSummaries.length} ngày có thực đơn`}
+                    </span>
+                  )}
+                  {dataSource === "ingredients" && selectedView === "day" && (
+                    <span className="text-xs text-blue-600">
+                      {format(selectedDate, "dd/MM/yyyy")}
+                    </span>
+                  )}
+                </div>
+              </div>
               <div className="flex gap-2">
-                
                 <Button variant="outline" className="flex items-center gap-2">
                   <FileDown className="h-4 w-4" />
                   Xuất Excel
@@ -381,17 +543,22 @@ export function OutputManagementContent() {
                 </Button>
               </div>
             </div>
-              </CardHeader>
-              <CardContent>
+          </CardHeader>
+          <CardContent>
             <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
+              <Table>
+                <TableHeader>
+                  <TableRow>
                     <TableHead className="w-12">STT</TableHead>
-                    <TableHead className="min-w-[150px]">Tên thực phẩm</TableHead>
+                    <TableHead className="min-w-[200px]">
+                      {dataSource === "ingredients" ? "Nguyên liệu (Ngày)" : "Tên thực phẩm"}
+                    </TableHead>
                     <TableHead>Phân loại</TableHead>
                     <TableHead>ĐVT</TableHead>
                     <TableHead>Định lượng</TableHead>
+                    {dataSource === "ingredients" && (
+                      <TableHead className="min-w-[150px]">Dùng trong món</TableHead>
+                    )}
                     {units.map((unit) => (
                       <TableHead key={`${unit._id}-personnel`} className="text-center bg-blue-50">
                         <div className="flex flex-col">
@@ -411,14 +578,23 @@ export function OutputManagementContent() {
                     <TableHead className="text-center bg-yellow-50">Tổng - Số người ăn</TableHead>
                     <TableHead className="text-center bg-orange-50">Tổng - Giá thành</TableHead>
                     <TableHead className="text-center bg-red-50">Tổng - Thành tiền</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {supplyData.map((item, index) => (
                     <TableRow key={item.id}>
-                        <TableCell>{index + 1}</TableCell>
-                      <TableCell className="font-medium">{item.foodName}</TableCell>
-                        <TableCell>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{item.foodName}</span>
+                          {dataSource === "ingredients" && item.baseTotalQuantity && (
+                            <span className="text-xs text-gray-500">
+                              Tổng: {item.baseTotalQuantity.toFixed(1)} {item.unit}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Badge variant="outline" className={
                           categoryTotals[item.category] && 
                           categoryTotals[item.category].total > categoryTotals[item.category].limit
@@ -432,6 +608,17 @@ export function OutputManagementContent() {
                       <TableCell className="text-center">
                         {item.quantityPerPerson.toFixed(3)}
                       </TableCell>
+                      {dataSource === "ingredients" && (
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {item.usedInDishes && item.usedInDishes.map((dish, dishIndex) => (
+                              <Badge key={dishIndex} variant="outline" className="text-xs">
+                                {dish}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                      )}
                       
                       {/* Personnel columns */}
                       {units.map((unit) => (
@@ -466,13 +653,13 @@ export function OutputManagementContent() {
                       </TableCell>
                       <TableCell className="text-center bg-red-50 font-medium">
                         {item.totalCost.toLocaleString()} đ
-                        </TableCell>
-                      </TableRow>
+                      </TableCell>
+                    </TableRow>
                   ))}
                   
                   {/* Total Row */}
                   <TableRow className="bg-gray-100 font-bold">
-                    <TableCell colSpan={5} className="text-center">TỔNG CỘNG</TableCell>
+                    <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center">TỔNG CỘNG</TableCell>
                     {units.map((unit) => (
                       <TableCell key={`${unit._id}-total-personnel`} className="text-center bg-blue-100">
                         {unitPersonnel[unit._id] || 0}
@@ -491,30 +678,47 @@ export function OutputManagementContent() {
                       {supplyData.reduce((sum, item) => sum + item.totalCost, 0).toLocaleString()} đ
                     </TableCell>
                   </TableRow>
-                  </TableBody>
-                </Table>
+                </TableBody>
+              </Table>
             </div>
-              </CardContent>
-            </Card>
+          </CardContent>
+        </Card>
 
         {/* Notes Section */}
         <Card className="mt-6">
-              <CardHeader>
+          <CardHeader>
             <CardTitle>📝 Chú thích</CardTitle>
-              </CardHeader>
-              <CardContent>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3 text-sm">
+              {dataSource === "ingredients" ? (
+                <>
+                  <p>
+                    <strong>📋 Dữ liệu từ thực đơn:</strong> Tên nguyên liệu hiển thị theo thực đơn đã lập với thông tin ngày tháng. 
+                    Số lượng được tính toán từ các món ăn trong thực đơn và số người ăn thực tế.
+                  </p>
+                  <p>
+                    <strong>🍽️ Món ăn sử dụng:</strong> Hiển thị các món ăn trong thực đơn có sử dụng nguyên liệu này.
+                    Giúp đầu bếp biết được nguyên liệu sẽ dùng cho món nào.
+                  </p>
+                  <p>
+                    <strong>⚡ Tự động cập nhật:</strong> Dữ liệu được cập nhật tự động từ thực đơn đã lập. 
+                    Khi thay đổi thực đơn, danh sách nguyên liệu sẽ được điều chỉnh tương ứng.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    <strong>Chú ý:</strong> Hiển thị dữ liệu định mức cơ bản do chưa có thực đơn cho thời gian được chọn. 
+                    Vui lòng lập thực đơn để có dữ liệu nguyên liệu chính xác.
+                  </p>
+                  <p>
+                    <strong>Định mức:</strong> Áp dụng mức ăn 65.000đ/người/ngày với phân loại không vượt quá định mức theo quy định.
+                  </p>
+                </>
+              )}
               <p>
-                <strong>Chú ý:</strong> Từ khi lên thực đơn các món từng bữa thì phần nhu cầu sử dụng sẽ xuất hiện tên thực phẩm theo thực đơn món 
-                (mỗi món sẽ có dữ liệu cụ thể từng thực phẩm). Phần Định lượng đã nhập sẵn từ dữ liệu theo từng mức ăn, 
-                hiện tại áp dụng mức ăn 65.000đ sao cho phân loại không được vượt quá định mức.
-              </p>
-              <p>
-                <strong>Ví dụ:</strong> trường hợp có 2 hay nhiều thực phẩm có cùng chung phân loại như trong ngày có cà chua, cà rốt, khoai tây 
-                thuộc phân loại RAU CỦ QUẢ 400G/NGƯỜI/NGÀY thì tổng số lượng của 3 loại này không vượt quá 400g.
-              </p>
-              <p>
-                Từ số lượng người ăn của từng đơn vị nhu cầu sẽ bằng định lượng nhân với số người và đây cũng là số lượng cấp cho các đơn vị 
+                Từ số lượng người ăn của từng đơn vị, nhu cầu sẽ bằng định lượng nhân với số người và đây cũng là số lượng cấp cho các đơn vị 
                 để các đơn vị chế biến nấu ăn theo thực đơn.
               </p>
               
@@ -535,11 +739,11 @@ export function OutputManagementContent() {
                       )}
                     </div>
                   ))}
-                    </div>
-                  </div>
-                  </div>
-              </CardContent>
-            </Card>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Edit Personnel Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
