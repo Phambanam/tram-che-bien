@@ -159,7 +159,7 @@ export function DataLibraryContent() {
       // Fetch products (LTTP Items)
       try {
         console.log('Fetching products...')
-        const productsResponse = await productsApi.getProducts()
+        const productsResponse = await productsApi.getAllProducts()
         console.log('Products response:', productsResponse)
         
         const productsData = Array.isArray(productsResponse) ? productsResponse : (productsResponse as any).data || []
@@ -484,7 +484,7 @@ export function DataLibraryContent() {
       mainLTTP: {
         lttpId: lttp._id,
         lttpName: lttp.name,
-        category: lttp.category
+        category: lttp.categoryName
       }
     })
   }
@@ -854,7 +854,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Mã đơn vị *</label>
                     <Input
                       value={formData.code || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, code: e.target.value }))}
                       placeholder="VD: TD01"
                     />
                   </div>
@@ -862,7 +862,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Tên đơn vị *</label>
                     <Input
                       value={formData.name || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                       placeholder="VD: Tiểu đoàn 1"
                     />
                   </div>
@@ -873,7 +873,7 @@ export function DataLibraryContent() {
                     <Input
                       type="number"
                       value={formData.personnel || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, personnel: Number(e.target.value) }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, personnel: Number(e.target.value) }))}
                       placeholder="VD: 150"
                     />
                   </div>
@@ -881,7 +881,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Chỉ huy</label>
                     <Input
                       value={formData.commander || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, commander: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, commander: e.target.value }))}
                       placeholder="VD: Thiếu tá Nguyễn Văn A"
                     />
                   </div>
@@ -890,7 +890,7 @@ export function DataLibraryContent() {
                   <label className="font-medium">Liên hệ</label>
                   <Input
                     value={formData.contact || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+                    onChange={(e) => setFormData((prev: any) => ({ ...prev, contact: e.target.value }))}
                     placeholder="VD: 0987654321"
                   />
                 </div>
@@ -903,7 +903,7 @@ export function DataLibraryContent() {
                   <label className="font-medium">Tên phân loại *</label>
                   <Input
                     value={formData.name || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                     placeholder="VD: Rau củ quả"
                   />
                 </div>
@@ -911,7 +911,7 @@ export function DataLibraryContent() {
                   <label className="font-medium">Slug *</label>
                   <Input
                     value={formData.slug || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                    onChange={(e) => setFormData((prev: any) => ({ ...prev, slug: e.target.value }))}
                     placeholder="VD: rau-cu-qua"
                   />
                 </div>
@@ -920,7 +920,7 @@ export function DataLibraryContent() {
                   <textarea
                     className="w-full min-h-[80px] p-2 border border-gray-300 rounded-md"
                     value={formData.description || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) => setFormData((prev: any) => ({ ...prev, description: e.target.value }))}
                     placeholder="Mô tả về phân loại này"
                   />
                 </div>

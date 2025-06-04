@@ -200,8 +200,23 @@ export const categoriesApi = {
 
 // Products API
 export const productsApi = {
-  getProducts: async (categoryId?: string) => {
-    const query = categoryId ? `?category=${categoryId}` : ""
+  getProducts: async (categoryId?: string, page?: number, limit?: number) => {
+    const queryParams = new URLSearchParams()
+    if (categoryId) queryParams.append("category", categoryId)
+    if (page) queryParams.append("page", page.toString())
+    if (limit) queryParams.append("limit", limit.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<any[]>(`/products${query}`)
+  },
+
+  getAllProducts: async (categoryId?: string) => {
+    // Get all products by setting a high limit
+    const queryParams = new URLSearchParams()
+    if (categoryId) queryParams.append("category", categoryId)
+    queryParams.append("limit", "1000") // Set high limit to get all products
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<any[]>(`/products${query}`)
   },
 
