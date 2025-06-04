@@ -837,9 +837,22 @@ export function MenuReportContent() {
   const loadAvailableUnits = async () => {
     try {
       const response = await unitsApi.getUnits()
-      setAvailableUnits(response || [])
+      console.log("Units response:", response)
+      
+      // Handle different response structures
+      if (Array.isArray(response)) {
+        setAvailableUnits(response)
+      } else if (response && Array.isArray(response.data)) {
+        setAvailableUnits(response.data)
+      } else if (response && response.units && Array.isArray(response.units)) {
+        setAvailableUnits(response.units)
+      } else {
+        console.warn("Unexpected units response format:", response)
+        setAvailableUnits([])
+      }
     } catch (error) {
       console.error("Error loading units:", error)
+      setAvailableUnits([])
     }
   }
 
@@ -1791,11 +1804,15 @@ export function MenuReportContent() {
                     <SelectValue placeholder="Chọn đơn vị nhận" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableUnits.map((unit) => (
+                    {Array.isArray(availableUnits) ? availableUnits.map((unit) => (
                       <SelectItem key={unit._id} value={unit._id}>
                         {unit.name}
                       </SelectItem>
-                    ))}
+                    )) : (
+                      <SelectItem value="" disabled>
+                        Không có đơn vị nào
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
