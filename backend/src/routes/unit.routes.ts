@@ -1,5 +1,5 @@
 import express from "express"
-import { getUnits, createUnit, getUnitById, updateUnit, deleteUnit } from "../controllers/unit.controller"
+import { getUnits, createUnit, getUnitById, updateUnit, deleteUnit, updateUnitPersonnel } from "../controllers/unit.controller"
 import { protect, authorize } from "../middleware/auth.middleware"
 
 const router = express.Router()
@@ -72,6 +72,9 @@ router.get("/:id", getUnitById)
 
 // Protected routes (require authentication)
 router.use(protect)
+
+// Update unit personnel only (allows unit assistant for own unit) - Must be before /:id route
+router.patch("/:id/personnel", updateUnitPersonnel)
 
 /**
  * @swagger

@@ -160,6 +160,13 @@ export const unitsApi = {
     })
   },
 
+  updateUnitPersonnel: async (id: string, personnel: number) => {
+    return apiRequest<{ success: boolean; message: string; data: any }>(`/units/${id}/personnel`, {
+      method: "PATCH",
+      body: JSON.stringify({ personnel }),
+    })
+  },
+
   deleteUnit: async (id: string) => {
     return apiRequest<{ success: boolean; message: string }>(`/units/${id}`, {
       method: "DELETE",

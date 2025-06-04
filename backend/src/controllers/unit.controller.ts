@@ -242,3 +242,68 @@ export const deleteUnit = async (req: Request, res: Response) => {
     throw new AppError("Đã xảy ra lỗi khi xóa đơn vị", 500)
   }
 }
+
+// @desc    Update unit personnel only
+// @route   PATCH /api/units/:id/personnel
+// @access  Private (Admin, Brigade Assistant, Unit Assistant for own unit)
+export const updateUnitPersonnel = async (req: Request, res: Response) => {
+  try {
+    const unitId = req.params.id
+    const { personnel } = req.body
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(unitId)) {
+      throw new AppError("ID đơn vị không hợp lệ", 400)
+    }
+
+    // Validate personnel
+    if (personnel === undefined || personnel === null || personnel < 0) {
+      throw new AppError("Số người ăn không hợp lệ", 400)
+    }
+
+    const db = await getDb()
+
+    // Check if unit exists
+    const unit = await db.collection("units").findOne({ _id: new ObjectId(unitId) })
+    if (!unit) {
+      throw new AppError("Không tìm thấy đơn vị", 404)
+    }
+
+    // Check authorization for unit assistant
+    if (req.user?.role === "unitAssistant") {
+      // Unit assistant can only update their own unit
+      if (req.user.unit !== unitId) {
+        throw new AppError("Bạn chỉ có thể cập nhật số người ăn của đơn vị mình", 403)
+      }
+    }
+
+    const result = await db.collection("units").updateOne(
+      { _id: new ObjectId(unitId) },
+      {
+        $set: {
+          personnel: Number(personnel),
+          updatedAt: new Date(),
+        },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      throw new AppError("Không tìm thấy đơn vị", 404)
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật số người ăn thành công",
+      data: {
+        unitId,
+        personnel: Number(personnel)
+      }
+    })
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
+    }
+    console.error("Error updating unit personnel:", error)
+    throw new AppError("Đã xảy ra lỗi khi cập nhật số người ăn", 500)
+  }
+}

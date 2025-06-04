@@ -444,24 +444,37 @@ export function OutputManagementContent() {
   }
 
   // Save personnel count changes
-  const handleSavePersonnelCount = () => {
+  const handleSavePersonnelCount = async () => {
     if (editingUnit) {
-      const updatedPersonnel = { ...unitPersonnel }
-      updatedPersonnel[editingUnit.unitId] = newPersonnelCount
+      try {
+        // Call API to update unit personnel in backend
+        await unitsApi.updateUnitPersonnel(editingUnit.unitId, newPersonnelCount)
 
-      setUnitPersonnel(updatedPersonnel)
-      
-      // Regenerate supply data with new personnel counts
-      if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-        generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, updatedPersonnel)
-      } else {
-        generateSupplyOutputData(dailyRations, visibleUnits, updatedPersonnel, selectedDate, selectedView)
+        const updatedPersonnel = { ...unitPersonnel }
+        updatedPersonnel[editingUnit.unitId] = newPersonnelCount
+
+        setUnitPersonnel(updatedPersonnel)
+        
+        // Regenerate supply data with new personnel counts
+        if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
+          generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, updatedPersonnel)
+        } else {
+          generateSupplyOutputData(dailyRations, visibleUnits, updatedPersonnel, selectedDate, selectedView)
+        }
+        
+        toast({
+          title: "Thành công",
+          description: `Đã cập nhật số người ăn cho ${editingUnit.unitName} thành ${newPersonnelCount}`,
+        })
+      } catch (error) {
+        console.error("Error updating unit personnel:", error)
+        toast({
+          title: "Lỗi",
+          description: "Không thể cập nhật số người ăn. Vui lòng thử lại.",
+          variant: "destructive",
+        })
+        return // Don't close dialog if there's an error
       }
-      
-      toast({
-        title: "Thành công",
-        description: `Đã cập nhật số người ăn cho ${editingUnit.unitName}`,
-      })
     }
     setIsEditDialogOpen(false)
     setEditingUnit(null)
