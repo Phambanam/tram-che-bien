@@ -226,7 +226,17 @@ export function OutputManagementContent() {
   const generateSupplyOutputFromIngredients = (ingredientData: DailyIngredientSummary[], unitsData: Unit[], personnelData: UnitPersonnelData) => {
     const outputData: SupplyOutputData[] = []
     
-    ingredientData.forEach((dailySummary) => {
+    // Filter ingredient data based on selected view and date
+    let filteredIngredientData = ingredientData
+    
+    if (selectedView === "day") {
+      // For day view, only show ingredients for the selected date
+      const selectedDateStr = format(selectedDate, "yyyy-MM-dd")
+      filteredIngredientData = ingredientData.filter(dailySummary => dailySummary.date === selectedDateStr)
+    }
+    // For week view, show all available days
+    
+    filteredIngredientData.forEach((dailySummary) => {
       dailySummary.ingredients.forEach((ingredient) => {
         const unitRequirements: { [unitId: string]: { personnel: number; requirement: number } } = {}
         let totalPersonnel = 0
@@ -260,7 +270,11 @@ export function OutputManagementContent() {
         
         const totalCost = totalAmount * pricePerUnit
         
-        const displayName = `${ingredient.lttpName} (${dailySummary.dayName} - ${format(new Date(dailySummary.date), "dd/MM/yyyy")})`
+        // For day view, don't show date in name since it's obvious
+        // For week view, show date for clarity
+        const displayName = selectedView === "day" 
+          ? ingredient.lttpName
+          : `${ingredient.lttpName} (${dailySummary.dayName} - ${format(new Date(dailySummary.date), "dd/MM/yyyy")})`
         
         outputData.push({
           id: `${dailySummary.date}-${ingredient.lttpId}`,
@@ -522,12 +536,21 @@ export function OutputManagementContent() {
                   </Badge>
                   {dataSource === "ingredients" && (
                     <span className="text-xs text-gray-600">
-                      {loadingIngredients ? "Đang tải..." : `${ingredientSummaries.length} ngày có thực đơn`}
+                      {loadingIngredients ? "Đang tải..." : 
+                        selectedView === "day" 
+                          ? `${supplyData.length} nguyên liệu cho ngày được chọn`
+                          : `${ingredientSummaries.length} ngày có thực đơn`
+                      }
                     </span>
                   )}
                   {dataSource === "ingredients" && selectedView === "day" && (
-                    <span className="text-xs text-blue-600">
-                      {format(selectedDate, "dd/MM/yyyy")}
+                    <span className="text-xs text-blue-600 font-medium">
+                      📅 {format(selectedDate, "dd/MM/yyyy")}
+                    </span>
+                  )}
+                  {dataSource === "ingredients" && selectedView === "week" && (
+                    <span className="text-xs text-green-600 font-medium">
+                      📅 Tuần {getWeek(selectedDate, { locale: vi })}/{getYear(selectedDate)}
                     </span>
                   )}
                 </div>
@@ -551,11 +574,11 @@ export function OutputManagementContent() {
                   <TableRow>
                     <TableHead className="w-12">STT</TableHead>
                     <TableHead className="min-w-[200px]">
-                      {dataSource === "ingredients" ? "Nguyên liệu (Ngày)" : "Tên thực phẩm"}
+                      {dataSource === "ingredients" ? "Nguyên liệu" : "Tên thực phẩm"}
                     </TableHead>
                     <TableHead>Phân loại</TableHead>
                     <TableHead>ĐVT</TableHead>
-                    <TableHead>Định lượng</TableHead>
+                    <TableHead className="min-w-[120px]">Định lượng</TableHead>
                     {dataSource === "ingredients" && (
                       <TableHead className="min-w-[150px]">Dùng trong món</TableHead>
                     )}
@@ -587,9 +610,9 @@ export function OutputManagementContent() {
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
                           <span>{item.foodName}</span>
-                          {dataSource === "ingredients" && item.baseTotalQuantity && (
-                            <span className="text-xs text-gray-500">
-                              Tổng: {item.baseTotalQuantity.toFixed(1)} {item.unit}
+                          {dataSource === "ingredients" && selectedView === "week" && item.sourceDate && (
+                            <span className="text-xs text-blue-600">
+                              {format(new Date(item.sourceDate), "dd/MM")} - {item.dayName}
                             </span>
                           )}
                         </div>
@@ -605,8 +628,17 @@ export function OutputManagementContent() {
                         </Badge>
                       </TableCell>
                       <TableCell>{item.unit}</TableCell>
-                      <TableCell className="text-center">
-                        {item.quantityPerPerson.toFixed(3)}
+                      <TableCell>
+                        <div className="flex flex-col items-center">
+                          <span className="font-medium">
+                            {item.quantityPerPerson.toFixed(3)}/người
+                          </span>
+                          {dataSource === "ingredients" && item.baseTotalQuantity && (
+                            <span className="text-xs text-gray-600">
+                              Tổng: {item.baseTotalQuantity.toFixed(1)} {item.unit}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       {dataSource === "ingredients" && (
                         <TableCell>
@@ -694,7 +726,14 @@ export function OutputManagementContent() {
               {dataSource === "ingredients" ? (
                 <>
                   <p>
-                    <strong>📋 Dữ liệu từ thực đơn:</strong> Tên nguyên liệu hiển thị theo thực đơn đã lập với thông tin ngày tháng. 
+                    <strong>📋 Dữ liệu từ thực đơn:</strong> Tên nguyên liệu hiển thị theo thực đơn đã lập. 
+                    {selectedView === "day" ? 
+                      `Hiển thị nguyên liệu cho ngày ${format(selectedDate, "dd/MM/yyyy")} đã chọn.` :
+                      "Hiển thị nguyên liệu cho tất cả ngày trong tuần có thực đơn."
+                    }
+                  </p>
+                  <p>
+                    <strong>📊 Định lượng:</strong> Hiển thị cả định lượng trên người (kg/người) và tổng số lượng cần chuẩn bị. 
                     Số lượng được tính toán từ các món ăn trong thực đơn và số người ăn thực tế.
                   </p>
                   <p>
