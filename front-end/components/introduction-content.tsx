@@ -55,6 +55,17 @@ export function IntroductionContent() {
               ghi nhận sự trưởng thành vượt bậc về bản lĩnh, ý chí và tinh thần của chiến sĩ mới sau ba tháng rèn luyện trong quân ngũ.
             </p>
 
+            <div className="bg-purple-50 p-6 rounded-lg mb-6">
+              <h4 className="font-bold text-purple-800 mb-3">👥 Thành phần dự lễ:</h4>
+              <ul className="list-disc pl-6 space-y-2 text-purple-700">
+                <li><strong>Đồng chí Đại tá Nguyễn Hồng Giang</strong> - Phó Tư lệnh kiêm Tham mưu trưởng Binh chủng</li>
+                <li>Các đồng chí đại biểu đại diện cơ quan chức năng của Binh chủng</li>
+                <li>Lãnh đạo chính quyền các địa phương</li>
+                <li>Ban chỉ huy quân sự huyện</li>
+                <li>Đại diện gia đình các chiến sĩ mới (đầy xúc động)</li>
+              </ul>
+            </div>
+
             <div className="bg-blue-50 p-6 rounded-lg mb-6">
               <h4 className="font-bold text-blue-800 mb-3">🎯 Thành tích nổi bật:</h4>
               <ul className="list-disc pl-6 space-y-2 text-blue-700">
@@ -62,6 +73,14 @@ export function IntroductionContent() {
                 <li>Thể hiện tinh thần quyết tâm, đoàn kết, vượt khó và khát vọng cống hiến cho Tổ quốc</li>
                 <li>Có bước tiến vượt bậc so với năm 2024</li>
               </ul>
+            </div>
+
+            <div className="bg-red-50 p-6 rounded-lg mb-6">
+              <h4 className="font-bold text-red-800 mb-3">⚡ Giây phút thiêng liêng:</h4>
+              <p className="text-red-700 mb-3">
+                Trong giây phút thiêng liêng, trước <strong>Quân kỳ quyết thắng</strong>, các chiến sĩ mới đồng thanh hô vang lời tuyên thệ. 
+                Tiếng thề vang vọng, lay động lòng người – là minh chứng sống động cho ý chí, bản lĩnh và tinh thần của lớp chiến sĩ mới.
+              </p>
             </div>
 
             <blockquote className="border-l-4 border-green-500 pl-6 my-6 bg-green-50 p-4 rounded-r-lg">
@@ -74,12 +93,58 @@ export function IntroductionContent() {
               </footer>
             </blockquote>
 
+            <div className="bg-yellow-50 p-6 rounded-lg mb-6">
+              <h4 className="font-bold text-yellow-800 mb-3">🎖️ Phát biểu của lãnh đạo:</h4>
+              <p className="text-yellow-700 mb-3">
+                <strong>Đại tá Nguyễn Hồng Giang</strong> biểu dương kết quả huấn luyện và rèn luyện của chiến sĩ mới, 
+                đã có bước tiến vượt bậc so với năm 2024. Đó là kết quả của công tác lãnh đạo, chỉ đạo sâu sát, toàn diện, 
+                đồng bộ của Đảng uỷ, chỉ huy Lữ đoàn, sự đồng sức, đồng lòng của tập thể cán bộ, chiến sĩ Lữ đoàn 279.
+              </p>
+            </div>
+
             <p className="text-lg leading-8 mb-6 text-justify">
-              <strong>Đại tá Nguyễn Hồng Giang</strong>, Phó Tư lệnh kiêm Tham mưu trưởng Binh chủng, đã biểu dương kết quả 
-              huấn luyện xuất sắc và dặn dò: <em>"Từ hôm nay, các đồng chí chính thức trở thành người quân nhân trong 
+              <strong>Đại tá Nguyễn Hồng Giang</strong> dặn dò các chiến sĩ mới: <em>"Từ hôm nay, các đồng chí chính thức trở thành người quân nhân trong 
               Quân đội nhân dân Việt Nam. Chặng đường phía trước còn nhiều thử thách, song tôi tin tưởng với tinh thần 
-              rèn luyện nghiêm túc, ý chí kiên cường, các đồng chí sẽ tiếp tục phát huy truyền thống vẻ vang của Lữ đoàn."</em>
+              rèn luyện nghiêm túc, ý chí kiên cường, các đồng chí sẽ tiếp tục phát huy truyền thống vẻ vang của Lữ đoàn, 
+              hoàn thành xuất sắc mọi nhiệm vụ được giao."</em>
             </p>
+
+            <div className="bg-indigo-50 p-6 rounded-lg mb-6">
+              <h4 className="font-bold text-indigo-800 mb-3">🎭 Phần văn nghệ đặc sắc:</h4>
+              <p className="text-indigo-700 mb-3">
+                Kết thúc buổi lễ, các đại biểu đã được thưởng thức phần <strong>đồng diễn các vũ điệu trong sinh hoạt tập thể</strong> 
+                và <strong>màn múa cờ ấn tượng</strong> của chiến sĩ mới.
+              </p>
+              <p className="text-indigo-700">
+                Những bước nhảy khỏe khoắn, đồng đều, những lá cờ tung bay rợp trời là hình ảnh biểu tượng cho 
+                <strong>sức trẻ, sự sáng tạo và tinh thần đoàn kết, gắn bó</strong> của chiến sĩ mới.
+              </p>
+            </div>
+
+            <div className="bg-pink-50 p-6 rounded-lg mb-6">
+              <h4 className="font-bold text-pink-800 mb-3">👨‍👩‍👧‍👦 Buổi gặp mặt gia đình:</h4>
+              <p className="text-pink-700 mb-3">
+                Ngay sau buổi lễ, lãnh đạo các địa phương, Ban chỉ huy quân sự huyện cùng đại diện gia đình đã có 
+                <strong>buổi gặp mặt, thăm hỏi và động viên</strong> các chiến sĩ mới.
+              </p>
+              <p className="text-pink-700">
+                Những lời chúc mừng, những cái bắt tay ấm áp, những giọt nước mắt tự hào, xúc động là 
+                <strong>nguồn động lực to lớn</strong>, tiếp thêm niềm tin và sức mạnh để các chiến sĩ tiếp tục 
+                vững bước trên con đường binh nghiệp phía trước.
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 p-6 rounded-lg border-l-4 border-orange-500">
+              <h4 className="font-bold text-orange-800 mb-3">🚀 Hành trình mới bắt đầu:</h4>
+              <p className="text-orange-700 mb-3">
+                Lễ tuyên thệ khép lại, nhưng <strong>cánh cửa của hành trình quân ngũ mới chỉ bắt đầu</strong>. 
+                Tin tưởng rằng, các đồng chí chiến sĩ mới sẽ từng bước trưởng thành, ra sức cống hiến.
+              </p>
+              <p className="text-orange-700 font-semibold">
+                <strong>Sẵn đi bất cứ nơi đâu, làm bất cứ việc gì khi được phân công</strong>, tiếp tục viết nên những trang sử vẻ vang, 
+                góp phần tô thắm truyền thống của Quân đội nhân dân Việt Nam anh hùng.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -150,10 +215,11 @@ export function IntroductionContent() {
           </div>
         </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-gray-600 italic">
-            <strong>Nguồn tin:</strong> Việt Anh, Minh Quang | <strong>Cập nhật:</strong> {new Date().toLocaleDateString('vi-VN')}
+        <div className="text-center mt-8 pt-8 border-t border-gray-200">
+          <p className="text-sm text-gray-600">
+            <strong>Tin bài, ảnh:</strong> Việt Anh, Minh Quang
           </p>
+          <p className="text-xs text-gray-500 mt-2">TP</p>
         </div>
       </div>
     </div>
