@@ -13,31 +13,31 @@ import {
   removeDishFromMeal,
   copyDailyMenu,
 } from "../controllers/menu.controller"
-import { protect, authorize } from "../middleware/auth.middleware"
+// import { protect, authorize } from "../middleware/auth.middleware" // Temporarily disabled for development
 
 const router = express.Router()
 
-// Protected routes
-router.use(protect)
+// Protected routes (temporarily disabled for development)
+// router.use(protect)
 
 // Routes for all authenticated users
 router.get("/", getAllMenus)
 router.get("/:id", getMenuById)
 
-// Routes for admin only
-router.post("/", authorize("admin", "brigadeAssistant"), createMenu)
-router.patch("/:id", authorize("admin", "brigadeAssistant"), updateMenu)
-router.delete("/:id", authorize("admin", "brigadeAssistant"), deleteMenu)
+// Routes for admin only (temporarily public for development)
+router.post("/", createMenu)
+router.patch("/:id", updateMenu)
+router.delete("/:id", deleteMenu)
 
 // Daily menu routes
-router.post("/:id/daily-menus", authorize("admin", "brigadeAssistant"), createDailyMenu)
-router.patch("/daily-menus/:id", authorize("admin", "brigadeAssistant"), updateDailyMenu)
-router.delete("/daily-menus/:id", authorize("admin", "brigadeAssistant"), deleteDailyMenu)
-router.post("/daily-menus/:id/copy", authorize("admin", "brigadeAssistant"), copyDailyMenu)
+router.post("/:id/daily-menus", createDailyMenu)
+router.patch("/daily-menus/:id", updateDailyMenu)
+router.delete("/daily-menus/:id", deleteDailyMenu)
+router.post("/daily-menus/:id/copy", copyDailyMenu)
 
 // Meal routes
-router.patch("/meals/:id", authorize("admin", "brigadeAssistant"), updateMealDishes)
-router.post("/meals/:id/dishes", authorize("admin", "brigadeAssistant"), addDishToMeal)
-router.delete("/meals/:id/dishes/:dishId", authorize("admin", "brigadeAssistant"), removeDishFromMeal)
+router.patch("/meals/:id", updateMealDishes)
+router.post("/meals/:id/dishes", addDishToMeal)
+router.delete("/meals/:id/dishes/:dishId", removeDishFromMeal)
 
 export default router

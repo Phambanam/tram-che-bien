@@ -25,6 +25,7 @@ import menuRoutes from "./routes/menu.routes"
 import processingStationRoutes from "./routes/processing-station.routes"
 import supplyOutputRoutes from "./routes/supply-output.routes"
 import dailyRationRoutes from "./routes/daily-ration.routes"
+import menuPlanningRoutes from "./routes/menu-planning.routes"
 
 // Load environment variables
 dotenv.config()
@@ -81,6 +82,7 @@ app.use("/api/menus", menuRoutes)
 app.use("/api/processing-station", processingStationRoutes)
 app.use("/api/supply-outputs", supplyOutputRoutes)
 app.use("/api/daily-rations", dailyRationRoutes)
+app.use("/api/menu-planning", menuPlanningRoutes)
 // routes
 app.use("/api/upload", uploadRoutes)
 

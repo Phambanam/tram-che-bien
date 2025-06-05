@@ -577,7 +577,7 @@ export function ProcessingStationContent() {
                                       >
                                         Cập nhật
                                       </Button>
-                                    </TableCell>
+                  </TableCell>
                 </TableRow>
               ))}
                                 

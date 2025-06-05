@@ -24,8 +24,16 @@ import { format, addDays, startOfWeek, endOfWeek, getWeek, getYear, parseISO } f
 import { vi } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { menusApi, dishesApi } from "@/lib/api-client"
+import { menusApi, dishesApi, menuPlanningApi } from "@/lib/api-client"
 import { DishTooltip } from "@/components/dish-tooltip"
+import { 
+  exportMenuToExcel, 
+  exportIngredientsToExcel, 
+  printMenu, 
+  printIngredients,
+  type MenuExportData,
+  type IngredientExportData
+} from "@/lib/export-utils"
 
 interface Dish {
   _id: string
@@ -67,6 +75,24 @@ interface Menu {
   dailyMenus: DailyMenu[]
 }
 
+// Interface for ingredient aggregation
+interface IngredientSummary {
+  lttpId: string
+  lttpName: string
+  unit: string
+  totalQuantity: number
+  category: string
+  usedInDishes: string[]
+}
+
+interface DailyIngredientSummary {
+  date: string
+  dayName: string
+  mealCount: number
+  ingredients: IngredientSummary[]
+  totalIngredientTypes: number
+}
+
 export function MenuReportContent() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedWeek, setSelectedWeek] = useState<number>(getWeek(new Date(), { locale: vi }))
@@ -85,6 +111,12 @@ export function MenuReportContent() {
   const [currentMenu, setCurrentMenu] = useState<Menu | null>(null)
   const [availableDishes, setAvailableDishes] = useState<Dish[]>([])
   const [loading, setLoading] = useState(false)
+  const [ingredientSummaries, setIngredientSummaries] = useState<DailyIngredientSummary[]>([])
+  const [loadingIngredients, setLoadingIngredients] = useState(false)
+  
+  // Ingredient tab specific states
+  const [selectedIngredientDate, setSelectedIngredientDate] = useState<Date | null>(null)
+  const [showAllDays, setShowAllDays] = useState(true)
   
   // Form states
   const [dishForm, setDishForm] = useState({
@@ -114,6 +146,11 @@ export function MenuReportContent() {
     loadMenuData()
     loadAvailableDishes()
   }, [selectedWeek, selectedYear])
+
+  // Load ingredient summaries when parameters change
+  useEffect(() => {
+    loadIngredientSummaries()
+  }, [selectedWeek, selectedYear, showAllDays, selectedIngredientDate])
 
   const loadMenuData = async () => {
     try {
@@ -158,6 +195,54 @@ export function MenuReportContent() {
     } catch (error) {
       console.error("Error loading dishes:", error)
     }
+  }
+
+  // Load ingredient summaries from backend API
+  const loadIngredientSummaries = async () => {
+    try {
+      setLoadingIngredients(true)
+      
+      const params: any = {
+        week: selectedWeek,
+        year: selectedYear,
+        showAllDays: showAllDays
+      }
+      
+      if (!showAllDays && selectedIngredientDate) {
+        params.date = format(selectedIngredientDate, "yyyy-MM-dd")
+      }
+      
+      const response = await menuPlanningApi.getDailyIngredientSummaries(params)
+      console.log("Ingredient summaries from backend:", response)
+      
+      if (response.success) {
+        setIngredientSummaries(response.data || [])
+      } else {
+        setIngredientSummaries([])
+        toast({
+          title: "Thông báo",
+          description: response.message || "Không có dữ liệu nguyên liệu",
+          variant: "default",
+        })
+      }
+    } catch (error) {
+      console.error("Error loading ingredient summaries:", error)
+      setIngredientSummaries([])
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu tổng hợp nguyên liệu",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingIngredients(false)
+    }
+  }
+
+  // Calculate ingredient summaries for each day (DEPRECATED - now using backend API)
+  const calculateDailyIngredientSummaries = (): DailyIngredientSummary[] => {
+    // This function is deprecated and replaced by loadIngredientSummaries()
+    // Keeping for backwards compatibility only
+    return ingredientSummaries
   }
 
   // Function to navigate to previous week
@@ -525,6 +610,174 @@ export function MenuReportContent() {
     setDishForm({...dishForm, mealType: newMealType})
   }
 
+  // Handle export menu to Excel
+  const handleExportMenuToExcel = () => {
+    if (!currentMenu) {
+      toast({
+        title: "Lỗi",
+        description: "Không có thực đơn để xuất",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const exportData: MenuExportData = {
+        week: selectedWeek,
+        year: selectedYear,
+        startDate: weekStart.toISOString(),
+        endDate: weekEnd.toISOString(),
+        dailyMenus: currentMenu.dailyMenus.map(dailyMenu => ({
+          date: dailyMenu.date,
+          dayName: format(parseISO(dailyMenu.date), "EEEE", { locale: vi }),
+          mealCount: dailyMenu.mealCount,
+          status: dailyMenu.status,
+          meals: dailyMenu.meals.map(meal => ({
+            type: meal.type,
+            dishes: meal.dishes.map(dish => dish.name)
+          }))
+        }))
+      }
+
+      exportMenuToExcel(exportData)
+      
+      toast({
+        title: "Thành công",
+        description: "Xuất thực đơn Excel thành công",
+      })
+    } catch (error) {
+      console.error("Error exporting menu:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xuất thực đơn Excel",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle print menu
+  const handlePrintMenu = () => {
+    if (!currentMenu) {
+      toast({
+        title: "Lỗi",
+        description: "Không có thực đơn để in",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const printData: MenuExportData = {
+        week: selectedWeek,
+        year: selectedYear,
+        startDate: weekStart.toISOString(),
+        endDate: weekEnd.toISOString(),
+        dailyMenus: currentMenu.dailyMenus.map(dailyMenu => ({
+          date: dailyMenu.date,
+          dayName: format(parseISO(dailyMenu.date), "EEEE", { locale: vi }),
+          mealCount: dailyMenu.mealCount,
+          status: dailyMenu.status,
+          meals: dailyMenu.meals.map(meal => ({
+            type: meal.type,
+            dishes: meal.dishes.map(dish => dish.name)
+          }))
+        }))
+      }
+
+      printMenu(printData)
+    } catch (error) {
+      console.error("Error printing menu:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể in thực đơn",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle export ingredients to Excel
+  const handleExportIngredientsToExcel = () => {
+    const summaryData = calculateDailyIngredientSummaries()
+    
+    if (summaryData.length === 0) {
+      toast({
+        title: "Lỗi",
+        description: "Không có dữ liệu nguyên liệu để xuất",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const exportData: IngredientExportData[] = summaryData.map(summary => ({
+        date: summary.date,
+        dayName: summary.dayName,
+        mealCount: summary.mealCount,
+        ingredients: summary.ingredients.map((ingredient, index) => ({
+          stt: index + 1,
+          name: ingredient.lttpName,
+          quantity: ingredient.totalQuantity,
+          unit: ingredient.unit,
+          category: ingredient.category,
+          usedInDishes: Array.isArray(ingredient.usedInDishes) ? ingredient.usedInDishes.join(', ') : String(ingredient.usedInDishes)
+        }))
+      }))
+
+      exportIngredientsToExcel(exportData, showAllDays)
+      
+      toast({
+        title: "Thành công",
+        description: "Xuất danh sách nguyên liệu Excel thành công",
+      })
+    } catch (error) {
+      console.error("Error exporting ingredients:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xuất danh sách nguyên liệu Excel",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle print ingredients
+  const handlePrintIngredients = () => {
+    const summaryData = calculateDailyIngredientSummaries()
+    
+    if (summaryData.length === 0) {
+      toast({
+        title: "Lỗi",
+        description: "Không có dữ liệu nguyên liệu để in",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const printData: IngredientExportData[] = summaryData.map(summary => ({
+        date: summary.date,
+        dayName: summary.dayName,
+        mealCount: summary.mealCount,
+        ingredients: summary.ingredients.map((ingredient, index) => ({
+          stt: index + 1,
+          name: ingredient.lttpName,
+          quantity: ingredient.totalQuantity,
+          unit: ingredient.unit,
+          category: ingredient.category,
+          usedInDishes: Array.isArray(ingredient.usedInDishes) ? ingredient.usedInDishes.join(', ') : String(ingredient.usedInDishes)
+        }))
+      }))
+
+      printIngredients(printData, showAllDays)
+    } catch (error) {
+      console.error("Error printing ingredients:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể in danh sách nguyên liệu",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="container mx-auto p-4">
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -550,11 +803,11 @@ export function MenuReportContent() {
                 Tạo thực đơn tuần
               </Button>
             )}
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={handlePrintMenu}>
               <Printer className="h-4 w-4" />
               In thực đơn
             </Button>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button variant="outline" className="flex items-center gap-2" onClick={handleExportMenuToExcel}>
               <FileDown className="h-4 w-4" />
               Xuất Excel
             </Button>
@@ -562,9 +815,10 @@ export function MenuReportContent() {
         </div>
 
         <Tabs defaultValue="weekly" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="weekly">Thực đơn tuần</TabsTrigger>
             <TabsTrigger value="daily">Thực đơn ngày</TabsTrigger>
+            <TabsTrigger value="ingredients">Tổng hợp nguyên liệu</TabsTrigger>
           </TabsList>
 
           <TabsContent value="weekly" className="space-y-4">
@@ -779,7 +1033,7 @@ export function MenuReportContent() {
                     <Button onClick={() => setIsCreateDailyMenuDialogOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Tạo thực đơn ngày
-                    </Button>
+                          </Button>
                   ) : (
                     <Button onClick={() => setIsCreateMenuDialogOpen(true)}>
                       <Plus className="h-4 w-4 mr-2" />
@@ -789,6 +1043,212 @@ export function MenuReportContent() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="ingredients" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tổng hợp nguyên liệu theo ngày</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex items-center space-x-2">
+                      <input 
+                        type="checkbox" 
+                        id="show-all-days" 
+                        checked={showAllDays}
+                        onChange={(e) => {
+                          setShowAllDays(e.target.checked)
+                          if (e.target.checked) {
+                            setSelectedIngredientDate(null)
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <Label htmlFor="show-all-days" className="text-sm font-medium">
+                        Hiển thị tất cả ngày
+                      </Label>
+                        </div>
+                    
+                    {!showAllDays && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedIngredientDate ? format(selectedIngredientDate, "PPP", { locale: vi }) : "Chọn ngày cụ thể"}
+                                </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={selectedIngredientDate || undefined}
+                            onSelect={(date) => setSelectedIngredientDate(date || null)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex items-center gap-2" onClick={handleExportIngredientsToExcel}>
+                      <FileDown className="h-4 w-4" />
+                      Xuất danh sách nguyên liệu
+                    </Button>
+                    <Button variant="outline" className="flex items-center gap-2" onClick={handlePrintIngredients}>
+                      <Printer className="h-4 w-4" />
+                      In danh sách
+                                </Button>
+                              </div>
+                      </div>
+
+                {loadingIngredients ? (
+                  <div className="text-center py-8">Đang tải dữ liệu nguyên liệu...</div>
+                ) : !currentMenu ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">Chưa có thực đơn cho tuần này</p>
+                  </div>
+                ) : calculateDailyIngredientSummaries().length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">
+                      {!showAllDays && selectedIngredientDate 
+                        ? `Không có thực đơn cho ngày ${format(selectedIngredientDate, "dd/MM/yyyy", { locale: vi })}`
+                        : "Chưa có dữ liệu nguyên liệu"
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {calculateDailyIngredientSummaries().map((dailySummary) => (
+                      <Card key={dailySummary.date} className="border-l-4 border-l-blue-500">
+                        <CardHeader className="pb-3">
+                        <div className="flex justify-between items-center">
+                            <div>
+                              <CardTitle className="text-lg">
+                                {dailySummary.dayName}
+                              </CardTitle>
+                              <p className="text-sm text-gray-600">
+                                {format(parseISO(dailySummary.date), "dd/MM/yyyy")} - {dailySummary.mealCount} người ăn
+                              </p>
+                        </div>
+                            <Badge variant="outline" className="bg-blue-50">
+                              {dailySummary.totalIngredientTypes} loại nguyên liệu
+                            </Badge>
+                              </div>
+                        </CardHeader>
+                        <CardContent>
+                          {dailySummary.ingredients.length === 0 ? (
+                            <p className="text-gray-500 italic">Chưa có nguyên liệu nào</p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-[40px]">STT</TableHead>
+                                    <TableHead className="min-w-[200px]">Tên nguyên liệu</TableHead>
+                                    <TableHead className="w-[120px]">Số lượng</TableHead>
+                                    <TableHead className="w-[80px]">Đơn vị</TableHead>
+                                    <TableHead className="w-[120px]">Phân loại</TableHead>
+                                    <TableHead className="min-w-[200px]">Dùng trong món</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {dailySummary.ingredients.map((ingredient, index) => (
+                                    <TableRow key={ingredient.lttpId}>
+                                      <TableCell className="font-medium">{index + 1}</TableCell>
+                                      <TableCell className="font-medium">{ingredient.lttpName}</TableCell>
+                                      <TableCell className="text-right font-mono">
+                                        {ingredient.totalQuantity.toFixed(2)}
+                                      </TableCell>
+                                      <TableCell>{ingredient.unit}</TableCell>
+                                      <TableCell>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {ingredient.category}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                          {Array.isArray(ingredient.usedInDishes) ? ingredient.usedInDishes.map((dishName, dishIndex) => (
+                                            <Badge key={dishIndex} variant="outline" className="text-xs">
+                                              {dishName}
+                                            </Badge>
+                                          )) : (
+                                            <Badge variant="outline" className="text-xs">
+                                              {String(ingredient.usedInDishes)}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                      </div>
+                          )}
+                  </CardContent>
+                </Card>
+              ))}
+
+                    {/* Summary statistics */}
+                    {calculateDailyIngredientSummaries().length > 0 && (
+                      <Card className="border-2 border-dashed border-gray-300 bg-gray-50">
+                        <CardHeader>
+                          <CardTitle className="text-lg text-gray-700">
+                            {showAllDays ? "Thống kê tổng quan tuần" : "Thống kê ngày được chọn"}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {showAllDays ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-blue-600">
+                                  {calculateDailyIngredientSummaries().length}
+                                </div>
+                                <div className="text-sm text-gray-600">Ngày có thực đơn</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-green-600">
+                                  {Math.max(...calculateDailyIngredientSummaries().map(d => d.totalIngredientTypes), 0)}
+                                </div>
+                                <div className="text-sm text-gray-600">Loại nguyên liệu nhiều nhất/ngày</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-orange-600">
+                                  {Math.round(calculateDailyIngredientSummaries().reduce((sum, d) => sum + d.mealCount, 0) / calculateDailyIngredientSummaries().length) || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">Số người ăn trung bình/ngày</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-blue-600">
+                                  {calculateDailyIngredientSummaries()[0]?.totalIngredientTypes || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">Tổng loại nguyên liệu</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-green-600">
+                                  {calculateDailyIngredientSummaries()[0]?.mealCount || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">Số người ăn</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-orange-600">
+                                  {calculateDailyIngredientSummaries()[0]?.ingredients.reduce((sum, ing) => sum + ing.totalQuantity, 0).toFixed(1) || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">Tổng khối lượng (mix units)</div>
+                              </div>
+                            </div>
+                          )}
+                </CardContent>
+              </Card>
+            )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 

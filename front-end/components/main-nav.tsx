@@ -26,6 +26,10 @@ const navItems = [
     href: "/dashboard/quan-ly-nguon-xuat",
   },
   {
+    title: "HỖ TRỢ LẬP THỰC ĐƠN",
+    href: "/dashboard/ho-tro-lap-thuc-don",
+  },
+  {
     title: "THƯ VIỆN DỮ LIỆU",
     href: "/dashboard/thu-vien-du-lieu",
   },

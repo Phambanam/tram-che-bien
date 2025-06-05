@@ -23,8 +23,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const config: RequestInit = {
     headers: {
       "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
     },
     mode: 'cors',
     credentials: 'include',
@@ -160,10 +160,29 @@ export const unitsApi = {
     })
   },
 
+  updateUnitPersonnel: async (id: string, personnel: number) => {
+    return apiRequest<{ success: boolean; message: string; data: any }>(`/units/${id}/personnel`, {
+      method: "PATCH",
+      body: JSON.stringify({ personnel }),
+    })
+  },
+
   deleteUnit: async (id: string) => {
     return apiRequest<{ success: boolean; message: string }>(`/units/${id}`, {
       method: "DELETE",
     })
+  },
+
+  // Total personnel APIs
+  updateTotalPersonnel: async (date: string, totalPersonnel: number) => {
+    return apiRequest<{ success: boolean; message: string }>(`/units/total-personnel`, {
+      method: "PATCH",
+      body: JSON.stringify({ date, totalPersonnel }),
+    })
+  },
+
+  getTotalPersonnel: async (date: string) => {
+    return apiRequest<{ success: boolean; data: { date: string; totalPersonnel: number; exists: boolean } }>(`/units/total-personnel/${date}`)
   },
 }
 
@@ -200,8 +219,23 @@ export const categoriesApi = {
 
 // Products API
 export const productsApi = {
-  getProducts: async (categoryId?: string) => {
-    const query = categoryId ? `?category=${categoryId}` : ""
+  getProducts: async (categoryId?: string, page?: number, limit?: number) => {
+    const queryParams = new URLSearchParams()
+    if (categoryId) queryParams.append("category", categoryId)
+    if (page) queryParams.append("page", page.toString())
+    if (limit) queryParams.append("limit", limit.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<any[]>(`/products${query}`)
+  },
+
+  getAllProducts: async (categoryId?: string) => {
+    // Get all products by setting a high limit
+    const queryParams = new URLSearchParams()
+    if (categoryId) queryParams.append("category", categoryId)
+    queryParams.append("limit", "1000") // Set high limit to get all products
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<any[]>(`/products${query}`)
   },
 
@@ -767,6 +801,44 @@ export const lttpApi = {
   },
 }
 
+// Menu Planning API
+export const menuPlanningApi = {
+  getMenuSuggestions: async () => {
+    return apiRequest<any>("/menu-planning/suggestions")
+  },
+
+  getInventoryAlerts: async () => {
+    return apiRequest<any>("/menu-planning/alerts")
+  },
+
+  generateDailyPlan: async (date: string) => {
+    return apiRequest<any>("/menu-planning/daily-plan", {
+      method: "POST",
+      body: JSON.stringify({ date }),
+    })
+  },
+
+  getOverview: async () => {
+    return apiRequest<any>("/menu-planning/overview")
+  },
+
+  getDailyIngredientSummaries: async (params: {
+    week?: number
+    year?: number
+    date?: string
+    showAllDays?: boolean
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params.week) queryParams.append("week", params.week.toString())
+    if (params.year) queryParams.append("year", params.year.toString())
+    if (params.date) queryParams.append("date", params.date)
+    if (params.showAllDays !== undefined) queryParams.append("showAllDays", params.showAllDays.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<any>(`/menu-planning/ingredient-summaries${query}`)
+  },
+}
+
 // Export all APIs for convenience
 export const api = {
   auth: authApi,
@@ -788,4 +860,5 @@ export const api = {
   upload: uploadApi,
   dailyRations: dailyRationsApi,
   lttp: lttpApi,
+  menuPlanning: menuPlanningApi,
 }

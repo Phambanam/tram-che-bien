@@ -16,21 +16,17 @@ export const getDailyRations = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit
     
     // Filter parameters
-    const { category, lttpId } = req.query
+    const { category } = req.query
     const filter: any = {}
     
     if (category) {
       filter.category = category
     }
     
-    if (lttpId) {
-      filter.lttpId = lttpId
-    }
-    
     // Get total count for pagination
     const totalCount = await db.collection("dailyRations").countDocuments(filter)
     
-    // Get daily rations with LTTP info
+    // Get daily rations with category info
     const dailyRations = await db
       .collection("dailyRations")
       .aggregate([
@@ -39,12 +35,12 @@ export const getDailyRations = async (req: Request, res: Response) => {
         },
         {
           $lookup: {
-            from: "products",
-            let: { lttpId: { $toObjectId: "$lttpId" } },
+            from: "categories",
+            let: { categoryId: { $toObjectId: "$categoryId" } },
             pipeline: [
-              { $match: { $expr: { $eq: ["$_id", "$$lttpId"] } } }
+              { $match: { $expr: { $eq: ["$_id", "$$categoryId"] } } }
             ],
-            as: "lttpInfo",
+            as: "categoryInfo",
           },
         },
         {
@@ -63,13 +59,12 @@ export const getDailyRations = async (req: Request, res: Response) => {
     const transformedRations = dailyRations.map((ration) => ({
       _id: ration._id.toString(),
       name: ration.name,
-      lttpId: ration.lttpId,
-      lttpName: ration.lttpName || (ration.lttpInfo[0]?.name || ""),
+      categoryId: ration.categoryId,
+      categoryName: ration.categoryName || (ration.categoryInfo[0]?.name || ""),
       quantityPerPerson: ration.quantityPerPerson,
       unit: ration.unit,
       pricePerUnit: ration.pricePerUnit,
       totalCostPerPerson: ration.totalCostPerPerson,
-      category: ration.category,
       notes: ration.notes,
       createdAt: ration.createdAt,
       updatedAt: ration.updatedAt,
@@ -96,18 +91,22 @@ export const createDailyRation = async (req: Request, res: Response) => {
   try {
     const { 
       name, 
-      lttpId, 
-      lttpName,
-      quantityPerPerson, 
+      categoryId,
+      categoryName,
+      quantityPerPerson,
       unit, 
       pricePerUnit, 
-      category,
       notes 
     } = req.body
 
     // Validate input
-    if (!name || !lttpId || !quantityPerPerson || !unit || !pricePerUnit) {
+    if (!name || !categoryId || !quantityPerPerson || !unit || !pricePerUnit) {
       throw new AppError("Các trường bắt buộc không được để trống", 400)
+    }
+
+    // Validate quantityPerPerson is a positive number
+    if (isNaN(quantityPerPerson) || quantityPerPerson <= 0) {
+      throw new AppError("Số lượng/người phải là số dương", 400)
     }
 
     const db = await getDb()
@@ -118,27 +117,23 @@ export const createDailyRation = async (req: Request, res: Response) => {
       throw new AppError("Định lượng ăn đã tồn tại", 400)
     }
 
-    // Verify LTTP exists if ObjectId is provided
-    if (ObjectId.isValid(lttpId)) {
-      const lttpExists = await db.collection("products").findOne({ _id: new ObjectId(lttpId) })
-      if (!lttpExists) {
-        throw new AppError("LTTP không tồn tại", 400)
+    // Verify category exists if ObjectId is provided
+    if (ObjectId.isValid(categoryId)) {
+      const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
+      if (!categoryExists) {
+        throw new AppError("Phân loại không tồn tại", 400)
       }
     }
 
-    // Calculate total cost per person
-    const totalCostPerPerson = quantityPerPerson * pricePerUnit
-
-    // Create new daily ration
+    // Create new daily ration with actual quantity per person
     const result = await db.collection("dailyRations").insertOne({
       name,
-      lttpId,
-      lttpName: lttpName || "",
+      categoryId,
+      categoryName: categoryName || "",
       quantityPerPerson: parseFloat(quantityPerPerson),
       unit,
       pricePerUnit: parseFloat(pricePerUnit),
-      totalCostPerPerson,
-      category: category || "",
+      totalCostPerPerson: parseFloat(quantityPerPerson) * parseFloat(pricePerUnit),
       notes: notes || "",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -182,13 +177,12 @@ export const getDailyRationById = async (req: Request, res: Response) => {
     const transformedRation = {
       _id: ration._id.toString(),
       name: ration.name,
-      lttpId: ration.lttpId,
-      lttpName: ration.lttpName,
+      categoryId: ration.categoryId,
+      categoryName: ration.categoryName,
       quantityPerPerson: ration.quantityPerPerson,
       unit: ration.unit,
       pricePerUnit: ration.pricePerUnit,
       totalCostPerPerson: ration.totalCostPerPerson,
-      category: ration.category,
       notes: ration.notes,
       createdAt: ration.createdAt,
       updatedAt: ration.updatedAt,
@@ -215,12 +209,11 @@ export const updateDailyRation = async (req: Request, res: Response) => {
     const rationId = req.params.id
     const { 
       name, 
-      lttpId, 
-      lttpName,
-      quantityPerPerson, 
+      categoryId,
+      categoryName,
+      quantityPerPerson,
       unit, 
       pricePerUnit, 
-      category,
       notes 
     } = req.body
 
@@ -230,8 +223,13 @@ export const updateDailyRation = async (req: Request, res: Response) => {
     }
 
     // Validate input
-    if (!name || !lttpId || !quantityPerPerson || !unit || !pricePerUnit) {
+    if (!name || !categoryId || !quantityPerPerson || !unit || !pricePerUnit) {
       throw new AppError("Các trường bắt buộc không được để trống", 400)
+    }
+
+    // Validate quantityPerPerson is a positive number
+    if (isNaN(quantityPerPerson) || quantityPerPerson <= 0) {
+      throw new AppError("Số lượng/người phải là số dương", 400)
     }
 
     const db = await getDb()
@@ -246,29 +244,25 @@ export const updateDailyRation = async (req: Request, res: Response) => {
       throw new AppError("Định lượng ăn với tên này đã tồn tại", 400)
     }
 
-    // Verify LTTP exists if ObjectId is provided
-    if (ObjectId.isValid(lttpId)) {
-      const lttpExists = await db.collection("products").findOne({ _id: new ObjectId(lttpId) })
-      if (!lttpExists) {
-        throw new AppError("LTTP không tồn tại", 400)
+    // Verify category exists if ObjectId is provided
+    if (ObjectId.isValid(categoryId)) {
+      const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
+      if (!categoryExists) {
+        throw new AppError("Phân loại không tồn tại", 400)
       }
     }
-
-    // Calculate total cost per person
-    const totalCostPerPerson = parseFloat(quantityPerPerson) * parseFloat(pricePerUnit)
 
     const result = await db.collection("dailyRations").updateOne(
       { _id: new ObjectId(rationId) },
       {
         $set: {
           name,
-          lttpId,
-          lttpName: lttpName || "",
+          categoryId,
+          categoryName: categoryName || "",
           quantityPerPerson: parseFloat(quantityPerPerson),
           unit,
           pricePerUnit: parseFloat(pricePerUnit),
-          totalCostPerPerson,
-          category: category || "",
+          totalCostPerPerson: parseFloat(quantityPerPerson) * parseFloat(pricePerUnit),
           notes: notes || "",
           updatedAt: new Date(),
         },
@@ -336,7 +330,7 @@ export const getDailyRationsByCategory = async (req: Request, res: Response) => 
 
     const rations = await db
       .collection("dailyRations")
-      .find({ category })
+      .find({ categoryName: category })
       .sort({ name: 1 })
       .toArray()
 
@@ -344,13 +338,12 @@ export const getDailyRationsByCategory = async (req: Request, res: Response) => 
     const transformedRations = rations.map((ration) => ({
       _id: ration._id.toString(),
       name: ration.name,
-      lttpId: ration.lttpId,
-      lttpName: ration.lttpName,
+      categoryId: ration.categoryId,
+      categoryName: ration.categoryName,
       quantityPerPerson: ration.quantityPerPerson,
       unit: ration.unit,
       pricePerUnit: ration.pricePerUnit,
       totalCostPerPerson: ration.totalCostPerPerson,
-      category: ration.category,
       notes: ration.notes,
     }))
 

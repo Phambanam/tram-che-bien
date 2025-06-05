@@ -71,13 +71,12 @@ interface DishIngredient {
 interface DailyRation {
   _id: string
   name: string
-  lttpId: string
-  lttpName: string
-  quantityPerPerson: number
+  categoryId: string
+  categoryName: string
+  quantityPerPerson: number // Always 1
   unit: string
   pricePerUnit: number
   totalCostPerPerson: number
-  category: string
   notes?: string
 }
 
@@ -159,7 +158,7 @@ export function DataLibraryContent() {
       // Fetch products (LTTP Items)
       try {
         console.log('Fetching products...')
-        const productsResponse = await productsApi.getProducts()
+        const productsResponse = await productsApi.getAllProducts()
         console.log('Products response:', productsResponse)
         
         const productsData = Array.isArray(productsResponse) ? productsResponse : (productsResponse as any).data || []
@@ -243,12 +242,12 @@ export function DataLibraryContent() {
       } catch (error) {
         console.log("Could not fetch daily rations, using sample data")
         setDailyRations([
-          { _id: "1", name: "Gạo tẻ", lttpId: "9", lttpName: "Gạo tẻ", quantityPerPerson: 0.6, unit: "kg", pricePerUnit: 25000, totalCostPerPerson: 15000, category: "Lương thực", notes: "Khẩu phần chính" },
-          { _id: "2", name: "Thịt lợn", lttpId: "4", lttpName: "Thịt lợn", quantityPerPerson: 0.15, unit: "kg", pricePerUnit: 180000, totalCostPerPerson: 27000, category: "Thịt", notes: "Protein chính" },
-          { _id: "3", name: "Rau cải", lttpId: "1", lttpName: "Rau cải", quantityPerPerson: 0.2, unit: "kg", pricePerUnit: 15000, totalCostPerPerson: 3000, category: "Rau củ quả", notes: "Vitamin và chất xơ" },
-          { _id: "4", name: "Cá biển", lttpId: "6", lttpName: "Cá biển", quantityPerPerson: 0.1, unit: "kg", pricePerUnit: 120000, totalCostPerPerson: 12000, category: "Hải sản", notes: "Protein bổ sung" },
-          { _id: "5", name: "Gia vị", lttpId: "8", lttpName: "Muối", quantityPerPerson: 0.01, unit: "kg", pricePerUnit: 8000, totalCostPerPerson: 80, category: "Gia vị", notes: "Gia vị cơ bản" },
-          { _id: "6", name: "Chất đốt", lttpId: "7", lttpName: "Gas", quantityPerPerson: 0.002, unit: "bình", pricePerUnit: 400000, totalCostPerPerson: 800, category: "Chất đốt", notes: "Năng lượng nấu ăn" },
+          { _id: "1", name: "Gạo tẻ", categoryId: "6", categoryName: "Lương thực", quantityPerPerson: 0.6, unit: "kg", pricePerUnit: 25000, totalCostPerPerson: 15000, notes: "Khẩu phần chính" },
+          { _id: "2", name: "Thịt heo", categoryId: "2", categoryName: "Thịt", quantityPerPerson: 0.15, unit: "kg", pricePerUnit: 180000, totalCostPerPerson: 27000, notes: "Protein chính" },
+          { _id: "3", name: "Rau cải", categoryId: "1", categoryName: "Rau củ quả", quantityPerPerson: 0.2, unit: "kg", pricePerUnit: 15000, totalCostPerPerson: 3000, notes: "Vitamin và chất xơ" },
+          { _id: "4", name: "Cá biển", categoryId: "3", categoryName: "Hải sản", quantityPerPerson: 0.1, unit: "kg", pricePerUnit: 120000, totalCostPerPerson: 12000, notes: "Protein bổ sung" },
+          { _id: "5", name: "Gia vị cơ bản", categoryId: "5", categoryName: "Gia vị", quantityPerPerson: 0.05, unit: "kg", pricePerUnit: 16000, totalCostPerPerson: 800, notes: "Muối, đường, nước mắm" },
+          { _id: "6", name: "Gas nấu ăn", categoryId: "4", categoryName: "Chất đốt", quantityPerPerson: 0.002, unit: "bình", pricePerUnit: 400000, totalCostPerPerson: 800, notes: "Năng lượng nấu ăn cho 1 người" },
         ])
       }
 
@@ -303,11 +302,43 @@ export function DataLibraryContent() {
 
   const handleDelete = async (id: string, type: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa mục này?")) {
-      // In a real app, this would call the appropriate delete API
-      toast({
-        title: "Thành công",
-        description: "Đã xóa mục thành công!",
-      })
+      try {
+        let apiCall
+        let successMessage = ""
+
+        if (type === "units") {
+          apiCall = unitsApi.deleteUnit(id)
+          successMessage = "Đã xóa đơn vị thành công!"
+        } else if (type === "categories") {
+          apiCall = categoriesApi.deleteCategory(id)
+          successMessage = "Đã xóa phân loại thành công!"
+        } else if (type === "lttp") {
+          apiCall = productsApi.deleteProduct(id)
+          successMessage = "Đã xóa LTTP thành công!"
+        } else if (type === "dishes") {
+          apiCall = dishesApi.deleteDish(id)
+          successMessage = "Đã xóa món ăn thành công!"
+        } else if (type === "rations") {
+          apiCall = dailyRationsApi.deleteDailyRation(id)
+          successMessage = "Đã xóa định lượng ăn thành công!"
+        }
+
+        if (apiCall) {
+          await apiCall
+          toast({
+            title: "Thành công",
+            description: successMessage,
+          })
+          await fetchData() // Refresh data
+        }
+      } catch (error: any) {
+        console.error('Error in handleDelete:', error)
+        toast({
+          title: "Lỗi", 
+          description: error.message || "Có lỗi xảy ra khi xóa",
+          variant: "destructive",
+        })
+      }
     }
   }
 
@@ -484,7 +515,7 @@ export function DataLibraryContent() {
       mainLTTP: {
         lttpId: lttp._id,
         lttpName: lttp.name,
-        category: lttp.category
+        category: lttp.categoryName
       }
     })
   }
@@ -795,9 +826,11 @@ export function DataLibraryContent() {
                     <TableRow>
                       <TableHead>STT</TableHead>
                       <TableHead>Tên định lượng ăn</TableHead>
-                      <TableHead>LTTP</TableHead>
-                      <TableHead>Số lượng</TableHead>
+                      <TableHead>Phân loại</TableHead>
+                      <TableHead>Số lượng/người/ngày</TableHead>
                       <TableHead>Đơn vị</TableHead>
+                      <TableHead>Giá/đơn vị (VND)</TableHead>
+                      <TableHead>Tổng chi phí/người/ngày (VND)</TableHead>
                       <TableHead>Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -806,16 +839,22 @@ export function DataLibraryContent() {
                       <TableRow key={ration._id}>
                         <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{ration.name}</TableCell>
-                        <TableCell>{ration.lttpName}</TableCell>
-                        <TableCell>{ration.quantityPerPerson}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{ration.categoryName}</Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary">{ration.quantityPerPerson}</Badge>
+                        </TableCell>
                         <TableCell>{ration.unit}</TableCell>
+                        <TableCell>{ration.pricePerUnit.toLocaleString()} đ</TableCell>
+                        <TableCell>{ration.totalCostPerPerson.toLocaleString()} đ</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => handleEdit(ration, "rations")}>
-                              Sửa
+                              <Edit className="h-4 w-4" />
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => handleDelete(ration._id, "rations")}>
-                              Xóa
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -854,7 +893,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Mã đơn vị *</label>
                     <Input
                       value={formData.code || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, code: e.target.value }))}
                       placeholder="VD: TD01"
                     />
                   </div>
@@ -862,7 +901,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Tên đơn vị *</label>
                     <Input
                       value={formData.name || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                       placeholder="VD: Tiểu đoàn 1"
                     />
                   </div>
@@ -873,7 +912,7 @@ export function DataLibraryContent() {
                     <Input
                       type="number"
                       value={formData.personnel || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, personnel: Number(e.target.value) }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, personnel: Number(e.target.value) }))}
                       placeholder="VD: 150"
                     />
                   </div>
@@ -881,7 +920,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Chỉ huy</label>
                     <Input
                       value={formData.commander || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, commander: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, commander: e.target.value }))}
                       placeholder="VD: Thiếu tá Nguyễn Văn A"
                     />
                   </div>
@@ -890,7 +929,7 @@ export function DataLibraryContent() {
                   <label className="font-medium">Liên hệ</label>
                   <Input
                     value={formData.contact || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+                    onChange={(e) => setFormData((prev: any) => ({ ...prev, contact: e.target.value }))}
                     placeholder="VD: 0987654321"
                   />
                 </div>
@@ -903,7 +942,7 @@ export function DataLibraryContent() {
                   <label className="font-medium">Tên phân loại *</label>
                   <Input
                     value={formData.name || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                     placeholder="VD: Rau củ quả"
                   />
                 </div>
@@ -911,7 +950,7 @@ export function DataLibraryContent() {
                   <label className="font-medium">Slug *</label>
                   <Input
                     value={formData.slug || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                    onChange={(e) => setFormData((prev: any) => ({ ...prev, slug: e.target.value }))}
                     placeholder="VD: rau-cu-qua"
                   />
                 </div>
@@ -920,7 +959,7 @@ export function DataLibraryContent() {
                   <textarea
                     className="w-full min-h-[80px] p-2 border border-gray-300 rounded-md"
                     value={formData.description || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) => setFormData((prev: any) => ({ ...prev, description: e.target.value }))}
                     placeholder="Mô tả về phân loại này"
                   />
                 </div>
@@ -934,7 +973,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Tên LTTP *</label>
                     <Input
                       value={formData.name || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                       placeholder="VD: Rau cải"
                     />
                   </div>
@@ -1000,7 +1039,7 @@ export function DataLibraryContent() {
                     <label className="font-medium">Tên món ăn *</label>
                     <Input
                       value={formData.name || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                       placeholder="VD: Thịt lợn rang cháy cạnh"
                     />
                   </div>
@@ -1195,31 +1234,30 @@ export function DataLibraryContent() {
                     <label className="font-medium">Tên định lượng *</label>
                     <Input
                       value={formData.name || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, name: e.target.value }))}
                       placeholder="VD: Gạo tẻ"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-medium">LTTP liên kết *</label>
+                    <label className="font-medium">Phân loại *</label>
                     <Select
-                      value={formData.lttpId || ""}
+                      value={formData.categoryId || ""}
                       onValueChange={(value) => {
-                        const lttp = lttpItems.find(l => l._id === value)
-                        setFormData(prev => ({ 
+                        const category = categories.find(c => c._id === value)
+                        setFormData((prev: any) => ({ 
                           ...prev, 
-                          lttpId: value,
-                          lttpName: lttp?.name || "",
-                          unit: lttp?.unit || ""
+                          categoryId: value,
+                          categoryName: category?.name || ""
                         }))
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Chọn LTTP" />
+                        <SelectValue placeholder="Chọn phân loại" />
                       </SelectTrigger>
                       <SelectContent>
-                        {lttpItems.map((lttp) => (
-                          <SelectItem key={lttp._id} value={lttp._id}>
-                            {lttp.name} ({lttp.categoryName})
+                        {categories.map((category) => (
+                          <SelectItem key={category._id} value={category._id}>
+                            {category.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1228,36 +1266,43 @@ export function DataLibraryContent() {
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label className="font-medium">Số lượng/người *</label>
+                    <label className="font-medium">Số lượng/người/ngày *</label>
                     <Input
                       type="number"
                       step="0.001"
                       value={formData.quantityPerPerson || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, quantityPerPerson: Number(e.target.value) }))}
-                      placeholder="VD: 0.6"
+                      onChange={(e) => {
+                        const quantity = Number(e.target.value)
+                        const price = formData.pricePerUnit || 0
+                        setFormData((prev: any) => ({ 
+                          ...prev, 
+                          quantityPerPerson: quantity,
+                          totalCostPerPerson: quantity * price
+                        }))
+                      }}
+                      placeholder="VD: 0.6 hoặc 0.002"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-medium">Đơn vị</label>
+                    <label className="font-medium">Đơn vị *</label>
                     <Input
                       value={formData.unit || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                      placeholder="VD: kg"
-                      disabled
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, unit: e.target.value }))}
+                      placeholder="VD: kg, lít, bình"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-medium">Giá/đơn vị (VND)</label>
+                    <label className="font-medium">Giá/đơn vị (VND) *</label>
                     <Input
                       type="number"
                       value={formData.pricePerUnit || ""}
                       onChange={(e) => {
                         const price = Number(e.target.value)
                         const quantity = formData.quantityPerPerson || 0
-                        setFormData(prev => ({ 
+                        setFormData((prev: any) => ({ 
                           ...prev, 
                           pricePerUnit: price,
-                          totalCostPerPerson: price * quantity
+                          totalCostPerPerson: quantity * price
                         }))
                       }}
                       placeholder="VD: 25000"
@@ -1266,7 +1311,7 @@ export function DataLibraryContent() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="font-medium">Tổng chi phí/người (VND)</label>
+                    <label className="font-medium">Tổng chi phí/người/ngày (VND)</label>
                     <Input
                       type="number"
                       value={formData.totalCostPerPerson || 0}
@@ -1275,21 +1320,20 @@ export function DataLibraryContent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="font-medium">Phân loại</label>
+                    <label className="font-medium">Ghi chú</label>
                     <Input
-                      value={formData.category || ""}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      placeholder="VD: Lương thực"
+                      value={formData.notes || ""}
+                      onChange={(e) => setFormData((prev: any) => ({ ...prev, notes: e.target.value }))}
+                      placeholder="VD: Khẩu phần chính"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="font-medium">Ghi chú</label>
-                  <Input
-                    value={formData.notes || ""}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="VD: Khẩu phần chính"
-                  />
+                
+                {/* Info note */}
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Ví dụ:</strong> Gạo tẻ: 0.6 kg/người/ngày. Gas nấu ăn: 0.002 bình/người/ngày. Thịt heo: 0.15 kg/người/ngày.
+                  </p>
                 </div>
               </>
             )}
