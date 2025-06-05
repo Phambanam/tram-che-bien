@@ -1,6 +1,16 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+// API URL cho server-side proxy (trong Docker network sử dụng service name)
+const getAPIUrl = () => {
+  // Trong Docker, frontend proxy sẽ gọi tới backend service
+  // Kiểm tra xem có đang chạy trong Docker không
+  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_API_URL?.includes('backend:')) {
+    return 'http://backend:5001/api';
+  }
+  
+  // Fallback cho local development
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -8,8 +18,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { path } = req.query;
     const pathString = Array.isArray(path) ? path.join('/') : path;
     
-    // Create the target URL
-    const url = `${API_URL}/${pathString}`;
+    // Create the target URL using Docker service name for server-side calls
+    const apiUrl = getAPIUrl();
+    const url = `${apiUrl}/${pathString}`;
     console.log(`Proxying request to: ${url}`);
     
     // Get the token from the request headers
@@ -31,8 +42,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       method: req.method,
       headers,
       body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
-      credentials: 'include',
     });
+    
+    // Check if response is ok
+    if (!response.ok) {
+      console.error(`Backend responded with status: ${response.status}`);
+    }
     
     // Get the response data
     const data = await response.json();
@@ -43,7 +58,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('API proxy error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.'
+      message: 'Không thể kết nối đến máy chủ. Vui lòng thử lại sau.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 } 

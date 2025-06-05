@@ -14,7 +14,7 @@ RUN npm ci
 COPY . .
 
 # Expose port
-EXPOSE 5000
+EXPOSE 5001
 
 # Production target - default behavior
 FROM base AS production
