@@ -392,3 +392,104 @@ export const getTotalPersonnel = async (req: Request, res: Response) => {
     throw new AppError("Đã xảy ra lỗi khi lấy tổng số người ăn", 500)
   }
 }
+
+// @desc    Update daily dining count for a specific unit and date
+// @route   PATCH /api/units/daily-dining
+// @access  Private (Admin, Brigade Assistant, Unit Assistant for own unit)
+export const updateDailyDining = async (req: Request, res: Response) => {
+  try {
+    const { unitId, date, diningCount } = req.body
+
+    // Validate input
+    if (!unitId || !date || diningCount === undefined || diningCount === null || diningCount < 0) {
+      throw new AppError("ID đơn vị, ngày và số người ăn cơm là bắt buộc", 400)
+    }
+
+    const db = await getDb()
+
+    // Check if unit exists
+    const unit = await db.collection("units").findOne({ _id: new ObjectId(unitId) })
+    if (!unit) {
+      throw new AppError("Không tìm thấy đơn vị", 404)
+    }
+
+    // Check authorization for unit assistant
+    if (req.user?.role === "unitAssistant") {
+      // Unit assistant can only update their own unit
+      if (req.user.unit !== unitId) {
+        throw new AppError("Bạn chỉ có thể cập nhật số người ăn cơm của đơn vị mình", 403)
+      }
+    }
+
+    // Update or create daily dining record
+    const result = await db.collection("dailyDining").updateOne(
+      { unitId: new ObjectId(unitId), date: date },
+      {
+        $set: {
+          diningCount: Number(diningCount),
+          updatedAt: new Date(),
+          updatedBy: req.user?.id || 'unknown'
+        },
+        $setOnInsert: {
+          createdAt: new Date()
+        }
+      },
+      { upsert: true }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật số người ăn cơm thành công",
+      data: {
+        unitId,
+        date,
+        diningCount: Number(diningCount),
+        isNew: result.upsertedCount > 0
+      }
+    })
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
+    }
+    console.error("Error updating daily dining:", error)
+    throw new AppError("Đã xảy ra lỗi khi cập nhật số người ăn cơm", 500)
+  }
+}
+
+// @desc    Get daily dining count for all units on a specific date
+// @route   GET /api/units/daily-dining/:date
+// @access  Private
+export const getDailyDining = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+
+    if (!date) {
+      throw new AppError("Ngày là bắt buộc", 400)
+    }
+
+    const db = await getDb()
+
+    // Get all daily dining records for this date
+    const records = await db.collection("dailyDining").find({ date }).toArray()
+
+    // Transform to unitId -> diningCount mapping
+    const diningData: { [unitId: string]: number } = {}
+    records.forEach(record => {
+      diningData[record.unitId.toString()] = record.diningCount || 0
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        date,
+        diningData
+      }
+    })
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error
+    }
+    console.error("Error getting daily dining:", error)
+    throw new AppError("Đã xảy ra lỗi khi lấy dữ liệu số người ăn cơm", 500)
+  }
+}

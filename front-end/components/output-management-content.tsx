@@ -92,6 +92,11 @@ interface UnitPersonnelData {
   [unitId: string]: number
 }
 
+// New interface for daily dining count per unit
+interface UnitDailyDiningData {
+  [unitId: string]: number // số người ăn cơm trong ngày
+}
+
 export function OutputManagementContent() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedView, setSelectedView] = useState<"day" | "week">("day")
@@ -99,10 +104,11 @@ export function OutputManagementContent() {
   const [dailyRations, setDailyRations] = useState<DailyRation[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [supplyData, setSupplyData] = useState<SupplyOutputData[]>([])
-  const [unitPersonnel, setUnitPersonnel] = useState<UnitPersonnelData>({})
+  const [unitPersonnel, setUnitPersonnel] = useState<UnitPersonnelData>({}) // số quân nhân cố định
+  const [unitDailyDining, setUnitDailyDining] = useState<UnitDailyDiningData>({}) // số người ăn trong ngày
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editingUnit, setEditingUnit] = useState<{ unitId: string; unitName: string; personnel: number } | null>(null)
-  const [newPersonnelCount, setNewPersonnelCount] = useState<number>(0)
+  const [editingUnit, setEditingUnit] = useState<{ unitId: string; unitName: string; diningCount: number } | null>(null)
+  const [newDiningCount, setNewDiningCount] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(true)
   
   // New state for ingredient summaries
@@ -211,12 +217,19 @@ export function OutputManagementContent() {
       const unitsData = Array.isArray(unitsResponse) ? unitsResponse : (unitsResponse as any).data || []
       setUnits(unitsData)
 
-      // Initialize unit personnel data
+      // Initialize unit personnel data (số quân nhân cố định)
       const personnelData: UnitPersonnelData = {}
       unitsData.forEach((unit: Unit) => {
         personnelData[unit._id] = unit.personnel || 0
       })
       setUnitPersonnel(personnelData)
+
+      // Initialize daily dining data (số người ăn cơm trong ngày) - ban đầu bằng số quân nhân
+      const diningData: UnitDailyDiningData = {}
+      unitsData.forEach((unit: Unit) => {
+        diningData[unit._id] = unit.personnel || 0 // Mặc định bằng số quân nhân
+      })
+      setUnitDailyDining(diningData)
 
       // Fetch daily rations (for fallback)
       const dailyRationsResponse = await dailyRationsApi.getDailyRations()
@@ -233,15 +246,15 @@ export function OutputManagementContent() {
       
       if (ingredientData.length > 0) {
         setDataSource("ingredients")
-        // Call generateSupplyOutputFromIngredients after units state is updated
+        // Call generateSupplyOutputFromIngredients after states are updated
         setTimeout(() => {
-          generateSupplyOutputFromIngredients(ingredientData, getVisibleUnits(), personnelData)
+          generateSupplyOutputFromIngredients(ingredientData, getVisibleUnits(), diningData)
         }, 0)
       } else {
         // Fallback to daily rations if no ingredient data
         setDataSource("dailyrations")
         setTimeout(() => {
-          generateSupplyOutputData(dailyRationsData, getVisibleUnits(), personnelData, selectedDate, selectedView)
+          generateSupplyOutputData(dailyRationsData, getVisibleUnits(), diningData, selectedDate, selectedView)
         }, 0)
         toast({
           title: "Thông báo",
@@ -263,7 +276,7 @@ export function OutputManagementContent() {
   }
 
   // Generate supply output data from ingredient summaries
-  const generateSupplyOutputFromIngredients = (ingredientData: DailyIngredientSummary[], unitsData: Unit[], personnelData: UnitPersonnelData) => {
+  const generateSupplyOutputFromIngredients = (ingredientData: DailyIngredientSummary[], unitsData: Unit[], diningData: UnitDailyDiningData) => {
     const outputData: SupplyOutputData[] = []
     
     // Filter ingredient data based on selected view and date
@@ -282,22 +295,22 @@ export function OutputManagementContent() {
         let totalPersonnel = 0
         let totalAmount = ingredient.totalQuantity
         
-        // Calculate requirements per unit based on their personnel
+        // Calculate requirements per unit based on their daily dining count
         unitsData.forEach((unit) => {
-          const personnel = personnelData[unit._id] || 0
-          const totalPeople = unitsData.reduce((sum, u) => sum + (personnelData[u._id] || 0), 0)
+          const diningCount = diningData[unit._id] || 0
+          const totalDiningCount = unitsData.reduce((sum, u) => sum + (diningData[u._id] || 0), 0)
           
-          // Distribute total quantity proportionally based on unit size
-          const proportionalRequirement = totalPeople > 0 
-            ? (ingredient.totalQuantity * personnel) / totalPeople 
+          // Distribute total quantity proportionally based on dining count
+          const proportionalRequirement = totalDiningCount > 0 
+            ? (ingredient.totalQuantity * diningCount) / totalDiningCount 
             : 0
           
           unitRequirements[unit._id] = {
-            personnel,
+            personnel: diningCount, // số người ăn cơm
             requirement: proportionalRequirement
           }
           
-          totalPersonnel += personnel
+          totalPersonnel += diningCount
         })
 
         // Estimate price per unit (using default daily ration prices as reference)
@@ -347,7 +360,7 @@ export function OutputManagementContent() {
   }
 
   // Generate supply output data based on daily rations and units (FALLBACK)
-  const generateSupplyOutputData = (rations: DailyRation[], unitsData: Unit[], personnelData: UnitPersonnelData, selectedDate?: Date, selectedView?: "day" | "week") => {
+  const generateSupplyOutputData = (rations: DailyRation[], unitsData: Unit[], diningData: UnitDailyDiningData, selectedDate?: Date, selectedView?: "day" | "week") => {
     // Simulate day-specific data variations
     const dateModifier = selectedDate ? selectedDate.getDay() : 1 // Monday = 1, Sunday = 0
     const isWeekView = selectedView === "week"
@@ -383,16 +396,16 @@ export function OutputManagementContent() {
       }
 
       visibleUnits.forEach((unit) => {
-        const personnel = personnelData[unit._id] || 0
-        const baseRequirement = personnel * ration.quantityPerPerson
+        const diningCount = diningData[unit._id] || 0
+        const baseRequirement = diningCount * ration.quantityPerPerson
         const adjustedRequirement = baseRequirement * dayMultiplier
         
         unitRequirements[unit._id] = {
-          personnel,
+          personnel: diningCount, // số người ăn cơm
           requirement: adjustedRequirement
         }
         
-        totalPersonnel += personnel
+        totalPersonnel += diningCount
         totalAmount += adjustedRequirement
       })
 
@@ -444,10 +457,10 @@ export function OutputManagementContent() {
       // Generate supply output data
       if (ingredientData.length > 0) {
         setDataSource("ingredients")
-        generateSupplyOutputFromIngredients(ingredientData, visibleUnits, unitPersonnel)
+        generateSupplyOutputFromIngredients(ingredientData, visibleUnits, unitDailyDining)
       } else {
         setDataSource("dailyrations")
-        generateSupplyOutputData(dailyRations, visibleUnits, unitPersonnel, date, view)
+        generateSupplyOutputData(dailyRations, visibleUnits, unitDailyDining, date, view)
         if (view === "day") {
           toast({
             title: "Thông báo",
@@ -468,41 +481,43 @@ export function OutputManagementContent() {
     }
   }
 
-  // Handle personnel count edit
-  const handleEditPersonnel = (unitId: string, unitName: string, currentPersonnel: number) => {
-    setEditingUnit({ unitId, unitName, personnel: currentPersonnel })
-    setNewPersonnelCount(currentPersonnel)
+  // Handle dining count edit
+  const handleEditDiningCount = (unitId: string, unitName: string, currentCount: number) => {
+    setEditingUnit({ unitId, unitName, diningCount: currentCount })
+    setNewDiningCount(currentCount)
     setIsEditDialogOpen(true)
   }
 
-  // Save personnel count changes
-  const handleSavePersonnelCount = async () => {
+  // Save dining count changes
+  const handleSaveDiningCount = async () => {
     if (editingUnit) {
       try {
-        // Call API to update unit personnel in backend
-        await unitsApi.updateUnitPersonnel(editingUnit.unitId, newPersonnelCount)
-
-        const updatedPersonnel = { ...unitPersonnel }
-        updatedPersonnel[editingUnit.unitId] = newPersonnelCount
-
-        setUnitPersonnel(updatedPersonnel)
+        const dateStr = format(selectedDate, "yyyy-MM-dd")
         
-        // Regenerate supply data with new personnel counts
+        // Call API to update daily dining count for specific date and unit
+        await unitsApi.updateDailyDining(editingUnit.unitId, dateStr, newDiningCount)
+
+        const updatedDining = { ...unitDailyDining }
+        updatedDining[editingUnit.unitId] = newDiningCount
+
+        setUnitDailyDining(updatedDining)
+        
+        // Regenerate supply data with new dining counts
         if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-          generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, updatedPersonnel)
+          generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, updatedDining)
         } else {
-          generateSupplyOutputData(dailyRations, visibleUnits, updatedPersonnel, selectedDate, selectedView)
+          generateSupplyOutputData(dailyRations, visibleUnits, updatedDining, selectedDate, selectedView)
         }
         
         toast({
           title: "Thành công",
-          description: `Đã cập nhật số người ăn cho ${editingUnit.unitName} thành ${newPersonnelCount}`,
+          description: `Đã cập nhật số người ăn cơm cho ${editingUnit.unitName} thành ${newDiningCount} người ngày ${format(selectedDate, "dd/MM/yyyy")}`,
         })
       } catch (error) {
-        console.error("Error updating unit personnel:", error)
+        console.error("Error updating daily dining count:", error)
         toast({
           title: "Lỗi",
-          description: "Không thể cập nhật số người ăn. Vui lòng thử lại.",
+          description: "Không thể cập nhật số người ăn cơm. Vui lòng thử lại.",
           variant: "destructive",
         })
         return // Don't close dialog if there's an error
@@ -685,7 +700,7 @@ export function OutputManagementContent() {
                       <TableHead key={`${unit._id}-personnel`} className="text-center bg-blue-50">
                         <div className="flex flex-col">
                           <span className="font-medium">{unit.name}</span>
-                          <span className="text-xs text-gray-500">Số người ăn</span>
+                          <span className="text-xs text-gray-500">Số người ăn cơm</span>
                         </div>
                       </TableHead>
                     ))}
@@ -751,27 +766,27 @@ export function OutputManagementContent() {
                         </TableCell>
                       )}
                       
-                      {/* Personnel columns */}
+                      {/* Personnel columns - số người ăn cơm trong ngày */}
                       {visibleUnits.map((unit) => (
-                        <TableCell key={`${unit._id}-personnel`} className="text-center bg-blue-50">
+                        <TableCell key={`${unit._id}-dining`} className="text-center bg-blue-50">
                           {canEditUnitPersonnel(unit._id) ? (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-auto p-1 hover:bg-blue-100"
-                              onClick={() => handleEditPersonnel(unit._id, unit.name, unitPersonnel[unit._id] || 0)}
+                              onClick={() => handleEditDiningCount(unit._id, unit.name, unitDailyDining[unit._id] || 0)}
                             >
                               <div className="flex items-center gap-1">
                                 <Users className="h-3 w-3" />
-                                <span>{unitPersonnel[unit._id] || 0}</span>
+                                <span>{unitDailyDining[unit._id] || 0}</span>
                                 <Edit className="h-3 w-3" />
                               </div>
                             </Button>
                           ) : (
                             <div className="flex items-center justify-center gap-1">
                               <Users className="h-3 w-3" />
-                              <span>{unitPersonnel[unit._id] || 0}</span>
-                          </div>
+                              <span>{unitDailyDining[unit._id] || 0}</span>
+                            </div>
                           )}
                         </TableCell>
                       ))}
@@ -799,8 +814,8 @@ export function OutputManagementContent() {
                   <TableRow className="bg-gray-100 font-bold">
                     <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center">TỔNG CỘNG</TableCell>
                     {visibleUnits.map((unit) => (
-                      <TableCell key={`${unit._id}-total-personnel`} className="text-center bg-blue-100">
-                        {unitPersonnel[unit._id] || 0}
+                      <TableCell key={`${unit._id}-total-dining`} className="text-center bg-blue-100">
+                        {unitDailyDining[unit._id] || 0}
                       </TableCell>
                     ))}
                     {visibleUnits.map((unit) => (
@@ -809,7 +824,7 @@ export function OutputManagementContent() {
                       </TableCell>
                     ))}
                     <TableCell className="text-center bg-yellow-100">
-                      {visibleUnits.reduce((sum, unit) => sum + (unitPersonnel[unit._id] || 0), 0)}
+                      {visibleUnits.reduce((sum, unit) => sum + (unitDailyDining[unit._id] || 0), 0)}
                     </TableCell>
                     <TableCell className="text-center bg-orange-100">-</TableCell>
                     <TableCell className="text-center bg-red-100">
@@ -894,28 +909,31 @@ export function OutputManagementContent() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Chỉnh sửa số người ăn</DialogTitle>
+              <DialogTitle>Chỉnh sửa số người ăn cơm</DialogTitle>
               <DialogDescription>
-                Cập nhật số người ăn cho {editingUnit?.unitName}
+                Cập nhật số người ăn cơm trong ngày {format(selectedDate, "dd/MM/yyyy")} cho {editingUnit?.unitName}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Số người ăn hiện tại:</label>
+                <label className="text-sm font-medium">Số người ăn cơm:</label>
                 <Input
                   type="number"
-                  value={newPersonnelCount}
-                  onChange={(e) => setNewPersonnelCount(parseInt(e.target.value) || 0)}
+                  value={newDiningCount}
+                  onChange={(e) => setNewDiningCount(parseInt(e.target.value) || 0)}
                   min="0"
                   className="mt-1"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Số quân nhân đơn vị: {unitPersonnel[editingUnit?.unitId || ""] || 0} người
+                </p>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Hủy
               </Button>
-              <Button onClick={handleSavePersonnelCount}>
+              <Button onClick={handleSaveDiningCount}>
                 Lưu
               </Button>
             </DialogFooter>
