@@ -1,6 +1,5 @@
-import { MongoClient } from "mongodb"
 import dotenv from "dotenv"
-import { connectToDatabase, closeConnection } from "../src/config/database"
+import { connectToDatabase, closeConnection, getDb } from "../src/config/database"
 
 // Load environment variables
 dotenv.config()
@@ -118,9 +117,13 @@ async function seedContent() {
   console.log("Seeding content...")
 
   try {
-    // Connect to database using configuration from database.ts
-    const client = await connectToDatabase()
-    const db = client.db()
+    // Connect to database using Mongoose
+    await connectToDatabase()
+    const db = await getDb()
+
+    if (!db) {
+      throw new Error("Failed to connect to database")
+    }
 
     // Clear existing content
     await db.collection("content").deleteMany({})
