@@ -1,6 +1,6 @@
 export function IntroductionContent() {
   return (
-    <div className="container">
+    <div className="w-full p-6">
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-[#b45f06]">GIỚI THIỆU</h2>
 

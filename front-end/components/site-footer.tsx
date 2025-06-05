@@ -1,7 +1,7 @@
 export function SiteFooter() {
   return (
-    <footer className="border-t border-gray-300 py-4 px-6 text-sm">
-      <div className="container">
+    <footer className="border-t border-gray-300 py-4 px-6 text-sm w-full">
+      <div className="w-full">
         <h3 className="font-bold mb-1">LIÊN HỆ:</h3>
         <p>ĐƠN VỊ: Lữ đoàn 279 - Phường Bình Hòa Tp Thuận An Tỉnh Bình Dương</p>
         <p>TÁC GIÁ: Đại tá Tạ Duy Đình - Phó Lữ trưởng</p>
