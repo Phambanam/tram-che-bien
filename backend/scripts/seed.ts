@@ -1,7 +1,6 @@
-import { MongoClient } from "mongodb"
 import { hash } from "bcryptjs"
 import dotenv from "dotenv"
-import { connectToDatabase, closeConnection } from "../src/config/database"
+import { connectToDatabase, closeConnection, getDb } from "../src/config/database"
 
 // This script seeds the database with initial data
 // Run with: npx ts-node --project tsconfig.json scripts/seed.ts
@@ -13,9 +12,13 @@ async function seed() {
   console.log("Seeding database...")
 
   try {
-    // Connect to database using configuration from database.ts
-    const client = await connectToDatabase()
-    const db = client.db()
+    // Connect to database using Mongoose
+    await connectToDatabase()
+    const db = await getDb()
+
+    if (!db) {
+      throw new Error("Failed to connect to database")
+    }
 
     // Clear existing data
     await db.collection("users").deleteMany({})
@@ -28,10 +31,38 @@ async function seed() {
 
     // Seed units
     const units = [
-      { name: "Tiểu đoàn 1", description: "Tiểu đoàn 1", createdAt: new Date(), updatedAt: new Date() },
-      { name: "Tiểu đoàn 2", description: "Tiểu đoàn 2", createdAt: new Date(), updatedAt: new Date() },
-      { name: "Tiểu đoàn 3", description: "Tiểu đoàn 3", createdAt: new Date(), updatedAt: new Date() },
-      { name: "Lữ đoàn bộ", description: "Lữ đoàn bộ", createdAt: new Date(), updatedAt: new Date() },
+      { 
+        name: "Tiểu đoàn 1", 
+        code: "TD1",
+        description: "Tiểu đoàn 1", 
+        status: "active",
+        createdAt: new Date(), 
+        updatedAt: new Date() 
+      },
+      { 
+        name: "Tiểu đoàn 2", 
+        code: "TD2",
+        description: "Tiểu đoàn 2", 
+        status: "active",
+        createdAt: new Date(), 
+        updatedAt: new Date() 
+      },
+      { 
+        name: "Tiểu đoàn 3", 
+        code: "TD3",
+        description: "Tiểu đoàn 3", 
+        status: "active",
+        createdAt: new Date(), 
+        updatedAt: new Date() 
+      },
+      { 
+        name: "Lữ đoàn bộ", 
+        code: "LDB",
+        description: "Lữ đoàn bộ", 
+        status: "active",
+        createdAt: new Date(), 
+        updatedAt: new Date() 
+      },
     ]
 
     const unitResult = await db.collection("units").insertMany(units)

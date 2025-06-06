@@ -10,10 +10,10 @@ export default function DashboardLayout({
   children: React.ReactNode
 }>) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col w-full overflow-x-hidden">
       <SiteHeader />
       <MainNav />
-      <main className="flex-1 bg-[#d6e4ee] p-6">{children}</main>
+      <main className="flex-1 bg-[#d6e4ee] w-full">{children}</main>
       <SiteFooter />
       {/* <DebugToken /> */}
     </div>

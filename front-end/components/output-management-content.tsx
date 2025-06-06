@@ -578,7 +578,7 @@ export function OutputManagementContent() {
 
   if (isLoading) {
     return (
-      <div className="container">
+      <div className="w-full p-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -592,7 +592,7 @@ export function OutputManagementContent() {
   }
 
   return (
-    <div className="container">
+    <div className="w-full p-6">
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-[#b45f06]">QUẢN LÝ NGUỒN XUẤT</h2>
 

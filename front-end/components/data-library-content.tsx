@@ -531,7 +531,7 @@ export function DataLibraryContent() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="w-full p-6">
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6 border-b">
           <h1 className="text-3xl font-bold text-center text-[#b45f06] mb-2">

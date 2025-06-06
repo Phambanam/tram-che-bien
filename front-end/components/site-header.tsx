@@ -1,8 +1,9 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import { useAuth } from  "@/components/auth/auth-provider"
-export function SiteHeader() {
+import Image from "next/image"
 
+export function SiteHeader() {
   const { logout } = useAuth()
   const handleLogout = async () => {
     try {
@@ -13,14 +14,29 @@ export function SiteHeader() {
     }
   }
   return (
-    <header className="bg-[#fff2cc] py-4">
-      <div className="container flex items-center justify-between">
-        <h1 className="text-center text-xl font-bold uppercase tracking-wider text-[#b45f06] w-full">
-          ẢNH ĐƠN VỊ LỮ ĐOÀN 279
-        </h1>
-        <Button onClick={handleLogout} variant="outline" className="bg-[#cfe2f3] hover:bg-[#9fc5e8] text-black border-gray-300">
-          ĐĂNG XUẤT
-        </Button>
+    <header className="bg-[#fff2cc] py-2 w-full">
+      <div className="relative w-full h-32">
+        <Image
+          src="/anh.jpg"
+          alt="Ảnh đơn vị Lữ đoàn 279"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-between px-6">
+          <div className="flex-1 flex justify-center">
+            <h1 className="text-white text-3xl font-bold uppercase tracking-wider drop-shadow-lg">
+              LỮ ĐOÀN 279
+            </h1>
+          </div>
+          <Button 
+            onClick={handleLogout} 
+            variant="outline" 
+            className="bg-white/90 hover:bg-white text-black border-gray-300 shadow-lg backdrop-blur-sm"
+          >
+            ĐĂNG XUẤT
+          </Button>
+        </div>
       </div>
     </header>
   )
