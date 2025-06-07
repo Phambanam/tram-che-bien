@@ -50,7 +50,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
         })
         // Fallback to mock data
         setArticle({
-          id: params.id,
+          id: id,
           title: "Lữ đoàn 279 đạt thành tích xuất sắc trong huấn luyện",
           content: `Trong tháng vừa qua, Lữ đoàn 279 đã hoàn thành xuất sắc các nhiệm vụ huấn luyện được giao. Các đơn vị trong Lữ đoàn đã tích cực tham gia các hoạt động huấn luyện, nâng cao trình độ chiến đấu và sẵn sàng thực hiện nhiệm vụ khi được giao.
           

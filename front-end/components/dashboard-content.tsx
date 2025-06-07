@@ -27,7 +27,8 @@ interface Article {
 // API service for articles
 const articleService = {
   async getAll(type?: string) {
-    return contentApi.getContent(type)
+    const data = await contentApi.getContent(type)
+    return { success: true, data }
   },
 
   async getById(id: string) {

@@ -391,7 +391,8 @@ export const statisticsApi = {
 export const contentApi = {
   getContent: async (type?: string) => {
     const query = type ? `?type=${type}` : ""
-    return apiRequest<{ success: boolean; count: number; data: any[] }>(`/content${query}`)
+    const response = await apiRequest<{ success: boolean; count: number; data: any[] }>(`/content${query}`)
+    return response.data
   },
 
   getContentById: async (id: string) => {
@@ -406,7 +407,8 @@ export const contentApi = {
     }
     
     console.log('Getting content by ID:', id)
-    return apiRequest<any>(`/content/${id}`)
+    const response = await apiRequest<{ success: boolean; data: any }>(`/content/${id}`)
+    return response.data
   },
 
   createContent: async (data: any) => {

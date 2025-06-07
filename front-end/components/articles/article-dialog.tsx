@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,7 +41,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
   const { toast } = useToast()
 
   // Reset form when dialog opens/closes or article changes
-  useState(() => {
+  useEffect(() => {
     if (open && article) {
       setTitle(article.title)
       setContent(article.content)
@@ -56,7 +56,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
       setImageUrl("")
       setVideoUrl("")
     }
-  })
+  }, [open, article])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
