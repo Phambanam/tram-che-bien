@@ -423,7 +423,7 @@ export function OutputManagementContent() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [selectedDate]) // Add selectedDate dependency to reload data when date changes
 
   // Additional effect to regenerate data when unitPersonnelByDay changes
   useEffect(() => {
@@ -436,8 +436,7 @@ export function OutputManagementContent() {
   const handleDateSelect = (date: Date, view: "day" | "week") => {
     setSelectedDate(date)
     setSelectedView(view)
-    // Reload data for new selection
-    fetchData()
+    // Data will be reloaded automatically via useEffect when selectedDate changes
   }
 
   // Handle personnel count edit
