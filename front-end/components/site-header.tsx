@@ -2,6 +2,8 @@
 import { Button } from "@/components/ui/button"
 import { useAuth } from  "@/components/auth/auth-provider"
 import Image from "next/image"
+import Link from "next/link"
+import { Home } from "lucide-react"
 
 export function SiteHeader() {
   const { logout } = useAuth()
@@ -34,13 +36,24 @@ export function SiteHeader() {
               </h1>
             </div>
           </div>
-          <Button 
-            onClick={handleLogout} 
-            variant="outline" 
-            className="bg-white/90 hover:bg-white text-black border-gray-300 shadow-lg backdrop-blur-sm"
-          >
-            ĐĂNG XUẤT
-          </Button>
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard">
+              <Button 
+                variant="outline" 
+                className="bg-blue-600/90 hover:bg-blue-700 text-white border-blue-500 shadow-lg backdrop-blur-sm"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                TRANG CHỦ
+              </Button>
+            </Link>
+            <Button 
+              onClick={handleLogout} 
+              variant="outline" 
+              className="bg-white/90 hover:bg-white text-black border-gray-300 shadow-lg backdrop-blur-sm"
+            >
+              ĐĂNG XUẤT
+            </Button>
+          </div>
         </div>
       </div>
     </header>

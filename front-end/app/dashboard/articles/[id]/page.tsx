@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Calendar, User, Edit, Trash2 } from "lucide-react"
+import { ArrowLeft, Calendar, User, Edit, Trash2, Home } from "lucide-react"
 import { ArticleDialog } from "@/components/articles/article-dialog"
 import { DeleteArticleDialog } from "@/components/articles/delete-article-dialog"
 import { contentApi } from "@/lib/api-client"
@@ -149,8 +149,8 @@ export default function ArticleDetailPage({ params }: { params: { id: string } }
             <h2 className="text-2xl font-bold mb-4">Không tìm thấy bài viết</h2>
             <p className="mb-6">Bài viết này có thể đã bị xóa hoặc không tồn tại.</p>
             <Button onClick={() => router.push("/dashboard")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Quay lại trang chính
+              <Home className="mr-2 h-4 w-4" />
+              Về trang chủ
             </Button>
           </div>
         </Card>
@@ -160,10 +160,23 @@ export default function ArticleDetailPage({ params }: { params: { id: string } }
 
   return (
     <div className="container py-8">
+      {/* Breadcrumb */}
+      <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+        <button 
+          onClick={() => router.push("/dashboard")} 
+          className="hover:text-blue-600 flex items-center gap-1"
+        >
+          <Home className="h-4 w-4" />
+          Trang chủ
+        </button>
+        <span>/</span>
+        <span className="text-gray-800 font-medium">Chi tiết bài viết</span>
+      </nav>
+      
       <div className="flex items-center justify-between mb-6">
         <Button variant="outline" onClick={() => router.push("/dashboard")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Quay lại
+          Về trang chủ
         </Button>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleEditArticle}>

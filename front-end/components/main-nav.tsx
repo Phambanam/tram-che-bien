@@ -6,6 +6,10 @@ import { cn } from "@/lib/utils"
 
 const navItems = [
   {
+    title: "TRANG CHỦ",
+    href: "/dashboard",
+  },
+  {
     title: "GIỚI THIỆU",
     href: "/dashboard/gioi-thieu",
   },
@@ -48,9 +52,11 @@ export function MainNav() {
             "px-4 py-2 rounded-md text-sm font-medium transition-colors",
             pathname === item.href
               ? "bg-[#9fc5e8] text-black"
-              : pathname.startsWith(item.href)
-                ? "bg-[#d0e0e3] text-black"
-                : "bg-[#d9d2e9] text-black hover:bg-[#b4a7d6]",
+              : item.href === "/dashboard" && pathname === "/dashboard"
+                ? "bg-[#9fc5e8] text-black"
+                : item.href !== "/dashboard" && pathname.startsWith(item.href)
+                  ? "bg-[#d0e0e3] text-black"
+                  : "bg-[#d9d2e9] text-black hover:bg-[#b4a7d6]",
           )}
         >
           {item.title}
