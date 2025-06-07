@@ -31,6 +31,7 @@ export function IntroductionContent() {
                   width={500}
                   height={350}
                   className="w-full h-64 object-cover"
+                  style={{ width: 'auto', height: 'auto' }}
                 />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                   <p className="text-white text-sm font-medium">Lễ tuyên thệ chiến sĩ mới năm 2025</p>
@@ -44,6 +45,7 @@ export function IntroductionContent() {
                   width={500}
                   height={350}
                   className="w-full h-64 object-cover"
+                  style={{ width: 'auto', height: 'auto' }}
                 />
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
                   <p className="text-white text-sm font-medium">Các chiến sĩ mới trong buổi lễ trang trọng</p>
@@ -233,6 +235,7 @@ export function IntroductionContent() {
                     width={300}
                     height={200}
                     className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
                     <p className="text-white text-xs">Lễ tuyên thệ trang trọng</p>
@@ -246,6 +249,7 @@ export function IntroductionContent() {
                     width={300}
                     height={200}
                     className="w-full h-48 object-cover hover:scale-105 transition-transform duration-300"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
                     <p className="text-white text-xs">Các chiến sĩ mới trong buổi lễ</p>
