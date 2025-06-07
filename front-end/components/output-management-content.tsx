@@ -127,11 +127,23 @@ export function OutputManagementContent() {
   // Get week days starting from Monday
   const getWeekDays = (date: Date) => {
     const start = startOfWeek(date, { weekStartsOn: 1 }) // Monday = 1
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i))
+    const days = Array.from({ length: 7 }, (_, i) => addDays(start, i))
+    
+    // Debug logging
+    console.log("Selected date:", format(date, "yyyy-MM-dd EEEE", { locale: vi }))
+    console.log("Week days:", days.map(d => format(d, "yyyy-MM-dd EEEE", { locale: vi })))
+    
+    return days
   }
 
   const weekDays = getWeekDays(selectedDate)
-  const dayNames = ["Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy", "Chủ nhật"]
+  
+  // Fix dayNames mapping - make sure it matches the actual day order from startOfWeek
+  const getDayName = (date: Date) => {
+    const dayOfWeek = date.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const dayNames = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"]
+    return dayNames[dayOfWeek]
+  }
 
   // Fetch ingredient summaries from menu planning API
   const fetchIngredientSummaries = async () => {
@@ -502,7 +514,7 @@ export function OutputManagementContent() {
                   className="flex flex-col items-center p-4 h-auto"
                   onClick={() => handleDateSelect(day, "day")}
                 >
-                  <span className="text-sm font-medium">{dayNames[index]}</span>
+                  <span className="text-sm font-medium">{getDayName(day)}</span>
                   <span className="text-xs text-gray-500">{format(day, "dd/MM")}</span>
                 </Button>
               ))}
@@ -528,10 +540,7 @@ export function OutputManagementContent() {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>
-                  📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : (() => {
-                    const dayIndex = weekDays.findIndex(day => isSameDay(day, selectedDate))
-                    return dayIndex >= 0 ? dayNames[dayIndex] : format(selectedDate, "EEEE", { locale: vi })
-                  })()}
+                  📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : getDayName(selectedDate)}
                 </CardTitle>
                 <div className="flex items-center gap-4 mt-2">
                   <Badge variant={dataSource === "ingredients" ? "default" : "secondary"} className="text-xs">
