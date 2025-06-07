@@ -1099,9 +1099,9 @@ export function MenuReportContent() {
                     <Button variant="outline" className="flex items-center gap-2" onClick={handlePrintIngredients}>
                       <Printer className="h-4 w-4" />
                       In danh sách
-                    </Button>
-                  </div>
-                </div>
+                                </Button>
+                              </div>
+                      </div>
 
                 {loadingIngredients ? (
                   <div className="text-center py-8">Đang tải dữ liệu nguyên liệu...</div>
