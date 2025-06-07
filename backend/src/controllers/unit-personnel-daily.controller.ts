@@ -19,7 +19,7 @@ export const getPersonnelByWeek = async (req: Request, res: Response) => {
         $gte: startDate,
         $lte: endDate
       }
-    }).populate('unitId', 'name code');
+    });
 
     // Transform data to the format frontend expects
     const personnelByDay: { [date: string]: { [unitId: string]: number } } = {};
@@ -28,6 +28,7 @@ export const getPersonnelByWeek = async (req: Request, res: Response) => {
       if (!personnelByDay[item.date]) {
         personnelByDay[item.date] = {};
       }
+      // Use unitId directly as string, don't populate
       personnelByDay[item.date][item.unitId.toString()] = item.personnel;
     });
 
