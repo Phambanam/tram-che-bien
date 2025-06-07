@@ -56,7 +56,7 @@ export function DashboardContent() {
   const { toast } = useToast()
   const { user } = useAuth()
 
-  // Kiểm tra quyền admin (Trợ lý quân nhu)
+  // Kiểm tra quyền admin (Trợ lý lữ đoàn)
   const isAdmin = user?.role === "unitAssistant" || user?.role === "admin"
 
   useEffect(() => {
@@ -277,7 +277,7 @@ export function DashboardContent() {
               <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
                 <h4 className="font-semibold text-blue-800 mb-2">📋 Quyền hạn hệ thống:</h4>
                 <ul className="text-sm text-blue-700 space-y-1">
-                  <li><strong>• Trợ lý quân nhu (Admin):</strong> Thêm, sửa, xóa bài viết</li>
+                  <li><strong>• Trợ lý lữ đoàn (Admin):</strong> Thêm, sửa, xóa bài viết</li>
                   <li><strong>• Các chức vụ khác:</strong> Chỉ được xem chi tiết bài viết</li>
                   <li><strong>• Vai trò hiện tại:</strong> 
                     <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
