@@ -20,8 +20,8 @@ export default function LoginPage() {
             alt="Logo Lữ đoàn 279" 
             width={40} 
             height={40} 
-            className="mr-2 rounded-full object-cover"
-            style={{ width: 'auto', height: 'auto' }}
+            className="mr-2"
+            style={{ width: 40, height: 40 }}
           />
           Quân Nhu Lữ Đoàn
         </div>
