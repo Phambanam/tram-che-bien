@@ -566,7 +566,7 @@ export function SupplyManagementContent() {
   }
 
   return (
-    <div className="container">
+    <div className="w-full max-w-full">
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-[#b45f06]">QUẢN LÝ NGUỒN NHẬP</h2>
 
@@ -629,7 +629,8 @@ export function SupplyManagementContent() {
                 {isLoading ? (
                   <div className="text-center py-4">Đang tải dữ liệu...</div>
                 ) : (
-                  <Table>
+                  <div className="overflow-x-auto">
+                    <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>STT</TableHead>
@@ -768,6 +769,7 @@ export function SupplyManagementContent() {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
