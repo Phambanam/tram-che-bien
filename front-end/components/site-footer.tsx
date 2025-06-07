@@ -1,7 +1,7 @@
 export function SiteFooter() {
   return (
     <footer className="border-t border-gray-300 py-4 px-6 text-sm w-full">
-      <div className="w-full">
+      <div className="max-w-6xl mx-auto">
         <h3 className="font-bold mb-2">LIÊN HỆ:</h3>
         <p className="mb-1"><strong>ĐỊA CHỈ:</strong> Lữ đoàn 279 - Phường Bình Hòa - Tp Thuận An - Tỉnh Bình Dương</p>
         <div className="mb-2">

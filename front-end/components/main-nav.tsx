@@ -43,13 +43,14 @@ export function MainNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="container flex justify-center space-x-1 py-2 border-t border-b border-gray-300">
+    <nav className="w-full flex justify-center py-2 border-t border-b border-gray-300">
+      <div className="max-w-6xl mx-auto px-4 flex justify-center flex-wrap gap-1">
       {navItems.map((item) => (
         <Link
           key={item.href}
           href={item.href}
           className={cn(
-            "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+            "px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors",
             pathname === item.href
               ? "bg-[#9fc5e8] text-black"
               : item.href === "/dashboard" && pathname === "/dashboard"
@@ -62,6 +63,7 @@ export function MainNav() {
           {item.title}
         </Link>
       ))}
+      </div>
     </nav>
   )
 }
