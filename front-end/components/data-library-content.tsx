@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Pagination } from "@/components/ui/pagination"
-import { Search, Plus, Edit, Trash2, FileDown, FileUp, Users, Tag, Package, Utensils, Calculator } from "lucide-react"
+import { Search, Plus, Edit, Trash2, FileDown, FileUp, Users, Tag, Package, Utensils, Calculator, Info } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/components/ui/use-toast"
 import { unitsApi, categoriesApi, productsApi, dishesApi, dailyRationsApi, lttpApi } from "@/lib/api-client"
 
@@ -112,6 +113,9 @@ export function DataLibraryContent() {
     unit: "",
     notes: ""
   })
+
+  // Category ingredients cache for tooltip
+  const [categoryIngredients, setCategoryIngredients] = useState<{ [categoryId: string]: LTTPItem[] }>({})
 
   // Reset pagination when tab changes or search term changes
   useEffect(() => {
@@ -530,6 +534,97 @@ export function DataLibraryContent() {
     })
   }
 
+  // Fetch ingredients by category for tooltip
+  const fetchIngredientsByCategory = async (categoryId: string) => {
+    if (categoryIngredients[categoryId]) {
+      return categoryIngredients[categoryId]
+    }
+
+    try {
+      const response = await productsApi.getProducts(categoryId)
+      const products = Array.isArray(response) ? response : (response as any).data || []
+      
+      const mappedProducts = products.map((product: any) => ({
+        _id: product._id,
+        name: product.name,
+        categoryId: product.categoryId || product.category?._id,
+        categoryName: product.categoryName || product.category?.name,
+        unit: product.unit,
+        description: product.description,
+        nutritionalValue: product.nutritionalValue,
+        storageCondition: product.storageCondition,
+      }))
+
+      setCategoryIngredients(prev => ({
+        ...prev,
+        [categoryId]: mappedProducts
+      }))
+
+      return mappedProducts
+    } catch (error) {
+      console.error("Error fetching ingredients for category:", error)
+      return []
+    }
+  }
+
+  // Component tooltip để hiển thị chi tiết nguyên liệu theo phân loại
+  const CategoryTooltip = ({ category }: { category: Category }) => {
+    const [ingredients, setIngredients] = useState<LTTPItem[]>([])
+    const [loading, setLoading] = useState(false)
+
+    const loadIngredients = async () => {
+      if (ingredients.length === 0) {
+        setLoading(true)
+        const fetchedIngredients = await fetchIngredientsByCategory(category._id)
+        setIngredients(fetchedIngredients)
+        setLoading(false)
+      }
+    }
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-auto p-1"
+              onMouseEnter={loadIngredients}
+            >
+              <Info className="h-4 w-4 mr-1" />
+              {category.itemCount} mục
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="max-w-80">
+            <div className="p-2">
+              <div className="font-medium mb-2">{category.name}</div>
+              {loading ? (
+                <div className="text-sm text-gray-500">Đang tải...</div>
+              ) : (
+                <>
+                  {ingredients.length > 0 ? (
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium">Danh sách nguyên liệu:</div>
+                      <div className="max-h-40 overflow-y-auto">
+                        {ingredients.map((ingredient, index) => (
+                          <div key={ingredient._id} className="text-xs text-gray-600 py-1">
+                            {index + 1}. {ingredient.name} ({ingredient.unit})
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">Chưa có nguyên liệu nào</div>
+                  )}
+                </>
+              )}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
   return (
     <div className="w-full p-6">
       <div className="bg-white rounded-lg shadow-md">
@@ -657,8 +752,7 @@ export function DataLibraryContent() {
                     <TableRow>
                       <TableHead>STT</TableHead>
                       <TableHead>Tên phân loại</TableHead>
-                      <TableHead>Slug</TableHead>
-                      <TableHead>Số lượng mục</TableHead>
+                      <TableHead>Mô tả</TableHead>
                       <TableHead>Thao tác</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -667,13 +761,10 @@ export function DataLibraryContent() {
                       <TableRow key={category._id}>
                         <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{category.name}</TableCell>
-                        <TableCell>{category.slug}</TableCell>
                         <TableCell>{category.description}</TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{category.itemCount} mục</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 items-center">
+                            <CategoryTooltip category={category} />
                             <Button variant="outline" size="sm" onClick={() => handleEdit(category, "categories")}>
                               Sửa
                             </Button>
