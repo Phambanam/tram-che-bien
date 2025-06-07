@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -448,6 +448,31 @@ export function OutputManagementContent() {
 
   const categoryTotals = getCategoryTotals()
 
+  // Group supply data by date for day-by-day display
+  const groupSupplyDataByDay = () => {
+    const grouped: { [date: string]: { dayName: string; items: SupplyOutputData[]; dayTotal: { cost: number; personnel: number } } } = {}
+    
+    supplyData.forEach(item => {
+      const date = item.sourceDate || 'no-date'
+      if (!grouped[date]) {
+        grouped[date] = {
+          dayName: item.dayName || getDayName(new Date(date)),
+          items: [],
+          dayTotal: { cost: 0, personnel: 0 }
+        }
+      }
+      grouped[date].items.push(item)
+      grouped[date].dayTotal.cost += item.totalCost
+      grouped[date].dayTotal.personnel = item.totalPersonnel // Same for all items in a day
+    })
+    
+    // Sort by date
+    const sortedEntries = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b))
+    return sortedEntries
+  }
+
+  const groupedData = groupSupplyDataByDay()
+
   // AI Assistant functions
   const generateAISuggestions = async () => {
     setIsGeneratingSuggestions(true)
@@ -488,40 +513,7 @@ export function OutputManagementContent() {
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-[#b45f06]">QUẢN LÝ NGUỒN XUẤT</h2>
 
-        {/* Weekly Calendar Header */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-center">📆 Dòng ngày trong tuần</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-8 gap-2">
-              {/* Individual Days */}
-              {weekDays.map((day, index) => (
-                <Button
-                  key={day.toISOString()}
-                  variant={isSameDay(day, selectedDate) && selectedView === "day" ? "default" : "outline"}
-                  className="flex flex-col items-center p-4 h-auto"
-                  onClick={() => handleDateSelect(day, "day")}
-                >
-                  <span className="text-sm font-medium">{getDayName(day)}</span>
-                  <span className="text-xs text-gray-500">{format(day, "dd/MM")}</span>
-                </Button>
-              ))}
-              
-              {/* Whole Week Button */}
-              <Button
-                variant={selectedView === "week" ? "default" : "outline"}
-                className="flex flex-col items-center p-4 h-auto"
-                onClick={() => handleDateSelect(selectedDate, "week")}
-              >
-                <span className="text-sm font-medium">Tổng cả tuần</span>
-                <span className="text-xs text-gray-500">
-                  {format(weekDays[0], "dd/MM")} - {format(weekDays[6], "dd/MM")}
-                </span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+
 
         {/* Main Supply Output Table */}
         <Card>
@@ -596,102 +588,153 @@ export function OutputManagementContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {supplyData.map((item, index) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell className="font-medium">
-                        <span>{item.foodName}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={
-                          categoryTotals[item.category] && 
-                          categoryTotals[item.category].total > categoryTotals[item.category].limit
-                            ? "border-red-500 text-red-700"
-                            : "border-green-500 text-green-700"
-                        }>
-                          {item.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{item.unit}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col items-center">
-                          <span className="font-medium">
-                            {item.quantityPerPerson.toFixed(3)}/người
-                          </span>
-                          {dataSource === "ingredients" && item.baseTotalQuantity && (
-                            <span className="text-xs text-gray-600">
-                              Tổng: {item.baseTotalQuantity.toFixed(1)} {item.unit}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      {dataSource === "ingredients" && (
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {item.usedInDishes && item.usedInDishes.map((dish, dishIndex) => (
-                              <Badge key={dishIndex} variant="outline" className="text-xs">
-                                {dish}
-                              </Badge>
-                            ))}
-                          </div>
+                  {groupedData.map(([date, dayData], dayIndex) => (
+                    <React.Fragment key={date}>
+                      {/* Day Header Row */}
+                      <TableRow className="bg-blue-100 font-bold">
+                        <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center text-blue-800">
+                          📅 {dayData.dayName} - {format(new Date(date), "dd/MM/yyyy")} ({dayData.items.length} nguyên liệu)
                         </TableCell>
-                      )}
+                        {units.map((unit) => (
+                          <TableCell key={`${unit._id}-day-header-personnel`} className="text-center bg-blue-200">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-auto p-1 hover:bg-blue-300"
+                              onClick={() => handleEditPersonnel(unit._id, unit.name, unitPersonnel[unit._id] || 0)}
+                            >
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                <span>{unitPersonnel[unit._id] || 0}</span>
+                                <Edit className="h-3 w-3" />
+                              </div>
+                            </Button>
+                          </TableCell>
+                        ))}
+                        {units.map((unit) => (
+                          <TableCell key={`${unit._id}-day-header-requirement`} className="text-center bg-blue-200">
+                            -
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center bg-blue-200">{dayData.dayTotal.personnel}</TableCell>
+                        <TableCell className="text-center bg-blue-200">-</TableCell>
+                        <TableCell className="text-center bg-blue-200">-</TableCell>
+                      </TableRow>
                       
-                      {/* Personnel columns */}
-                      {units.map((unit) => (
-                        <TableCell key={`${unit._id}-personnel`} className="text-center bg-blue-50">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-auto p-1 hover:bg-blue-100"
-                            onClick={() => handleEditPersonnel(unit._id, unit.name, unitPersonnel[unit._id] || 0)}
-                          >
-                            <div className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              <span>{unitPersonnel[unit._id] || 0}</span>
-                              <Edit className="h-3 w-3" />
+                      {/* Day Items */}
+                      {dayData.items.map((item, itemIndex) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{itemIndex + 1}</TableCell>
+                          <TableCell className="font-medium">
+                            <span>{item.foodName.replace(` - ${dayData.dayName} (${format(new Date(date), "dd/MM")})`, '')}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={
+                              categoryTotals[item.category] && 
+                              categoryTotals[item.category].total > categoryTotals[item.category].limit
+                                ? "border-red-500 text-red-700"
+                                : "border-green-500 text-green-700"
+                            }>
+                              {item.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col items-center">
+                              <span className="font-medium">
+                                {item.quantityPerPerson.toFixed(3)}/người
+                              </span>
+                              {dataSource === "ingredients" && item.baseTotalQuantity && (
+                                <span className="text-xs text-gray-600">
+                                  Tổng: {item.baseTotalQuantity.toFixed(1)} {item.unit}
+                                </span>
+                              )}
                             </div>
-                          </Button>
-                        </TableCell>
+                          </TableCell>
+                          {dataSource === "ingredients" && (
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {item.usedInDishes && item.usedInDishes.map((dish, dishIndex) => (
+                                  <Badge key={dishIndex} variant="outline" className="text-xs">
+                                    {dish}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </TableCell>
+                          )}
+                          
+                          {/* Personnel columns */}
+                          {units.map((unit) => (
+                            <TableCell key={`${unit._id}-personnel`} className="text-center bg-blue-50">
+                              {unitPersonnel[unit._id] || 0}
+                            </TableCell>
+                          ))}
+                          
+                          {/* Requirement columns */}
+                          {units.map((unit) => (
+                            <TableCell key={`${unit._id}-requirement`} className="text-center bg-green-50">
+                              {item.units[unit._id]?.requirement.toFixed(3) || "0.000"}
+                            </TableCell>
+                          ))}
+                          
+                          <TableCell className="text-center bg-yellow-50 font-medium">
+                            {item.totalPersonnel}
+                          </TableCell>
+                          <TableCell className="text-center bg-orange-50">
+                            {item.pricePerUnit.toLocaleString()} đ/{item.unit}
+                          </TableCell>
+                          <TableCell className="text-center bg-red-50 font-medium">
+                            {item.totalCost.toLocaleString()} đ
+                          </TableCell>
+                        </TableRow>
                       ))}
                       
-                      {/* Requirement columns */}
-                      {units.map((unit) => (
-                        <TableCell key={`${unit._id}-requirement`} className="text-center bg-green-50">
-                          {item.units[unit._id]?.requirement.toFixed(3) || "0.000"}
+                      {/* Day Total Row */}
+                      <TableRow className="bg-gray-200 font-bold border-b-2">
+                        <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center">
+                          🔸 TỔNG {dayData.dayName.toUpperCase()}
                         </TableCell>
-                      ))}
-                      
-                      <TableCell className="text-center bg-yellow-50 font-medium">
-                        {item.totalPersonnel}
-                      </TableCell>
-                      <TableCell className="text-center bg-orange-50">
-                        {item.pricePerUnit.toLocaleString()} đ/{item.unit}
-                      </TableCell>
-                      <TableCell className="text-center bg-red-50 font-medium">
-                        {item.totalCost.toLocaleString()} đ
-                      </TableCell>
-                    </TableRow>
+                        {units.map((unit) => (
+                          <TableCell key={`${unit._id}-day-total-personnel`} className="text-center bg-gray-300">
+                            {unitPersonnel[unit._id] || 0}
+                          </TableCell>
+                        ))}
+                        {units.map((unit) => (
+                          <TableCell key={`${unit._id}-day-total-requirement`} className="text-center bg-gray-300">
+                            {dayData.items.reduce((sum, item) => sum + (item.units[unit._id]?.requirement || 0), 0).toFixed(3)}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center bg-gray-300">
+                          {dayData.dayTotal.personnel}
+                        </TableCell>
+                        <TableCell className="text-center bg-gray-300">-</TableCell>
+                        <TableCell className="text-center bg-gray-300">
+                          {dayData.dayTotal.cost.toLocaleString()} đ
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
                   ))}
                   
-                  {/* Total Row */}
-                  <TableRow className="bg-gray-100 font-bold">
-                    <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center">TỔNG CỘNG</TableCell>
+                  {/* Grand Total Row */}
+                  <TableRow className="bg-green-100 font-bold border-t-4">
+                    <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center text-green-800">
+                      🏆 TỔNG CỘNG CẢ TUẦN
+                    </TableCell>
                     {units.map((unit) => (
-                      <TableCell key={`${unit._id}-total-personnel`} className="text-center bg-blue-100">
+                      <TableCell key={`${unit._id}-grand-total-personnel`} className="text-center bg-green-200">
                         {unitPersonnel[unit._id] || 0}
                       </TableCell>
                     ))}
                     {units.map((unit) => (
-                      <TableCell key={`${unit._id}-total-requirement`} className="text-center bg-green-100">
+                      <TableCell key={`${unit._id}-grand-total-requirement`} className="text-center bg-green-200">
                         {supplyData.reduce((sum, item) => sum + (item.units[unit._id]?.requirement || 0), 0).toFixed(3)}
                       </TableCell>
                     ))}
-                    <TableCell className="text-center bg-yellow-100">
+                    <TableCell className="text-center bg-green-200">
                       {supplyData.reduce((sum, item) => sum + item.totalPersonnel, 0)}
                     </TableCell>
-                    <TableCell className="text-center bg-orange-100">-</TableCell>
-                    <TableCell className="text-center bg-red-100">
+                    <TableCell className="text-center bg-green-200">-</TableCell>
+                    <TableCell className="text-center bg-green-200">
                       {supplyData.reduce((sum, item) => sum + item.totalCost, 0).toLocaleString()} đ
                     </TableCell>
                   </TableRow>
