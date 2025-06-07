@@ -15,6 +15,7 @@ import { format, startOfWeek, addDays, isSameDay, getWeek, getYear } from "date-
 import { vi } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
 import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
+import { useAuth } from "@/components/auth/auth-provider"
 
 interface Unit {
   _id: string
@@ -130,6 +131,39 @@ export function OutputManagementContent() {
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false)
   
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  // Check if user can edit personnel for a specific unit
+  const canEditPersonnel = (unitId: string): boolean => {
+    if (!user) {
+      console.log("No user data available for permission check")
+      return false
+    }
+    
+    console.log(`Checking edit permission for unit ${unitId}:`, {
+      userRole: user.role,
+      userUnit: user.unit,
+      targetUnit: unitId,
+      userUnitString: user.unit?.toString(),
+      matches: user.unit?.toString() === unitId
+    })
+    
+    switch (user.role) {
+      case 'brigadeAssistant':
+        // Brigade assistant can edit all units
+        console.log("Brigade assistant - can edit all units")
+        return true
+      case 'unitAssistant':
+        // Unit assistant can only edit their own unit
+        const canEdit = user.unit && user.unit.toString() === unitId
+        console.log(`Unit assistant - can edit own unit only: ${canEdit}`)
+        return canEdit
+      default:
+        // Other roles (commanders, etc.) cannot edit
+        console.log(`Role ${user.role} - cannot edit`)
+        return false
+    }
+  }
 
   // Get week days starting from Monday
   const getWeekDays = (date: Date) => {
@@ -712,20 +746,29 @@ export function OutputManagementContent() {
                         {units.map((unit) => {
                           const dayPersonnelData = unitPersonnelByDay[date] || {}
                           const currentPersonnel = dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0
+                          const canEdit = canEditPersonnel(unit._id)
+                          
                           return (
                             <TableCell key={`${unit._id}-day-header-personnel`} className="text-center bg-blue-200">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto p-1 hover:bg-blue-300"
-                                onClick={() => handleEditPersonnel(unit._id, unit.name, currentPersonnel, date)}
-                              >
-                                <div className="flex items-center gap-1">
+                              {canEdit ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto p-1 hover:bg-blue-300"
+                                  onClick={() => handleEditPersonnel(unit._id, unit.name, currentPersonnel, date)}
+                                >
+                                  <div className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    <span>{currentPersonnel}</span>
+                                    <Edit className="h-3 w-3" />
+                                  </div>
+                                </Button>
+                              ) : (
+                                <div className="flex items-center justify-center gap-1 p-1">
                                   <Users className="h-3 w-3" />
                                   <span>{currentPersonnel}</span>
-                                  <Edit className="h-3 w-3" />
                                 </div>
-                              </Button>
+                              )}
                             </TableCell>
                           )
                         })}
