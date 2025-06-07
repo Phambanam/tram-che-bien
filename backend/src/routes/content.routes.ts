@@ -102,7 +102,7 @@ router.use(protect)
  *       401:
  *         description: Unauthorized
  */
-router.post("/", authorize("admin"), createContent)
+router.post("/", authorize("admin", "brigadeAssistant"), createContent)
 
 /**
  * @swagger
@@ -144,7 +144,7 @@ router.post("/", authorize("admin"), createContent)
  *       404:
  *         description: Content not found
  */
-router.patch("/:id", authorize("admin"), updateContent)
+router.patch("/:id", authorize("admin", "brigadeAssistant"), updateContent)
 
 /**
  * @swagger
@@ -168,7 +168,7 @@ router.patch("/:id", authorize("admin"), updateContent)
  *       404:
  *         description: Content not found
  */
-router.delete("/:id", authorize("admin"), deleteContent)
+router.delete("/:id", authorize("admin", "brigadeAssistant"), deleteContent)
 
 /**
  * @swagger

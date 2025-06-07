@@ -422,7 +422,7 @@ async function seed() {
         password: await hash("password123", 12),
         fullName: "Lê Văn C",
         rank: "Thiếu tá",
-        position: "Trợ lý hậu cần",
+        position: "Trợ lý lữ đoàn",
         unit: unitResult.insertedIds[3], // Lữ đoàn bộ
         role: "brigadeAssistant",
         status: "active",

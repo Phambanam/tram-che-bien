@@ -18,9 +18,11 @@ const formSchema = z
     fullName: z.string().min(1, {
       message: "Họ và tên không được để trống",
     }),
-    phoneNumber: z.string().min(1, {
-      message: "Số điện thoại không được để trống",
-    }),
+    phoneNumber: z.string()
+      .min(1, { message: "Số điện thoại không được để trống" })
+      .regex(/^(0[3|5|7|8|9])+([0-9]{8})$/, { 
+        message: "Số điện thoại không hợp lệ (VD: 0987654321)" 
+      }),
     password: z.string().min(6, {
       message: "Mật khẩu phải có ít nhất 6 ký tự",
     }),
@@ -74,10 +76,20 @@ export function RegisterForm() {
     // Fetch units
     const fetchUnits = async () => {
       try {
-        const data = await unitsApi.getUnits()
-        setUnits(data)
+        const response = await unitsApi.getUnits()
+        // API trả về {success: true, count: number, data: array}
+        if (response && response.data && Array.isArray(response.data)) {
+          setUnits(response.data)
+        } else if (Array.isArray(response)) {
+          // Fallback nếu API trả về trực tiếp array
+          setUnits(response)
+        } else {
+          console.error("Units data is not an array:", response)
+          setUnits([])
+        }
       } catch (error) {
         console.error("Error fetching units:", error)
+        setUnits([])
       }
     }
 
@@ -129,7 +141,12 @@ export function RegisterForm() {
             <FormItem>
               <FormLabel>Số điện thoại</FormLabel>
               <FormControl>
-                <Input placeholder="Nhập số điện thoại" {...field} />
+                <Input 
+                  placeholder="Nhập số điện thoại (VD: 0987654321)" 
+                  type="tel"
+                  maxLength={10}
+                  {...field} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -204,7 +221,7 @@ export function RegisterForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {units.map((unit) => (
+                  {units && Array.isArray(units) && units.map((unit) => (
                     <SelectItem key={unit._id} value={unit._id}>
                       {unit.name}
                     </SelectItem>
@@ -229,6 +246,8 @@ export function RegisterForm() {
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem>
+                  <SelectItem value="brigadeAssistant">Trợ lý hậu cần Lữ đoàn</SelectItem>
+                  {/* <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem> */}
                   <SelectItem value="commander">Chỉ huy</SelectItem>
                 </SelectContent>
               </Select>

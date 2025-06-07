@@ -9,19 +9,25 @@ import { AppError } from "../middleware/error.middleware"
 // @access  Public
 export const register = async (req: Request, res: Response) => {
   try {
-    const { fullName, username, password, rank, position, unit, role } = req.body
+    const { fullName, phoneNumber, password, rank, position, unit, role } = req.body
 
     // Validate input
-    if (!fullName || !username || !password || !rank || !position || !unit || !role) {
+    if (!fullName || !phoneNumber || !password || !rank || !position || !unit || !role) {
       throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+    }
+
+    // Validate phone number format (Vietnam phone number)
+    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/
+    if (!phoneRegex.test(phoneNumber)) {
+      throw new AppError("Số điện thoại không hợp lệ", 400)
     }
 
     const db = await getDb()
 
-    // Check if username already exists
-    const existingUser = await db.collection("users").findOne({ username })
+    // Check if phone number already exists
+    const existingUser = await db.collection("users").findOne({ phoneNumber })
     if (existingUser) {
-      throw new AppError("Tên đăng nhập đã tồn tại", 400)
+      throw new AppError("Số điện thoại đã được đăng ký", 400)
     }
 
     // Validate unit exists
@@ -39,7 +45,7 @@ export const register = async (req: Request, res: Response) => {
 
     // Create new user
     const result = await db.collection("users").insertOne({
-      username,
+      phoneNumber,
       password: hashedPassword,
       fullName,
       rank,
@@ -70,21 +76,27 @@ export const register = async (req: Request, res: Response) => {
 // @access  Public
 export const login = async (req: Request, res: Response) => {
   try {
-    const { username, password } = req.body
+    const { phoneNumber, password } = req.body
     console.log(req.body)
-    console.log(username, password)
+    console.log(phoneNumber, password)
     // Validate input
-    if (!username || !password) {
-      throw new AppError("Vui lòng nhập tên đăng nhập và mật khẩu", 400)
+    if (!phoneNumber || !password) {
+      throw new AppError("Vui lòng nhập số điện thoại và mật khẩu", 400)
+    }
+
+    // Validate phone number format
+    const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/
+    if (!phoneRegex.test(phoneNumber)) {
+      throw new AppError("Số điện thoại không hợp lệ", 400)
     }
 
     const db = await getDb()
 
-    // Find user
-    const user = await db.collection("users").findOne({ username })
+    // Find user by phone number
+    const user = await db.collection("users").findOne({ phoneNumber })
 
     if (!user) {
-      throw new AppError("Tên đăng nhập hoặc mật khẩu không chính xác", 401)
+      throw new AppError("Số điện thoại hoặc mật khẩu không chính xác", 401)
     }
 
     // Check if user is active
@@ -96,7 +108,7 @@ export const login = async (req: Request, res: Response) => {
     const isPasswordValid = await comparePassword(password, user.password)
 
     if (!isPasswordValid) {
-      throw new AppError("Tên đăng nhập hoặc mật khẩu không chính xác", 401)
+      throw new AppError("Số điện thoại hoặc mật khẩu không chính xác", 401)
     }
 
     // Generate token
@@ -111,7 +123,7 @@ export const login = async (req: Request, res: Response) => {
       user: {
         id: user._id.toString(),
         fullName: user.fullName,
-        username: user.username,
+        phoneNumber: user.phoneNumber,
         role: user.role,
         unit: {
           id: user.unit.toString(),
@@ -165,7 +177,7 @@ export const getMe = async (req: Request, res: Response) => {
 
     const userData = {
       _id: user._id.toString(),
-      username: user.username,
+      phoneNumber: user.phoneNumber,
       fullName: user.fullName,
       email: user.email,
       role: user.role,

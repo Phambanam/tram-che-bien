@@ -4,12 +4,13 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Eye, Edit, Trash2, Calendar, User } from "lucide-react"
+import { Plus, Eye, Edit, Trash2, Calendar, User, Shield } from "lucide-react"
 import Link from "next/link"
 import { ArticleDialog } from "./articles/article-dialog"
 import { DeleteArticleDialog } from "./articles/delete-article-dialog"
 import { contentApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/components/auth/auth-provider"
 
 interface Article {
   id: string
@@ -26,7 +27,8 @@ interface Article {
 // API service for articles
 const articleService = {
   async getAll(type?: string) {
-    return contentApi.getContent(type)
+    const data = await contentApi.getContent(type)
+    return { success: true, data }
   },
 
   async getById(id: string) {
@@ -53,25 +55,46 @@ export function DashboardContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  // Kiểm tra quyền admin (Trợ lý lữ đoàn)
+  const isAdmin = user?.role === "brigadeAssistant" || user?.role === "admin"
 
   useEffect(() => {
     const fetchArticles = async () => {
       try {
         // Try to fetch from API first
-        const data = await articleService.getAll()
-        if (data && Array.isArray(data)) {
-          setArticles(data)
+        const response = await articleService.getAll()
+        console.log("API response:", response)
+        
+        // Check if response has the expected structure
+        if (response && response.success && Array.isArray(response.data)) {
+          // Transform data to match Article interface
+          const transformedArticles = response.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            type: item.type,
+            imageUrl: item.imageUrl,
+            videoUrl: item.videoUrl,
+            author: item.author || "Unknown Author",
+            createdAt: item.createdAt,
+            status: "published" as const
+          }))
+          setArticles(transformedArticles)
         } else {
-          // Fallback to mock data if API returns unexpected format
-          setArticles(getMockArticles())
+          console.warn("API response format unexpected:", response)
+          // If API fails or returns unexpected format, show empty state instead of mock data
+          setArticles([])
         }
       } catch (error) {
         console.error("Error fetching articles:", error)
         toast({
           title: "Lỗi",
-          description: "Không thể tải dữ liệu bài viết. Vui lòng thử lại sau.",
+          description: "Không thể tải dữ liệu bài viết từ server. Đang hiển thị dữ liệu offline.",
           variant: "destructive",
         })
+        // Only use mock data as absolute fallback
         setArticles(getMockArticles())
       } finally {
         setIsLoading(false)
@@ -137,33 +160,56 @@ export function DashboardContent() {
       if (selectedArticle) {
         // Update existing article
         await articleService.update(selectedArticle.id, articleData)
-        setArticles((prev) =>
-          prev.map((article) =>
-            article.id === selectedArticle.id
-              ? { ...article, ...articleData, updatedAt: new Date().toISOString() }
-              : article,
-          ),
-        )
+        
+        // Refetch articles from API after update
+        const refreshResponse = await articleService.getAll()
+        if (refreshResponse && refreshResponse.success && Array.isArray(refreshResponse.data)) {
+          const transformedArticles = refreshResponse.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            type: item.type,
+            imageUrl: item.imageUrl,
+            videoUrl: item.videoUrl,
+            author: item.author || "Unknown Author",
+            createdAt: item.createdAt,
+            status: "published" as const
+          }))
+          setArticles(transformedArticles)
+        }
+        
         toast({
           title: "Thành công",
           description: "Cập nhật bài viết thành công",
         })
       } else {
         // Add new article
-        const newArticleData = {
+        const newArticleData: Partial<Article> = {
           ...articleData,
           author: "Current User", // Replace with actual user
           createdAt: new Date().toISOString(),
-          status: "published",
+          status: "published" as const,
         }
 
         const response = await articleService.create(newArticleData)
-        const newArticle = response.data || {
-          id: Date.now().toString(),
-          ...newArticleData,
+        console.log("Create response:", response)
+        
+        // After successful creation, refetch articles from API to get the real data
+        const refreshResponse = await articleService.getAll()
+        if (refreshResponse && refreshResponse.success && Array.isArray(refreshResponse.data)) {
+          const transformedArticles = refreshResponse.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            type: item.type,
+            imageUrl: item.imageUrl,
+            videoUrl: item.videoUrl,
+            author: item.author || "Unknown Author",
+            createdAt: item.createdAt,
+            status: "published" as const
+          }))
+          setArticles(transformedArticles)
         }
-
-        setArticles((prev) => [newArticle, ...prev])
         toast({
           title: "Thành công",
           description: "Thêm bài viết mới thành công",
@@ -184,7 +230,24 @@ export function DashboardContent() {
     if (selectedArticle) {
       try {
         await articleService.delete(selectedArticle.id)
-        setArticles((prev) => prev.filter((article) => article.id !== selectedArticle.id))
+        
+        // Refetch articles from API after delete
+        const refreshResponse = await articleService.getAll()
+        if (refreshResponse && refreshResponse.success && Array.isArray(refreshResponse.data)) {
+          const transformedArticles = refreshResponse.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            type: item.type,
+            imageUrl: item.imageUrl,
+            videoUrl: item.videoUrl,
+            author: item.author || "Unknown Author",
+            createdAt: item.createdAt,
+            status: "published" as const
+          }))
+          setArticles(transformedArticles)
+        }
+        
         toast({
           title: "Thành công",
           description: "Xóa bài viết thành công",
@@ -214,10 +277,10 @@ export function DashboardContent() {
 
   if (isLoading) {
     return (
-      <div className="container">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="w-full p-6">
+        <div className="bg-white p-6 rounded-lg shadow-md max-w-6xl mx-auto">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6 mx-auto"></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[1, 2, 3].map((item) => (
                 <div key={item} className="border border-gray-300 p-4 rounded-md">
@@ -235,13 +298,23 @@ export function DashboardContent() {
 
   return (
     <div className="w-full p-6">
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-white p-6 rounded-lg shadow-md max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-center text-[#b45f06]">TRANG CHÍNH</h2>
-          <Button onClick={handleAddArticle} className="bg-[#b45f06] hover:bg-[#8b4513]">
-            <Plus className="h-4 w-4 mr-2" />
-            Thêm bài viết
-          </Button>
+          <h2 className="text-2xl font-bold text-[#b45f06] flex-1 text-center">TRANG CHÍNH</h2>
+          <div className="flex items-center gap-3">
+            {!isAdmin && (
+              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
+                <Shield className="h-4 w-4" />
+                <span>Chế độ xem</span>
+              </div>
+            )}
+            {isAdmin && (
+              <Button onClick={handleAddArticle} className="bg-[#b45f06] hover:bg-[#8b4513]">
+                <Plus className="h-4 w-4 mr-2" />
+                Thêm bài viết
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="mb-8">
@@ -253,14 +326,30 @@ export function DashboardContent() {
                 thống vẻ vang và nhiều thành tích xuất sắc trong công tác huấn luyện, sẵn sàng chiến đấu và xây dựng đơn
                 vị vững mạnh toàn diện.
               </p>
-              <p>
+              <p className="mb-4">
                 Hệ thống quản lý trạm chế biến là một phần quan trọng trong công tác hậu cần của Lữ đoàn, đảm bảo chất
                 lượng bữa ăn và sức khỏe cho cán bộ, chiến sĩ trong đơn vị.
               </p>
+              
+              {/* Thông báo quyền hạn */}
+              <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+                <h4 className="font-semibold text-blue-800 mb-2">📋 Quyền hạn hệ thống:</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li><strong>• Trợ lý lữ đoàn (Admin):</strong> Thêm, sửa, xóa bài viết</li>
+                  <li><strong>• Các chức vụ khác:</strong> Chỉ được xem chi tiết bài viết</li>
+                  <li><strong>• Vai trò hiện tại:</strong> 
+                    <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
+                      isAdmin ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {isAdmin ? 'Quản trị viên' : 'Người xem'}
+                    </span>
+                  </li>
+                </ul>
+              </div>
             </div>
             <div className="bg-gray-200 h-64 flex items-center justify-center rounded-lg">
               <img
-                src="/placeholder.svg?height=256&width=400"
+                src="/anh.jpg"
                 alt="Hình ảnh Lữ đoàn 279"
                 className="w-full h-full object-cover rounded-lg"
               />
@@ -276,10 +365,12 @@ export function DashboardContent() {
           {articles.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">Chưa có bài viết nào</p>
-              <Button onClick={handleAddArticle} className="bg-[#b45f06] hover:bg-[#8b4513]">
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm bài viết đầu tiên
-              </Button>
+              {isAdmin && (
+                <Button onClick={handleAddArticle} className="bg-[#b45f06] hover:bg-[#8b4513]">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Thêm bài viết đầu tiên
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -291,24 +382,28 @@ export function DashboardContent() {
                         {getTypeIcon(article.type)}{" "}
                         {article.type === "article" ? "Bài viết" : article.type === "video" ? "Video" : "Hình ảnh"}
                       </Badge>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditArticle(article)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteArticle(article)}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditArticle(article)}
+                            className="h-8 w-8 p-0"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteArticle(article)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            title="Xóa"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <CardTitle className="text-lg leading-tight">{article.title}</CardTitle>
                   </CardHeader>
@@ -330,7 +425,10 @@ export function DashboardContent() {
                         </div>
                       </div>
                     )}
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">{article.content}</p>
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                      {article.content.replace(/[#*_`~\[\]()]/g, '').replace(/<[^>]*>/g, '').slice(0, 150)}
+                      {article.content.length > 150 ? '...' : ''}
+                    </p>
                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />

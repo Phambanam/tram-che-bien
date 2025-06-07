@@ -93,10 +93,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
 // Auth API
 export const authApi = {
-  login: async (username: string, password: string) => {
+  login: async (phoneNumber: string, password: string) => {
     return apiRequest<{ token: string; user: any }>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username: username, password }),
+      body: JSON.stringify({ phoneNumber: phoneNumber, password }),
     })
   },
 
@@ -391,11 +391,24 @@ export const statisticsApi = {
 export const contentApi = {
   getContent: async (type?: string) => {
     const query = type ? `?type=${type}` : ""
-    return apiRequest<{ success: boolean; count: number; data: any[] }>(`/content${query}`)
+    const response = await apiRequest<{ success: boolean; count: number; data: any[] }>(`/content${query}`)
+    return response.data
   },
 
   getContentById: async (id: string) => {
-    return apiRequest<any>(`/content/${id}`)
+    // Validate ID before making request
+    if (!id || id === 'undefined' || id === 'null') {
+      throw new Error('ID nội dung không được để trống')
+    }
+    
+    // Basic ID format validation (check if it looks like a valid ObjectId)
+    if (id.length !== 24 || !/^[a-fA-F0-9]{24}$/.test(id)) {
+      throw new Error(`ID nội dung không hợp lệ: ${id}`)
+    }
+    
+    console.log('Getting content by ID:', id)
+    const response = await apiRequest<{ success: boolean; data: any }>(`/content/${id}`)
+    return response.data
   },
 
   createContent: async (data: any) => {
@@ -690,17 +703,34 @@ export const supplyOutputsApi = {
 
 // Upload API
 export const uploadApi = {
-  uploadImage: async (file: File) => {
+  uploadFile: async (file: File) => {
     const formData = new FormData()
-    formData.append("image", file)
+    formData.append("file", file)
 
     const token = getAuthToken()
-    const response = await fetch(`${API_BASE_URL}/upload/image`, {
+    const response = await fetch(`${API_BASE_URL}/upload/file`, {
       method: "POST",
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: formData,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+    }
+
+    return response.json()
+  },
+  
+  deleteFile: async (filename: string) => {
+    const token = getAuthToken()
+    const response = await fetch(`${API_BASE_URL}/upload/file/${filename}`, {
+      method: "DELETE",
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
     })
 
     if (!response.ok) {

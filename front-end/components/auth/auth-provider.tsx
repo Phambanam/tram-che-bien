@@ -8,7 +8,7 @@ import type { User } from "@/types"
 interface AuthContextType {
   user: User | null
   isLoading: boolean
-  login: (username: string, password: string) => Promise<void>
+  login: (phoneNumber: string, password: string) => Promise<void>
   logout: () => void
 }
 
@@ -47,13 +47,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
   }, [])
 
-  const login = async (username: string, password: string):
+  const login = async (phoneNumber: string, password: string):
     Promise<{ token: string; user: User }> => {
-    console.log('Auth provider login called with:', { username, password })
+    console.log('Auth provider login called with:', { phoneNumber, password })
     
     try {
       // Make login request and get raw response
-      const response = await authApi.login(username, password)
+      const response = await authApi.login(phoneNumber, password)
       console.log('Auth provider received response:', response)
       
       // If login was successful, store data and redirect

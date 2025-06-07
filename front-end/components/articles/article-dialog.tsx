@@ -2,12 +2,13 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { FileUpload } from "@/components/ui/file-upload"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -40,7 +41,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
   const { toast } = useToast()
 
   // Reset form when dialog opens/closes or article changes
-  useState(() => {
+  useEffect(() => {
     if (open && article) {
       setTitle(article.title)
       setContent(article.content)
@@ -55,7 +56,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
       setImageUrl("")
       setVideoUrl("")
     }
-  })
+  }, [open, article])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,7 +73,9 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
         return
       }
 
-      if (!content.trim()) {
+      // Strip markdown and HTML for validation
+      const plainTextContent = content.replace(/[#*_`~\[\]()]/g, '').replace(/<[^>]*>/g, '').trim()
+      if (!plainTextContent) {
         toast({
           title: "Lỗi",
           description: "Vui lòng nhập nội dung bài viết",
@@ -84,7 +87,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
       if (type === "image" && !imageUrl.trim()) {
         toast({
           title: "Lỗi",
-          description: "Vui lòng nhập URL hình ảnh",
+          description: "Vui lòng chọn hình ảnh",
           variant: "destructive",
         })
         return
@@ -93,7 +96,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
       if (type === "video" && !videoUrl.trim()) {
         toast({
           title: "Lỗi",
-          description: "Vui lòng nhập URL video",
+          description: "Vui lòng chọn video",
           variant: "destructive",
         })
         return
@@ -122,7 +125,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{article ? "Chỉnh sửa bài viết" : "Thêm bài viết mới"}</DialogTitle>
         </DialogHeader>
@@ -159,37 +162,33 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
 
             {type === "image" && (
               <div className="grid gap-2">
-                <Label htmlFor="imageUrl">URL hình ảnh</Label>
-                <Input
-                  id="imageUrl"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="Nhập URL hình ảnh"
+                <FileUpload
+                  accept="image"
+                  label="Hình ảnh"
+                  currentUrl={imageUrl}
+                  onFileUpload={setImageUrl}
                 />
               </div>
             )}
 
             {type === "video" && (
               <div className="grid gap-2">
-                <Label htmlFor="videoUrl">URL video</Label>
-                <Input
-                  id="videoUrl"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="Nhập URL video"
+                <FileUpload
+                  accept="video"
+                  label="Video"
+                  currentUrl={videoUrl}
+                  onFileUpload={setVideoUrl}
                 />
               </div>
             )}
 
             <div className="grid gap-2">
               <Label htmlFor="content">Nội dung</Label>
-              <Textarea
-                id="content"
+              <RichTextEditor
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={setContent}
                 placeholder="Nhập nội dung bài viết"
                 className="min-h-[150px]"
-                required
               />
             </div>
           </div>

@@ -13,9 +13,11 @@ import { Loader2 } from "lucide-react"
 import { useAuth } from "./auth-provider"
 
 const formSchema = z.object({
-  username: z.string().min(1, {
-    message: "Tên đăng nhập không được để trống",
-  }),
+  phoneNumber: z.string()
+    .min(1, { message: "Số điện thoại không được để trống" })
+    .regex(/^(0[3|5|7|8|9])+([0-9]{8})$/, { 
+      message: "Số điện thoại không hợp lệ (VD: 0987654321)" 
+    }),
   password: z.string().min(1, {
     message: "Mật khẩu không được để trống",
   }),
@@ -31,7 +33,7 @@ export function LoginForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
+      phoneNumber: "",
       password: "",
     },
   })
@@ -42,8 +44,8 @@ export function LoginForm() {
     console.log('Form values:', values)
 
     try {
-      console.log('Attempting login with:', { username: values.username, password: values.password })
-      await login(values.username, values.password)
+      console.log('Attempting login with:', { phoneNumber: values.phoneNumber, password: values.password })
+      await login(values.phoneNumber, values.password)
       
       console.log('Login successful, redirecting to dashboard')
       
@@ -74,12 +76,17 @@ export function LoginForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="username"
+          name="phoneNumber"
           render={({ field }: { field: any }) => (
             <FormItem>
-              <FormLabel>Tên đăng nhập</FormLabel>
+              <FormLabel>Số điện thoại</FormLabel>
               <FormControl>
-                <Input placeholder="Nhập tên đăng nhập" {...field} />
+                <Input 
+                  placeholder="Nhập số điện thoại (VD: 0987654321)" 
+                  type="tel"
+                  maxLength={10}
+                  {...field} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
