@@ -277,10 +277,10 @@ export function DashboardContent() {
 
   if (isLoading) {
     return (
-      <div className="container">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="w-full p-6">
+        <div className="bg-white p-6 rounded-lg shadow-md max-w-6xl mx-auto">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6 mx-auto"></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[1, 2, 3].map((item) => (
                 <div key={item} className="border border-gray-300 p-4 rounded-md">
@@ -298,9 +298,9 @@ export function DashboardContent() {
 
   return (
     <div className="w-full p-6">
-      <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="bg-white p-6 rounded-lg shadow-md max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-center text-[#b45f06]">TRANG CHÍNH</h2>
+          <h2 className="text-2xl font-bold text-[#b45f06] flex-1 text-center">TRANG CHÍNH</h2>
           <div className="flex items-center gap-3">
             {!isAdmin && (
               <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
