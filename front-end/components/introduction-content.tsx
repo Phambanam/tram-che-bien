@@ -410,19 +410,19 @@ export function IntroductionContent() {
           <div className="bg-blue-50 p-6 rounded-lg">
             <h3 className="font-bold mb-3 text-blue-800">📞 THÔNG TIN LIÊN HỆ</h3>
             <div className="text-sm text-blue-700 space-y-2">
-              <p><strong>TM CHỈ HUY:</strong> Lữ đoàn 279 - Phường Bình Hòa - Tp Thuận An - Tỉnh Bình Dương</p>
+              <p><strong>ĐỊA CHỈ:</strong> Lữ đoàn 279 - Phường Bình Hòa - Tp Thuận An - Tỉnh Bình Dương</p>
               <div>
                 <p className="font-semibold mb-1">NHÓM TÁC GIẢ:</p>
                 <div className="ml-4 space-y-1">
-                  <p>• Đại úy Tạ Duy Định - Phó Lữ đoàn trưởng</p>
-                  <p>• Trung úy Vũ Đình Vinh - Chủ nhiệm HC-KT</p>
-                  <p>• Thiếu úy Đậu Trong Lợi - Trợ lý Quân nhu</p>
+                  <p>• Đại tá Tạ Duy Đĩnh - Phó Lữ đoàn trưởng</p>
+                  <p>• Trung tá Vũ Đình Vinh - Chủ nhiệm HC-KT</p>
+                  <p>• Thiếu tá Đậu Trọng Lợi - Trợ lý Quân nhu</p>
                   <p>• Đại úy Nguyễn Đức Thiện - Trợ lý Xe máy</p>
                   <p>• Thượng úy Nguyễn Văn Thành - Phó Trạm trưởng TSC</p>
                 </div>
               </div>
               <p><strong>SỐ ĐIỆN THOẠI:</strong> 0969752776</p>
-              <p><strong>EMAIL:</strong> Nguyenthanhuta279259@gmail.com</p>
+              <p><strong>EMAIL:</strong> Nguyenthanhmta279259@gmail.com</p>
             </div>
           </div>
           

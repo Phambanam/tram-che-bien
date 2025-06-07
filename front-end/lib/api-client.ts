@@ -93,10 +93,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
 // Auth API
 export const authApi = {
-  login: async (username: string, password: string) => {
+  login: async (phoneNumber: string, password: string) => {
     return apiRequest<{ token: string; user: any }>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username: username, password }),
+      body: JSON.stringify({ phoneNumber: phoneNumber, password }),
     })
   },
 
@@ -160,10 +160,29 @@ export const unitsApi = {
     })
   },
 
+  updateUnitPersonnel: async (id: string, personnel: number) => {
+    return apiRequest<{ success: boolean; message: string; data: any }>(`/units/${id}/personnel`, {
+      method: "PATCH",
+      body: JSON.stringify({ personnel }),
+    })
+  },
+
   deleteUnit: async (id: string) => {
     return apiRequest<{ success: boolean; message: string }>(`/units/${id}`, {
       method: "DELETE",
     })
+  },
+
+  // Total personnel APIs
+  updateTotalPersonnel: async (date: string, totalPersonnel: number) => {
+    return apiRequest<{ success: boolean; message: string }>(`/units/total-personnel`, {
+      method: "PATCH",
+      body: JSON.stringify({ date, totalPersonnel }),
+    })
+  },
+
+  getTotalPersonnel: async (date: string) => {
+    return apiRequest<{ success: boolean; data: { date: string; totalPersonnel: number; exists: boolean } }>(`/units/total-personnel/${date}`)
   },
 }
 

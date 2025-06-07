@@ -18,9 +18,11 @@ const formSchema = z
     fullName: z.string().min(1, {
       message: "Họ và tên không được để trống",
     }),
-    phoneNumber: z.string().min(1, {
-      message: "Số điện thoại không được để trống",
-    }),
+    phoneNumber: z.string()
+      .min(1, { message: "Số điện thoại không được để trống" })
+      .regex(/^(0[3|5|7|8|9])+([0-9]{8})$/, { 
+        message: "Số điện thoại không hợp lệ (VD: 0987654321)" 
+      }),
     password: z.string().min(6, {
       message: "Mật khẩu phải có ít nhất 6 ký tự",
     }),
@@ -139,7 +141,12 @@ export function RegisterForm() {
             <FormItem>
               <FormLabel>Số điện thoại</FormLabel>
               <FormControl>
-                <Input placeholder="Nhập số điện thoại" {...field} />
+                <Input 
+                  placeholder="Nhập số điện thoại (VD: 0987654321)" 
+                  type="tel"
+                  maxLength={10}
+                  {...field} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -239,6 +246,8 @@ export function RegisterForm() {
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem>
+                  <SelectItem value="brigadeAssistant">Trợ lý hậu cần Lữ đoàn</SelectItem>
+                  {/* <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem> */}
                   <SelectItem value="commander">Chỉ huy</SelectItem>
                 </SelectContent>
               </Select>
