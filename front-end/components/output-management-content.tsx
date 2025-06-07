@@ -91,6 +91,12 @@ interface UnitPersonnelData {
   [unitId: string]: number
 }
 
+interface UnitPersonnelByDay {
+  [date: string]: {
+    [unitId: string]: number
+  }
+}
+
 export function OutputManagementContent() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedView, setSelectedView] = useState<"day" | "week">("day")
@@ -99,8 +105,9 @@ export function OutputManagementContent() {
   const [categories, setCategories] = useState<Category[]>([])
   const [supplyData, setSupplyData] = useState<SupplyOutputData[]>([])
   const [unitPersonnel, setUnitPersonnel] = useState<UnitPersonnelData>({})
+  const [unitPersonnelByDay, setUnitPersonnelByDay] = useState<UnitPersonnelByDay>({})
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editingUnit, setEditingUnit] = useState<{ unitId: string; unitName: string; personnel: number } | null>(null)
+  const [editingUnit, setEditingUnit] = useState<{ unitId: string; unitName: string; personnel: number; date?: string } | null>(null)
   const [newPersonnelCount, setNewPersonnelCount] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(true)
   
@@ -191,6 +198,17 @@ export function OutputManagementContent() {
       })
       setUnitPersonnel(personnelData)
 
+      // Initialize unit personnel by day data
+      const personnelByDayData: UnitPersonnelByDay = {}
+      weekDays.forEach(day => {
+        const dateKey = format(day, "yyyy-MM-dd")
+        personnelByDayData[dateKey] = {}
+        unitsData.forEach((unit: Unit) => {
+          personnelByDayData[dateKey][unit._id] = unit.personnel || 0
+        })
+      })
+      setUnitPersonnelByDay(personnelByDayData)
+
       // Fetch daily rations (for fallback)
       const dailyRationsResponse = await dailyRationsApi.getDailyRations()
       const dailyRationsData = Array.isArray(dailyRationsResponse) ? dailyRationsResponse : (dailyRationsResponse as any).data || []
@@ -246,10 +264,11 @@ export function OutputManagementContent() {
         let totalPersonnel = 0
         let totalAmount = ingredient.totalQuantity
         
-        // Calculate requirements per unit based on their personnel
+        // Calculate requirements per unit based on their personnel for this specific date
+        const dayPersonnelData = unitPersonnelByDay[dailySummary.date] || {}
         unitsData.forEach((unit) => {
-          const personnel = personnelData[unit._id] || 0
-          const totalPeople = Object.values(personnelData).reduce((sum, p) => sum + p, 0)
+          const personnel = dayPersonnelData[unit._id] || personnelData[unit._id] || 0
+          const totalPeople = Object.values(dayPersonnelData).reduce((sum, p) => sum + p, 0) || Object.values(personnelData).reduce((sum, p) => sum + p, 0)
           
           // Distribute total quantity proportionally based on unit size
           const proportionalRequirement = totalPeople > 0 
@@ -389,8 +408,8 @@ export function OutputManagementContent() {
   }
 
   // Handle personnel count edit
-  const handleEditPersonnel = (unitId: string, unitName: string, currentPersonnel: number) => {
-    setEditingUnit({ unitId, unitName, personnel: currentPersonnel })
+  const handleEditPersonnel = (unitId: string, unitName: string, currentPersonnel: number, date?: string) => {
+    setEditingUnit({ unitId, unitName, personnel: currentPersonnel, date })
     setNewPersonnelCount(currentPersonnel)
     setIsEditDialogOpen(true)
   }
@@ -398,22 +417,37 @@ export function OutputManagementContent() {
   // Save personnel count changes
   const handleSavePersonnelCount = () => {
     if (editingUnit) {
-      const updatedPersonnel = { ...unitPersonnel }
-      updatedPersonnel[editingUnit.unitId] = newPersonnelCount
-
-      setUnitPersonnel(updatedPersonnel)
+      if (editingUnit.date) {
+        // Update personnel for specific date
+        const updatedPersonnelByDay = { ...unitPersonnelByDay }
+        if (!updatedPersonnelByDay[editingUnit.date]) {
+          updatedPersonnelByDay[editingUnit.date] = {}
+        }
+        updatedPersonnelByDay[editingUnit.date][editingUnit.unitId] = newPersonnelCount
+        setUnitPersonnelByDay(updatedPersonnelByDay)
+        
+        toast({
+          title: "Thành công",
+          description: `Đã cập nhật số người ăn cho ${editingUnit.unitName} ngày ${format(new Date(editingUnit.date), "dd/MM/yyyy")}`,
+        })
+      } else {
+        // Update general personnel data
+        const updatedPersonnel = { ...unitPersonnel }
+        updatedPersonnel[editingUnit.unitId] = newPersonnelCount
+        setUnitPersonnel(updatedPersonnel)
+        
+        toast({
+          title: "Thành công",
+          description: `Đã cập nhật số người ăn chung cho ${editingUnit.unitName}`,
+        })
+      }
       
       // Regenerate supply data with new personnel counts
       if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-        generateSupplyOutputFromIngredients(ingredientSummaries, units, updatedPersonnel)
+        generateSupplyOutputFromIngredients(ingredientSummaries, units, unitPersonnel)
       } else {
-        generateSupplyOutputData(dailyRations, units, updatedPersonnel, selectedDate, selectedView)
+        generateSupplyOutputData(dailyRations, units, unitPersonnel, selectedDate, selectedView)
       }
-      
-      toast({
-        title: "Thành công",
-        description: `Đã cập nhật số người ăn cho ${editingUnit.unitName}`,
-      })
     }
     setIsEditDialogOpen(false)
     setEditingUnit(null)
@@ -455,15 +489,18 @@ export function OutputManagementContent() {
     supplyData.forEach(item => {
       const date = item.sourceDate || 'no-date'
       if (!grouped[date]) {
+        // Calculate total personnel for this specific date
+        const dayPersonnelData = unitPersonnelByDay[date] || {}
+        const dayTotalPersonnel = Object.values(dayPersonnelData).reduce((sum, p) => sum + p, 0) || item.totalPersonnel
+        
         grouped[date] = {
           dayName: item.dayName || getDayName(new Date(date)),
           items: [],
-          dayTotal: { cost: 0, personnel: 0 }
+          dayTotal: { cost: 0, personnel: dayTotalPersonnel }
         }
       }
       grouped[date].items.push(item)
       grouped[date].dayTotal.cost += item.totalCost
-      grouped[date].dayTotal.personnel = item.totalPersonnel // Same for all items in a day
     })
     
     // Sort by date
@@ -595,22 +632,26 @@ export function OutputManagementContent() {
                         <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center text-blue-800">
                           📅 {dayData.dayName} - {format(new Date(date), "dd/MM/yyyy")} ({dayData.items.length} nguyên liệu)
                         </TableCell>
-                        {units.map((unit) => (
-                          <TableCell key={`${unit._id}-day-header-personnel`} className="text-center bg-blue-200">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-auto p-1 hover:bg-blue-300"
-                              onClick={() => handleEditPersonnel(unit._id, unit.name, unitPersonnel[unit._id] || 0)}
-                            >
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                <span>{unitPersonnel[unit._id] || 0}</span>
-                                <Edit className="h-3 w-3" />
-                              </div>
-                            </Button>
-                          </TableCell>
-                        ))}
+                        {units.map((unit) => {
+                          const dayPersonnelData = unitPersonnelByDay[date] || {}
+                          const currentPersonnel = dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0
+                          return (
+                            <TableCell key={`${unit._id}-day-header-personnel`} className="text-center bg-blue-200">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-1 hover:bg-blue-300"
+                                onClick={() => handleEditPersonnel(unit._id, unit.name, currentPersonnel, date)}
+                              >
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  <span>{currentPersonnel}</span>
+                                  <Edit className="h-3 w-3" />
+                                </div>
+                              </Button>
+                            </TableCell>
+                          )
+                        })}
                         {units.map((unit) => (
                           <TableCell key={`${unit._id}-day-header-requirement`} className="text-center bg-blue-200">
                             -
@@ -664,11 +705,15 @@ export function OutputManagementContent() {
                           )}
                           
                           {/* Personnel columns */}
-                          {units.map((unit) => (
-                            <TableCell key={`${unit._id}-personnel`} className="text-center bg-blue-50">
-                              {unitPersonnel[unit._id] || 0}
-                            </TableCell>
-                          ))}
+                          {units.map((unit) => {
+                            const dayPersonnelData = unitPersonnelByDay[date] || {}
+                            const currentPersonnel = dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0
+                            return (
+                              <TableCell key={`${unit._id}-personnel`} className="text-center bg-blue-50">
+                                {currentPersonnel}
+                              </TableCell>
+                            )
+                          })}
                           
                           {/* Requirement columns */}
                           {units.map((unit) => (
@@ -694,11 +739,15 @@ export function OutputManagementContent() {
                         <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center">
                           🔸 TỔNG {dayData.dayName.toUpperCase()}
                         </TableCell>
-                        {units.map((unit) => (
-                          <TableCell key={`${unit._id}-day-total-personnel`} className="text-center bg-gray-300">
-                            {unitPersonnel[unit._id] || 0}
-                          </TableCell>
-                        ))}
+                        {units.map((unit) => {
+                          const dayPersonnelData = unitPersonnelByDay[date] || {}
+                          const currentPersonnel = dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0
+                          return (
+                            <TableCell key={`${unit._id}-day-total-personnel`} className="text-center bg-gray-300">
+                              {currentPersonnel}
+                            </TableCell>
+                          )
+                        })}
                         {units.map((unit) => (
                           <TableCell key={`${unit._id}-day-total-requirement`} className="text-center bg-gray-300">
                             {dayData.items.reduce((sum, item) => sum + (item.units[unit._id]?.requirement || 0), 0).toFixed(3)}
@@ -720,11 +769,19 @@ export function OutputManagementContent() {
                     <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center text-green-800">
                       🏆 TỔNG CỘNG CẢ TUẦN
                     </TableCell>
-                    {units.map((unit) => (
-                      <TableCell key={`${unit._id}-grand-total-personnel`} className="text-center bg-green-200">
-                        {unitPersonnel[unit._id] || 0}
-                      </TableCell>
-                    ))}
+                    {units.map((unit) => {
+                      // Calculate total personnel for this unit across all days
+                      const weeklyTotal = Object.keys(groupedData).reduce((sum, date) => {
+                        const dayPersonnelData = unitPersonnelByDay[date] || {}
+                        return sum + (dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0)
+                      }, 0)
+                      
+                      return (
+                        <TableCell key={`${unit._id}-grand-total-personnel`} className="text-center bg-green-200">
+                          {weeklyTotal}
+                        </TableCell>
+                      )
+                    })}
                     {units.map((unit) => (
                       <TableCell key={`${unit._id}-grand-total-requirement`} className="text-center bg-green-200">
                         {supplyData.reduce((sum, item) => sum + (item.units[unit._id]?.requirement || 0), 0).toFixed(3)}
