@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { FileUpload } from "@/components/ui/file-upload"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -86,7 +87,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
       if (type === "image" && !imageUrl.trim()) {
         toast({
           title: "Lỗi",
-          description: "Vui lòng nhập URL hình ảnh",
+          description: "Vui lòng chọn hình ảnh",
           variant: "destructive",
         })
         return
@@ -95,7 +96,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
       if (type === "video" && !videoUrl.trim()) {
         toast({
           title: "Lỗi",
-          description: "Vui lòng nhập URL video",
+          description: "Vui lòng chọn video",
           variant: "destructive",
         })
         return
@@ -161,24 +162,22 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
 
             {type === "image" && (
               <div className="grid gap-2">
-                <Label htmlFor="imageUrl">URL hình ảnh</Label>
-                <Input
-                  id="imageUrl"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="Nhập URL hình ảnh"
+                <FileUpload
+                  accept="image"
+                  label="Hình ảnh"
+                  currentUrl={imageUrl}
+                  onFileUpload={setImageUrl}
                 />
               </div>
             )}
 
             {type === "video" && (
               <div className="grid gap-2">
-                <Label htmlFor="videoUrl">URL video</Label>
-                <Input
-                  id="videoUrl"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="Nhập URL video"
+                <FileUpload
+                  accept="video"
+                  label="Video"
+                  currentUrl={videoUrl}
+                  onFileUpload={setVideoUrl}
                 />
               </div>
             )}

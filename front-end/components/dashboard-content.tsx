@@ -63,20 +63,37 @@ export function DashboardContent() {
     const fetchArticles = async () => {
       try {
         // Try to fetch from API first
-        const data = await articleService.getAll()
-        if (data && Array.isArray(data)) {
-          setArticles(data)
+        const response = await articleService.getAll()
+        console.log("API response:", response)
+        
+        // Check if response has the expected structure
+        if (response && response.success && Array.isArray(response.data)) {
+          // Transform data to match Article interface
+          const transformedArticles = response.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            type: item.type,
+            imageUrl: item.imageUrl,
+            videoUrl: item.videoUrl,
+            author: item.author || "Unknown Author",
+            createdAt: item.createdAt,
+            status: "published" as const
+          }))
+          setArticles(transformedArticles)
         } else {
-          // Fallback to mock data if API returns unexpected format
-          setArticles(getMockArticles())
+          console.warn("API response format unexpected:", response)
+          // If API fails or returns unexpected format, show empty state instead of mock data
+          setArticles([])
         }
       } catch (error) {
         console.error("Error fetching articles:", error)
         toast({
           title: "Lỗi",
-          description: "Không thể tải dữ liệu bài viết. Vui lòng thử lại sau.",
+          description: "Không thể tải dữ liệu bài viết từ server. Đang hiển thị dữ liệu offline.",
           variant: "destructive",
         })
+        // Only use mock data as absolute fallback
         setArticles(getMockArticles())
       } finally {
         setIsLoading(false)
@@ -142,13 +159,24 @@ export function DashboardContent() {
       if (selectedArticle) {
         // Update existing article
         await articleService.update(selectedArticle.id, articleData)
-        setArticles((prev) =>
-          prev.map((article) =>
-            article.id === selectedArticle.id
-              ? { ...article, ...articleData, updatedAt: new Date().toISOString() }
-              : article,
-          ),
-        )
+        
+        // Refetch articles from API after update
+        const refreshResponse = await articleService.getAll()
+        if (refreshResponse && refreshResponse.success && Array.isArray(refreshResponse.data)) {
+          const transformedArticles = refreshResponse.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            type: item.type,
+            imageUrl: item.imageUrl,
+            videoUrl: item.videoUrl,
+            author: item.author || "Unknown Author",
+            createdAt: item.createdAt,
+            status: "published" as const
+          }))
+          setArticles(transformedArticles)
+        }
+        
         toast({
           title: "Thành công",
           description: "Cập nhật bài viết thành công",
@@ -163,12 +191,24 @@ export function DashboardContent() {
         }
 
         const response = await articleService.create(newArticleData)
-        const newArticle = (response as any)?.data || {
-          id: Date.now().toString(),
-          ...newArticleData,
-        } as Article
-
-        setArticles((prev) => [newArticle, ...prev])
+        console.log("Create response:", response)
+        
+        // After successful creation, refetch articles from API to get the real data
+        const refreshResponse = await articleService.getAll()
+        if (refreshResponse && refreshResponse.success && Array.isArray(refreshResponse.data)) {
+          const transformedArticles = refreshResponse.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            type: item.type,
+            imageUrl: item.imageUrl,
+            videoUrl: item.videoUrl,
+            author: item.author || "Unknown Author",
+            createdAt: item.createdAt,
+            status: "published" as const
+          }))
+          setArticles(transformedArticles)
+        }
         toast({
           title: "Thành công",
           description: "Thêm bài viết mới thành công",
@@ -189,7 +229,24 @@ export function DashboardContent() {
     if (selectedArticle) {
       try {
         await articleService.delete(selectedArticle.id)
-        setArticles((prev) => prev.filter((article) => article.id !== selectedArticle.id))
+        
+        // Refetch articles from API after delete
+        const refreshResponse = await articleService.getAll()
+        if (refreshResponse && refreshResponse.success && Array.isArray(refreshResponse.data)) {
+          const transformedArticles = refreshResponse.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            content: item.content,
+            type: item.type,
+            imageUrl: item.imageUrl,
+            videoUrl: item.videoUrl,
+            author: item.author || "Unknown Author",
+            createdAt: item.createdAt,
+            status: "published" as const
+          }))
+          setArticles(transformedArticles)
+        }
+        
         toast({
           title: "Thành công",
           description: "Xóa bài viết thành công",
