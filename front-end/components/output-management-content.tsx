@@ -528,7 +528,10 @@ export function OutputManagementContent() {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>
-                  📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : `${dayNames[weekDays.findIndex(day => isSameDay(day, selectedDate))]}`}
+                  📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : (() => {
+                    const dayIndex = weekDays.findIndex(day => isSameDay(day, selectedDate))
+                    return dayIndex >= 0 ? dayNames[dayIndex] : format(selectedDate, "EEEE", { locale: vi })
+                  })()}
                 </CardTitle>
                 <div className="flex items-center gap-4 mt-2">
                   <Badge variant={dataSource === "ingredients" ? "default" : "secondary"} className="text-xs">
