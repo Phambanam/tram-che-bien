@@ -14,7 +14,7 @@ import { CalendarIcon, Search, FileDown, FileUp, Users, Calculator, Edit, Plus, 
 import { format, startOfWeek, addDays, isSameDay, getWeek, getYear } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
-import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi } from "@/lib/api-client"
+import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
 
 interface Unit {
   _id: string
@@ -207,6 +207,28 @@ export function OutputManagementContent() {
           personnelByDayData[dateKey][unit._id] = unit.personnel || 0
         })
       })
+      
+      // Fetch personnel by day from backend
+      try {
+        const startDate = format(weekDays[0], "yyyy-MM-dd")
+        const endDate = format(weekDays[6], "yyyy-MM-dd")
+        const personnelByDayResponse = await unitPersonnelDailyApi.getPersonnelByWeek(startDate, endDate)
+        
+        if (personnelByDayResponse.success && personnelByDayResponse.data) {
+          // Merge backend data with default data
+          Object.keys(personnelByDayResponse.data).forEach(date => {
+            if (personnelByDayData[date]) {
+              Object.keys(personnelByDayResponse.data[date]).forEach(unitId => {
+                personnelByDayData[date][unitId] = personnelByDayResponse.data[date][unitId]
+              })
+            }
+          })
+        }
+      } catch (error) {
+        console.error("Error fetching personnel by day:", error)
+        // Continue with default data
+      }
+      
       setUnitPersonnelByDay(personnelByDayData)
 
       // Fetch daily rations (for fallback)
@@ -415,38 +437,64 @@ export function OutputManagementContent() {
   }
 
   // Save personnel count changes
-  const handleSavePersonnelCount = () => {
+  const handleSavePersonnelCount = async () => {
     if (editingUnit) {
-      if (editingUnit.date) {
-        // Update personnel for specific date
-        const updatedPersonnelByDay = { ...unitPersonnelByDay }
-        if (!updatedPersonnelByDay[editingUnit.date]) {
-          updatedPersonnelByDay[editingUnit.date] = {}
+      try {
+        if (editingUnit.date) {
+          // Update personnel for specific date via API
+          const response = await unitPersonnelDailyApi.updatePersonnelForDate(
+            editingUnit.unitId,
+            editingUnit.date,
+            newPersonnelCount
+          )
+          
+          if (response.success) {
+            // Update local state
+            const updatedPersonnelByDay = { ...unitPersonnelByDay }
+            if (!updatedPersonnelByDay[editingUnit.date]) {
+              updatedPersonnelByDay[editingUnit.date] = {}
+            }
+            updatedPersonnelByDay[editingUnit.date][editingUnit.unitId] = newPersonnelCount
+            setUnitPersonnelByDay(updatedPersonnelByDay)
+            
+            toast({
+              title: "Thành công",
+              description: `Đã cập nhật số người ăn cho ${editingUnit.unitName} ngày ${format(new Date(editingUnit.date), "dd/MM/yyyy")}`,
+            })
+          } else {
+            throw new Error(response.message || "Lỗi khi cập nhật")
+          }
+        } else {
+          // Update general personnel data via units API
+          const response = await unitsApi.updateUnitPersonnel(editingUnit.unitId, newPersonnelCount)
+          
+          if (response.success) {
+            const updatedPersonnel = { ...unitPersonnel }
+            updatedPersonnel[editingUnit.unitId] = newPersonnelCount
+            setUnitPersonnel(updatedPersonnel)
+            
+            toast({
+              title: "Thành công",
+              description: `Đã cập nhật số người ăn chung cho ${editingUnit.unitName}`,
+            })
+          } else {
+            throw new Error(response.message || "Lỗi khi cập nhật")
+          }
         }
-        updatedPersonnelByDay[editingUnit.date][editingUnit.unitId] = newPersonnelCount
-        setUnitPersonnelByDay(updatedPersonnelByDay)
         
+        // Regenerate supply data with new personnel counts
+        if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
+          generateSupplyOutputFromIngredients(ingredientSummaries, units, unitPersonnel)
+        } else {
+          generateSupplyOutputData(dailyRations, units, unitPersonnel, selectedDate, selectedView)
+        }
+      } catch (error) {
+        console.error("Error updating personnel:", error)
         toast({
-          title: "Thành công",
-          description: `Đã cập nhật số người ăn cho ${editingUnit.unitName} ngày ${format(new Date(editingUnit.date), "dd/MM/yyyy")}`,
+          title: "Lỗi",
+          description: error instanceof Error ? error.message : "Không thể cập nhật số người ăn",
+          variant: "destructive",
         })
-      } else {
-        // Update general personnel data
-        const updatedPersonnel = { ...unitPersonnel }
-        updatedPersonnel[editingUnit.unitId] = newPersonnelCount
-        setUnitPersonnel(updatedPersonnel)
-        
-        toast({
-          title: "Thành công",
-          description: `Đã cập nhật số người ăn chung cho ${editingUnit.unitName}`,
-        })
-      }
-      
-      // Regenerate supply data with new personnel counts
-      if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-        generateSupplyOutputFromIngredients(ingredientSummaries, units, unitPersonnel)
-      } else {
-        generateSupplyOutputData(dailyRations, units, unitPersonnel, selectedDate, selectedView)
       }
     }
     setIsEditDialogOpen(false)
