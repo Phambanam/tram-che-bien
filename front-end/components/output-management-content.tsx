@@ -153,11 +153,7 @@ export function OutputManagementContent() {
       const params: any = {
         week: getWeek(selectedDate, { locale: vi }),
         year: getYear(selectedDate),
-        showAllDays: selectedView === "week"
-      }
-      
-      if (selectedView === "day") {
-        params.date = format(selectedDate, "yyyy-MM-dd")
+        showAllDays: true // Always show all days
       }
       
       const response = await menuPlanningApi.getDailyIngredientSummaries(params)
@@ -241,12 +237,8 @@ export function OutputManagementContent() {
     // Filter ingredient data based on selected view and date
     let filteredIngredientData = ingredientData
     
-    if (selectedView === "day") {
-      // For day view, only show ingredients for the selected date
-      const selectedDateStr = format(selectedDate, "yyyy-MM-dd")
-      filteredIngredientData = ingredientData.filter(dailySummary => dailySummary.date === selectedDateStr)
-    }
-    // For week view, show all available days
+    // Always show all available days (remove day/week filtering)
+    // filteredIngredientData = ingredientData
     
     filteredIngredientData.forEach((dailySummary) => {
       dailySummary.ingredients.forEach((ingredient) => {
@@ -282,11 +274,8 @@ export function OutputManagementContent() {
         
         const totalCost = totalAmount * pricePerUnit
         
-        // For day view, don't show date in name since it's obvious
-        // For week view, show date for clarity
-        const displayName = selectedView === "day" 
-          ? ingredient.lttpName
-          : `${ingredient.lttpName} (${dailySummary.dayName} - ${format(new Date(dailySummary.date), "dd/MM/yyyy")})`
+        // Always show date and day name for clarity
+        const displayName = `${ingredient.lttpName} - ${dailySummary.dayName} (${format(new Date(dailySummary.date), "dd/MM")})`
         
         outputData.push({
           id: `${dailySummary.date}-${ingredient.lttpId}`,
@@ -540,7 +529,7 @@ export function OutputManagementContent() {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>
-                  📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : getDayName(selectedDate)}
+                  📊 Bảng chính - Tổng cả tuần (Thứ 2 đến Chủ nhật)
                 </CardTitle>
                 <div className="flex items-center gap-4 mt-2">
                   <Badge variant={dataSource === "ingredients" ? "default" : "secondary"} className="text-xs">
@@ -548,21 +537,12 @@ export function OutputManagementContent() {
                   </Badge>
                   {dataSource === "ingredients" && (
                     <span className="text-xs text-gray-600">
-                      {loadingIngredients ? "Đang tải..." : 
-                        selectedView === "day" 
-                          ? `${supplyData.length} nguyên liệu cho ngày được chọn`
-                          : `${ingredientSummaries.length} ngày có thực đơn`
-                      }
+                      {loadingIngredients ? "Đang tải..." : `${supplyData.length} nguyên liệu từ ${ingredientSummaries.length} ngày có thực đơn`}
                     </span>
                   )}
-                  {dataSource === "ingredients" && selectedView === "day" && (
-                    <span className="text-xs text-blue-600 font-medium">
-                      📅 {format(selectedDate, "dd/MM/yyyy")}
-                    </span>
-                  )}
-                  {dataSource === "ingredients" && selectedView === "week" && (
+                  {dataSource === "ingredients" && (
                     <span className="text-xs text-green-600 font-medium">
-                      📅 Tuần {getWeek(selectedDate, { locale: vi })}/{getYear(selectedDate)}
+                      📅 Tuần {getWeek(selectedDate, { locale: vi })}/{getYear(selectedDate)} - Tất cả ngày
                     </span>
                   )}
                 </div>
@@ -620,14 +600,7 @@ export function OutputManagementContent() {
                     <TableRow key={item.id}>
                       <TableCell>{index + 1}</TableCell>
                       <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{item.foodName}</span>
-                          {dataSource === "ingredients" && selectedView === "week" && item.sourceDate && (
-                            <span className="text-xs text-blue-600">
-                              {format(new Date(item.sourceDate), "dd/MM")} - {item.dayName}
-                            </span>
-                          )}
-                        </div>
+                        <span>{item.foodName}</span>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={
@@ -738,11 +711,8 @@ export function OutputManagementContent() {
               {dataSource === "ingredients" ? (
                 <>
                   <p>
-                    <strong>📋 Dữ liệu từ thực đơn:</strong> Tên nguyên liệu hiển thị theo thực đơn đã lập. 
-                    {selectedView === "day" ? 
-                      `Hiển thị nguyên liệu cho ngày ${format(selectedDate, "dd/MM/yyyy")} đã chọn.` :
-                      "Hiển thị nguyên liệu cho tất cả ngày trong tuần có thực đơn."
-                    }
+                    <strong>📋 Dữ liệu từ thực đơn:</strong> Hiển thị tất cả nguyên liệu từ Thứ 2 đến Chủ nhật trong tuần được chọn. 
+                    Mỗi nguyên liệu được hiển thị kèm theo ngày sử dụng để dễ dàng theo dõi.
                   </p>
                   <p>
                     <strong>📊 Định lượng:</strong> Hiển thị cả định lượng trên người (kg/người) và tổng số lượng cần chuẩn bị. 
