@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -25,18 +25,21 @@ interface Article {
   status: "published" | "draft"
 }
 
-export default function ArticleDetailPage({ params }: { params: { id: string } }) {
+export default function ArticleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const { toast } = useToast()
   const [article, setArticle] = useState<Article | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isArticleDialogOpen, setIsArticleDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  
+  // Unwrap params using React.use()
+  const { id } = use(params)
 
   useEffect(() => {
     const fetchArticle = async () => {
       try {
-        const data = await contentApi.getContentById(params.id)
+        const data = await contentApi.getContentById(id)
         setArticle(data)
       } catch (error) {
         console.error("Error fetching article:", error)
@@ -66,7 +69,7 @@ export default function ArticleDetailPage({ params }: { params: { id: string } }
     }
 
     fetchArticle()
-  }, [params.id, toast])
+  }, [id, toast])
 
   const handleEditArticle = () => {
     setIsArticleDialogOpen(true)
@@ -232,8 +235,8 @@ export default function ArticleDetailPage({ params }: { params: { id: string } }
           </div>
         )}
 
-        <div className="prose max-w-none">
-          <ReactMarkdown className="markdown-content">
+        <div className="prose max-w-none markdown-content">
+          <ReactMarkdown>
             {article.content}
           </ReactMarkdown>
         </div>
