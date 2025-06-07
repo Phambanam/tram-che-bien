@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import dynamic from "next/dynamic"
-import "quill/dist/quill.snow.css"
-import "@/styles/quill-custom.css"
+import "@uiw/react-md-editor/markdown-editor.css"
+import "@uiw/react-markdown-preview/markdown.css"
 
-// Dynamically import ReactQuill to avoid SSR issues
-const ReactQuill = dynamic(() => import("react-quill"), { ssr: false })
+// Dynamically import MDEditor to avoid SSR issues
+const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false })
 
 interface RichTextEditorProps {
   value: string
@@ -15,47 +15,26 @@ interface RichTextEditorProps {
   className?: string
 }
 
-const modules = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ["bold", "italic", "underline", "strike"],
-    [{ color: [] }, { background: [] }],
-    [{ list: "ordered" }, { list: "bullet" }],
-    [{ indent: "-1" }, { indent: "+1" }],
-    [{ align: [] }],
-    ["link", "image"],
-    ["clean"],
-  ],
-}
-
-const formats = [
-  "header",
-  "bold",
-  "italic", 
-  "underline",
-  "strike",
-  "color",
-  "background",
-  "list",
-  "bullet",
-  "indent",
-  "align",
-  "link",
-  "image",
-]
-
 export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+  // Handle markdown editor change
+  const handleChange = (val?: string) => {
+    onChange(val || "")
+  }
+
   return (
-    <div className={className}>
-      <ReactQuill
-        theme="snow"
+    <div className={className} data-color-mode="light">
+      <MDEditor
         value={value}
-        onChange={onChange}
+        onChange={handleChange}
         placeholder={placeholder}
-        modules={modules}
-        formats={formats}
-        style={{
-          minHeight: "150px",
+        height={200}
+        visibleDragBar={false}
+        textareaProps={{
+          placeholder: placeholder || "Nhập nội dung bài viết...",
+          style: {
+            fontSize: 14,
+            lineHeight: 1.6,
+          }
         }}
       />
     </div>

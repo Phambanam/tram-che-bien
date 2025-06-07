@@ -10,6 +10,8 @@ import { ArticleDialog } from "@/components/articles/article-dialog"
 import { DeleteArticleDialog } from "@/components/articles/delete-article-dialog"
 import { contentApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
+import ReactMarkdown from "react-markdown"
+import "@/styles/markdown.css"
 
 interface Article {
   id: string
@@ -231,11 +233,9 @@ export default function ArticleDetailPage({ params }: { params: { id: string } }
         )}
 
         <div className="prose max-w-none">
-          {article.content.split("\n").map((paragraph, index) => (
-            <p key={index} className="mb-4">
-              {paragraph}
-            </p>
-          ))}
+          <ReactMarkdown className="markdown-content">
+            {article.content}
+          </ReactMarkdown>
         </div>
       </Card>
 

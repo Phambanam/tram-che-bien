@@ -155,18 +155,18 @@ export function DashboardContent() {
         })
       } else {
         // Add new article
-        const newArticleData = {
+        const newArticleData: Partial<Article> = {
           ...articleData,
           author: "Current User", // Replace with actual user
           createdAt: new Date().toISOString(),
-          status: "published",
+          status: "published" as const,
         }
 
         const response = await articleService.create(newArticleData)
-        const newArticle = response.data || {
+        const newArticle = (response as any)?.data || {
           id: Date.now().toString(),
           ...newArticleData,
-        }
+        } as Article
 
         setArticles((prev) => [newArticle, ...prev])
         toast({
@@ -367,7 +367,10 @@ export function DashboardContent() {
                         </div>
                       </div>
                     )}
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">{article.content}</p>
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                      {article.content.replace(/[#*_`~\[\]()]/g, '').replace(/<[^>]*>/g, '').slice(0, 150)}
+                      {article.content.length > 150 ? '...' : ''}
+                    </p>
                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />

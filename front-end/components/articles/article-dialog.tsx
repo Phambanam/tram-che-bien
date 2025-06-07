@@ -72,8 +72,8 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
         return
       }
 
-      // Strip HTML tags for validation (for rich text editor)
-      const plainTextContent = content.replace(/<[^>]*>/g, '').trim()
+      // Strip markdown and HTML for validation
+      const plainTextContent = content.replace(/[#*_`~\[\]()]/g, '').replace(/<[^>]*>/g, '').trim()
       if (!plainTextContent) {
         toast({
           title: "Lỗi",
