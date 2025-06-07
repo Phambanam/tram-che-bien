@@ -140,18 +140,30 @@ export function OutputManagementContent() {
       return false
     }
     
-    const userUnitString = user.unit?.toString()
-    console.log(`=== PERMISSION CHECK DEBUG ===`)
-    console.log(`Target unitId: "${unitId}" (length: ${unitId.length})`)
-    console.log(`User unit: "${userUnitString}" (length: ${userUnitString?.length})`)
-    console.log(`User role: "${user.role}"`)
-    console.log(`Exact match check: "${userUnitString}" === "${unitId}" = ${userUnitString === unitId}`)
-    console.log(`Character comparison:`)
-    if (userUnitString && unitId) {
-      for (let i = 0; i < Math.max(userUnitString.length, unitId.length); i++) {
-        console.log(`  [${i}]: "${userUnitString[i] || 'undefined'}" vs "${unitId[i] || 'undefined'}" = ${userUnitString[i] === unitId[i]}`)
+    // Handle different possible formats of user.unit
+    let userUnitId: string | undefined
+    if (user.unit) {
+      if (typeof user.unit === 'string') {
+        userUnitId = user.unit
+      } else if ((user.unit as any)._id) {
+        userUnitId = (user.unit as any)._id
+      } else if (user.unit.toString && typeof user.unit.toString === 'function') {
+        const unitStr = user.unit.toString()
+        // If toString() returns "[object Object]", try to access _id or $oid
+        if (unitStr === "[object Object]") {
+          userUnitId = (user.unit as any)._id || (user.unit as any).$oid || undefined
+        } else {
+          userUnitId = unitStr
+        }
       }
     }
+    
+    console.log(`=== PERMISSION CHECK DEBUG ===`)
+    console.log(`Target unitId: "${unitId}" (length: ${unitId.length})`)
+    console.log(`User unit raw:`, user.unit)
+    console.log(`User unit processed: "${userUnitId}" (length: ${userUnitId?.length})`)
+    console.log(`User role: "${user.role}"`)
+    console.log(`Exact match check: "${userUnitId}" === "${unitId}" = ${userUnitId === unitId}`)
     
     switch (user.role) {
       case 'brigadeAssistant':
@@ -160,7 +172,7 @@ export function OutputManagementContent() {
         return true
       case 'unitAssistant':
         // Unit assistant can only edit their own unit
-        const canEdit = user.unit && user.unit.toString() === unitId
+        const canEdit = Boolean(userUnitId && userUnitId === unitId)
         console.log(`Unit assistant - can edit own unit only: ${canEdit}`)
         return canEdit
       default:
