@@ -350,25 +350,24 @@ export function OutputManagementContent() {
       dailySummary.ingredients.forEach((ingredient) => {
         const unitRequirements: { [unitId: string]: { personnel: number; requirement: number } } = {}
         let totalPersonnel = 0
-        let totalAmount = ingredient.totalQuantity
+        let totalAmount = 0
         
         // Calculate requirements per unit based on their personnel for this specific date
         const dayPersonnelData = (personnelByDayData && personnelByDayData[dailySummary.date]) || unitPersonnelByDay[dailySummary.date] || {}
         unitsData.forEach((unit) => {
           const personnel = dayPersonnelData[unit._id] || personnelData[unit._id] || 0
-          const totalPeople = Object.values(dayPersonnelData).reduce((sum, p) => sum + p, 0) || Object.values(personnelData).reduce((sum, p) => sum + p, 0)
           
-          // Distribute total quantity proportionally based on unit size
-          const proportionalRequirement = totalPeople > 0 
-            ? (ingredient.totalQuantity * personnel) / totalPeople 
-            : 0
+          // Calculate requirement based on standard formula:
+          // Nhu cầu = (Số người ăn × Trọng lượng nguyên liệu cho 100 người) / 100
+          const requirement = (personnel * ingredient.totalQuantity) / 100
           
           unitRequirements[unit._id] = {
             personnel,
-            requirement: proportionalRequirement
+            requirement: requirement
           }
           
           totalPersonnel += personnel
+          totalAmount += requirement
         })
 
         // Estimate price per unit (using default daily ration prices as reference)
@@ -389,7 +388,7 @@ export function OutputManagementContent() {
           foodName: displayName,
           category: ingredient.category,
           unit: ingredient.unit,
-          quantityPerPerson: totalPersonnel > 0 ? ingredient.totalQuantity / totalPersonnel : 0,
+          quantityPerPerson: ingredient.totalQuantity / 100, // Quantity per person based on 100-person standard
           pricePerUnit,
           units: unitRequirements,
           totalPersonnel,
