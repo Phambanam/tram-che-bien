@@ -869,6 +869,27 @@ export const menuPlanningApi = {
   },
 }
 
+// Unit Personnel Daily API
+export const unitPersonnelDailyApi = {
+  getPersonnelByWeek: async (startDate: string, endDate: string) => {
+    return apiRequest<{ success: boolean; data: { [date: string]: { [unitId: string]: number } } }>(`/unit-personnel-daily/week?startDate=${startDate}&endDate=${endDate}`)
+  },
+
+  updatePersonnelForDate: async (unitId: string, date: string, personnel: number) => {
+    return apiRequest<{ success: boolean; message: string; data: any }>("/unit-personnel-daily/update", {
+      method: "PUT",
+      body: JSON.stringify({ unitId, date, personnel }),
+    })
+  },
+
+  batchUpdatePersonnel: async (updates: Array<{ unitId: string; date: string; personnel: number }>) => {
+    return apiRequest<{ success: boolean; message: string; data: any[] }>("/unit-personnel-daily/batch-update", {
+      method: "PUT",
+      body: JSON.stringify({ updates }),
+    })
+  },
+}
+
 // Export all APIs for convenience
 export const api = {
   auth: authApi,
@@ -891,4 +912,5 @@ export const api = {
   dailyRations: dailyRationsApi,
   lttp: lttpApi,
   menuPlanning: menuPlanningApi,
+  unitPersonnelDaily: unitPersonnelDailyApi,
 }

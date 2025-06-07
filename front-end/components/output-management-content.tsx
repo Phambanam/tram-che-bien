@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -14,7 +14,7 @@ import { CalendarIcon, Search, FileDown, FileUp, Users, Calculator, Edit, Plus, 
 import { format, startOfWeek, addDays, isSameDay, getWeek, getYear } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
-import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi } from "@/lib/api-client"
+import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
 import { useAuth } from "@/components/auth/auth-provider"
 
 interface Unit {
@@ -92,9 +92,10 @@ interface UnitPersonnelData {
   [unitId: string]: number
 }
 
-// New interface for daily dining count per unit
-interface UnitDailyDiningData {
-  [unitId: string]: number // số người ăn cơm trong ngày
+interface UnitPersonnelByDay {
+  [date: string]: {
+    [unitId: string]: number
+  }
 }
 
 export function OutputManagementContent() {
@@ -104,11 +105,11 @@ export function OutputManagementContent() {
   const [dailyRations, setDailyRations] = useState<DailyRation[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [supplyData, setSupplyData] = useState<SupplyOutputData[]>([])
-  const [unitPersonnel, setUnitPersonnel] = useState<UnitPersonnelData>({}) // số quân nhân cố định
-  const [unitDailyDining, setUnitDailyDining] = useState<UnitDailyDiningData>({}) // số người ăn trong ngày
+  const [unitPersonnel, setUnitPersonnel] = useState<UnitPersonnelData>({})
+  const [unitPersonnelByDay, setUnitPersonnelByDay] = useState<UnitPersonnelByDay>({})
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editingUnit, setEditingUnit] = useState<{ unitId: string; unitName: string; diningCount: number } | null>(null)
-  const [newDiningCount, setNewDiningCount] = useState<number>(0)
+  const [editingUnit, setEditingUnit] = useState<{ unitId: string; unitName: string; personnel: number; date?: string } | null>(null)
+  const [newPersonnelCount, setNewPersonnelCount] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(true)
   
   // New state for ingredient summaries
@@ -117,62 +118,90 @@ export function OutputManagementContent() {
   const [dataSource, setDataSource] = useState<"ingredients" | "dailyrations">("ingredients")
   
   // AI Assistant states
+  // const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false)
+  // const [aiFormData, setAIFormData] = useState({
+  //   foodName: "",
+  //   category: "",
+  //   unit: "kg",
+  //   quantityPerPerson: 0,
+  //   pricePerUnit: 0,
+  //   notes: ""
+  // })
   const [aiSuggestions, setAISuggestions] = useState<string[]>([])
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false)
   
   const { toast } = useToast()
   const { user } = useAuth()
 
-  // Filter units based on user role
-  const getVisibleUnits = () => {
-    if (!user) return []
-    
-    // Admin and brigade assistant can see all units
-    if (user.role === 'admin' || user.role === 'brigadeAssistant') {
-      return units
-    }
-    
-    // Unit assistant can only see their own unit
-    if (user.role === 'unitAssistant' && user.unit) {
-      return units.filter(unit => unit._id === user.unit?.id)
-    }
-    
-    // Commander can see all units (read-only)
-    if (user.role === 'commander') {
-      return units
-    }
-    
-    return []
-  }
-
   // Check if user can edit personnel for a specific unit
-  const canEditUnitPersonnel = (unitId: string) => {
-    if (!user) return false
-    
-    // Admin and brigade assistant can edit all units
-    if (user.role === 'admin' || user.role === 'brigadeAssistant') {
-      return true
+  const canEditPersonnel = (unitId: string): boolean => {
+    if (!user) {
+      console.log("No user data available for permission check")
+      return false
     }
     
-    // Unit assistant can only edit their own unit
-    if (user.role === 'unitAssistant' && user.unit) {
-      return unitId === user.unit.id
+    // Handle different possible formats of user.unit
+    let userUnitId: string | undefined
+    if (user.unit) {
+      if (typeof user.unit === 'string') {
+        userUnitId = user.unit
+      } else if ((user.unit as any)._id) {
+        userUnitId = (user.unit as any)._id
+      } else if (user.unit.toString && typeof user.unit.toString === 'function') {
+        const unitStr = user.unit.toString()
+        // If toString() returns "[object Object]", try to access _id or $oid
+        if (unitStr === "[object Object]") {
+          userUnitId = (user.unit as any)._id || (user.unit as any).$oid || undefined
+        } else {
+          userUnitId = unitStr
+        }
+      }
     }
     
-    // Commander cannot edit
-    return false
+    console.log(`=== PERMISSION CHECK DEBUG ===`)
+    console.log(`Target unitId: "${unitId}" (length: ${unitId.length})`)
+    console.log(`User unit raw:`, user.unit)
+    console.log(`User unit processed: "${userUnitId}" (length: ${userUnitId?.length})`)
+    console.log(`User role: "${user.role}"`)
+    console.log(`Exact match check: "${userUnitId}" === "${unitId}" = ${userUnitId === unitId}`)
+    
+    switch (user.role) {
+      case 'brigadeAssistant':
+        // Brigade assistant can edit all units
+        console.log("Brigade assistant - can edit all units: TRUE")
+        return true
+      case 'unitAssistant':
+        // Unit assistant can only edit their own unit
+        const canEdit = Boolean(userUnitId && userUnitId === unitId)
+        console.log(`Unit assistant - can edit own unit only: ${canEdit}`)
+        return canEdit
+      default:
+        // Other roles (commanders, etc.) cannot edit
+        console.log(`Role ${user.role} - cannot edit: FALSE`)
+        return false
+    }
   }
-
-  const visibleUnits = getVisibleUnits()
 
   // Get week days starting from Monday
   const getWeekDays = (date: Date) => {
     const start = startOfWeek(date, { weekStartsOn: 1 }) // Monday = 1
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i))
+    const days = Array.from({ length: 7 }, (_, i) => addDays(start, i))
+    
+    // Debug logging
+    console.log("Selected date:", format(date, "yyyy-MM-dd EEEE", { locale: vi }))
+    console.log("Week days:", days.map(d => format(d, "yyyy-MM-dd EEEE", { locale: vi })))
+    
+    return days
   }
 
   const weekDays = getWeekDays(selectedDate)
-  const dayNames = ["Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy", "Chủ nhật"]
+  
+  // Fix dayNames mapping - make sure it matches the actual day order from startOfWeek
+  const getDayName = (date: Date) => {
+    const dayOfWeek = date.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const dayNames = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"]
+    return dayNames[dayOfWeek]
+  }
 
   // Fetch ingredient summaries from menu planning API
   const fetchIngredientSummaries = async () => {
@@ -182,11 +211,7 @@ export function OutputManagementContent() {
       const params: any = {
         week: getWeek(selectedDate, { locale: vi }),
         year: getYear(selectedDate),
-        showAllDays: selectedView === "week"
-      }
-      
-      if (selectedView === "day") {
-        params.date = format(selectedDate, "yyyy-MM-dd")
+        showAllDays: true // Always show all days
       }
       
       const response = await menuPlanningApi.getDailyIngredientSummaries(params)
@@ -217,19 +242,59 @@ export function OutputManagementContent() {
       const unitsData = Array.isArray(unitsResponse) ? unitsResponse : (unitsResponse as any).data || []
       setUnits(unitsData)
 
-      // Initialize unit personnel data (số quân nhân cố định)
+      // Initialize unit personnel data
       const personnelData: UnitPersonnelData = {}
       unitsData.forEach((unit: Unit) => {
         personnelData[unit._id] = unit.personnel || 0
       })
       setUnitPersonnel(personnelData)
 
-      // Initialize daily dining data (số người ăn cơm trong ngày) - ban đầu bằng số quân nhân
-      const diningData: UnitDailyDiningData = {}
-      unitsData.forEach((unit: Unit) => {
-        diningData[unit._id] = unit.personnel || 0 // Mặc định bằng số quân nhân
+      // Initialize unit personnel by day data
+      const personnelByDayData: UnitPersonnelByDay = {}
+      weekDays.forEach(day => {
+        const dateKey = format(day, "yyyy-MM-dd")
+        personnelByDayData[dateKey] = {}
+        unitsData.forEach((unit: Unit) => {
+          personnelByDayData[dateKey][unit._id] = unit.personnel || 0
+        })
       })
-      setUnitDailyDining(diningData)
+      
+      // Fetch personnel by day from backend
+      try {
+        const startDate = format(weekDays[0], "yyyy-MM-dd")
+        const endDate = format(weekDays[6], "yyyy-MM-dd")
+        console.log("=== LOADING PERSONNEL DATA ===")
+        console.log("Date range:", startDate, "to", endDate)
+        
+        const personnelByDayResponse = await unitPersonnelDailyApi.getPersonnelByWeek(startDate, endDate)
+        console.log("Raw backend response:", personnelByDayResponse)
+        
+        if (personnelByDayResponse.success && personnelByDayResponse.data) {
+          // Merge backend data with default data
+          console.log("Backend personnel data:", personnelByDayResponse.data)
+          console.log("Default personnelByDayData before merge:", personnelByDayData)
+          
+          Object.keys(personnelByDayResponse.data).forEach(date => {
+            if (personnelByDayData[date]) {
+              Object.keys(personnelByDayResponse.data[date]).forEach(unitId => {
+                console.log(`Setting personnel for unit ${unitId} on ${date}: ${personnelByDayResponse.data[date][unitId]}`)
+                personnelByDayData[date][unitId] = personnelByDayResponse.data[date][unitId]
+              })
+            } else {
+              console.log(`Date ${date} not found in personnelByDayData, creating it`)
+              personnelByDayData[date] = personnelByDayResponse.data[date]
+            }
+          })
+          console.log("Final personnelByDayData after merge:", personnelByDayData)
+        } else {
+          console.log("No data or unsuccessful response from backend")
+        }
+      } catch (error) {
+        console.error("Error fetching personnel by day:", error)
+        // Continue with default data
+      }
+      
+      setUnitPersonnelByDay(personnelByDayData)
 
       // Fetch daily rations (for fallback)
       const dailyRationsResponse = await dailyRationsApi.getDailyRations()
@@ -246,16 +311,12 @@ export function OutputManagementContent() {
       
       if (ingredientData.length > 0) {
         setDataSource("ingredients")
-        // Call generateSupplyOutputFromIngredients after states are updated
-        setTimeout(() => {
-          generateSupplyOutputFromIngredients(ingredientData, getVisibleUnits(), diningData)
-        }, 0)
+        // Pass the updated personnelByDayData instead of just personnelData
+        generateSupplyOutputFromIngredients(ingredientData, unitsData, personnelData, personnelByDayData)
       } else {
         // Fallback to daily rations if no ingredient data
         setDataSource("dailyrations")
-        setTimeout(() => {
-          generateSupplyOutputData(dailyRationsData, getVisibleUnits(), diningData, selectedDate, selectedView)
-        }, 0)
+        generateSupplyOutputData(dailyRationsData, unitsData, personnelData, selectedDate, selectedView)
         toast({
           title: "Thông báo",
           description: "Không có dữ liệu thực đơn. Hiển thị dữ liệu định mức cơ bản.",
@@ -276,41 +337,37 @@ export function OutputManagementContent() {
   }
 
   // Generate supply output data from ingredient summaries
-  const generateSupplyOutputFromIngredients = (ingredientData: DailyIngredientSummary[], unitsData: Unit[], diningData: UnitDailyDiningData) => {
+  const generateSupplyOutputFromIngredients = (ingredientData: DailyIngredientSummary[], unitsData: Unit[], personnelData: UnitPersonnelData, personnelByDayData?: UnitPersonnelByDay) => {
     const outputData: SupplyOutputData[] = []
     
     // Filter ingredient data based on selected view and date
     let filteredIngredientData = ingredientData
     
-    if (selectedView === "day") {
-      // For day view, only show ingredients for the selected date
-      const selectedDateStr = format(selectedDate, "yyyy-MM-dd")
-      filteredIngredientData = ingredientData.filter(dailySummary => dailySummary.date === selectedDateStr)
-    }
-    // For week view, show all available days
+    // Always show all available days (remove day/week filtering)
+    // filteredIngredientData = ingredientData
     
     filteredIngredientData.forEach((dailySummary) => {
       dailySummary.ingredients.forEach((ingredient) => {
         const unitRequirements: { [unitId: string]: { personnel: number; requirement: number } } = {}
         let totalPersonnel = 0
-        let totalAmount = ingredient.totalQuantity
+        let totalAmount = 0
         
-        // Calculate requirements per unit based on their daily dining count
+        // Calculate requirements per unit based on their personnel for this specific date
+        const dayPersonnelData = (personnelByDayData && personnelByDayData[dailySummary.date]) || unitPersonnelByDay[dailySummary.date] || {}
         unitsData.forEach((unit) => {
-          const diningCount = diningData[unit._id] || 0
-          const totalDiningCount = unitsData.reduce((sum, u) => sum + (diningData[u._id] || 0), 0)
+          const personnel = dayPersonnelData[unit._id] || personnelData[unit._id] || 0
           
-          // Distribute total quantity proportionally based on dining count
-          const proportionalRequirement = totalDiningCount > 0 
-            ? (ingredient.totalQuantity * diningCount) / totalDiningCount 
-            : 0
+          // Calculate requirement based on standard formula:
+          // Nhu cầu = (Số người ăn × Trọng lượng nguyên liệu cho 100 người) / 100
+          const requirement = (personnel * ingredient.totalQuantity) / 100
           
           unitRequirements[unit._id] = {
-            personnel: diningCount, // số người ăn cơm
-            requirement: proportionalRequirement
+            personnel,
+            requirement: requirement
           }
           
-          totalPersonnel += diningCount
+          totalPersonnel += personnel
+          totalAmount += requirement
         })
 
         // Estimate price per unit (using default daily ration prices as reference)
@@ -323,18 +380,15 @@ export function OutputManagementContent() {
         
         const totalCost = totalAmount * pricePerUnit
         
-        // For day view, don't show date in name since it's obvious
-        // For week view, show date for clarity
-        const displayName = selectedView === "day" 
-          ? ingredient.lttpName
-          : `${ingredient.lttpName} (${dailySummary.dayName} - ${format(new Date(dailySummary.date), "dd/MM/yyyy")})`
+        // Always show date and day name for clarity
+        const displayName = `${ingredient.lttpName} - ${dailySummary.dayName} (${format(new Date(dailySummary.date), "dd/MM")})`
         
         outputData.push({
           id: `${dailySummary.date}-${ingredient.lttpId}`,
           foodName: displayName,
           category: ingredient.category,
           unit: ingredient.unit,
-          quantityPerPerson: totalPersonnel > 0 ? ingredient.totalQuantity / totalPersonnel : 0,
+          quantityPerPerson: ingredient.totalQuantity / 100, // Quantity per person based on 100-person standard
           pricePerUnit,
           units: unitRequirements,
           totalPersonnel,
@@ -360,7 +414,7 @@ export function OutputManagementContent() {
   }
 
   // Generate supply output data based on daily rations and units (FALLBACK)
-  const generateSupplyOutputData = (rations: DailyRation[], unitsData: Unit[], diningData: UnitDailyDiningData, selectedDate?: Date, selectedView?: "day" | "week") => {
+  const generateSupplyOutputData = (rations: DailyRation[], unitsData: Unit[], personnelData: UnitPersonnelData, selectedDate?: Date, selectedView?: "day" | "week") => {
     // Simulate day-specific data variations
     const dateModifier = selectedDate ? selectedDate.getDay() : 1 // Monday = 1, Sunday = 0
     const isWeekView = selectedView === "week"
@@ -395,17 +449,17 @@ export function OutputManagementContent() {
         dayMultiplier = 1.0
       }
 
-      visibleUnits.forEach((unit) => {
-        const diningCount = diningData[unit._id] || 0
-        const baseRequirement = diningCount * ration.quantityPerPerson
+      unitsData.forEach((unit) => {
+        const personnel = personnelData[unit._id] || 0
+        const baseRequirement = personnel * ration.quantityPerPerson
         const adjustedRequirement = baseRequirement * dayMultiplier
         
         unitRequirements[unit._id] = {
-          personnel: diningCount, // số người ăn cơm
+          personnel,
           requirement: adjustedRequirement
         }
         
-        totalPersonnel += diningCount
+        totalPersonnel += personnel
         totalAmount += adjustedRequirement
       })
 
@@ -430,97 +484,96 @@ export function OutputManagementContent() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [selectedDate]) // Add selectedDate dependency to reload data when date changes
+
+  // Additional effect to regenerate data when unitPersonnelByDay changes
+  useEffect(() => {
+    if (units.length > 0 && dataSource === "ingredients" && ingredientSummaries.length > 0) {
+      generateSupplyOutputFromIngredients(ingredientSummaries, units, unitPersonnel, unitPersonnelByDay)
+    }
+  }, [unitPersonnelByDay])
 
   // Handle day/week selection
-  const handleDateSelect = async (date: Date, view: "day" | "week") => {
+  const handleDateSelect = (date: Date, view: "day" | "week") => {
     setSelectedDate(date)
     setSelectedView(view)
-    setIsLoading(true)
-    
-    try {
-      // Fetch ingredient summaries for the new date/view
-      const params: any = {
-        week: getWeek(date, { locale: vi }),
-        year: getYear(date),
-        showAllDays: view === "week"
-      }
-      
-      if (view === "day") {
-        params.date = format(date, "yyyy-MM-dd")
-      }
-      
-      const ingredientResponse = await menuPlanningApi.getDailyIngredientSummaries(params)
-      const ingredientData = ingredientResponse.success ? (ingredientResponse.data || []) : []
-      setIngredientSummaries(ingredientData)
-      
-      // Generate supply output data
-      if (ingredientData.length > 0) {
-        setDataSource("ingredients")
-        generateSupplyOutputFromIngredients(ingredientData, visibleUnits, unitDailyDining)
-      } else {
-        setDataSource("dailyrations")
-        generateSupplyOutputData(dailyRations, visibleUnits, unitDailyDining, date, view)
-        if (view === "day") {
-          toast({
-            title: "Thông báo",
-            description: "Không có dữ liệu thực đơn cho ngày này. Hiển thị dữ liệu định mức cơ bản.",
-            variant: "default",
-          })
-        }
-      }
-    } catch (error) {
-      console.error("Error loading data for selected date:", error)
-      toast({
-        title: "Lỗi",
-        description: "Không thể tải dữ liệu cho ngày được chọn",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    // Data will be reloaded automatically via useEffect when selectedDate changes
   }
 
-  // Handle dining count edit
-  const handleEditDiningCount = (unitId: string, unitName: string, currentCount: number) => {
-    setEditingUnit({ unitId, unitName, diningCount: currentCount })
-    setNewDiningCount(currentCount)
+  // Handle personnel count edit
+  const handleEditPersonnel = (unitId: string, unitName: string, currentPersonnel: number, date?: string) => {
+    setEditingUnit({ unitId, unitName, personnel: currentPersonnel, date })
+    setNewPersonnelCount(currentPersonnel)
     setIsEditDialogOpen(true)
   }
 
-  // Save dining count changes
-  const handleSaveDiningCount = async () => {
+  // Save personnel count changes
+  const handleSavePersonnelCount = async () => {
     if (editingUnit) {
       try {
-        const dateStr = format(selectedDate, "yyyy-MM-dd")
-        
-        // Call API to update daily dining count for specific date and unit
-        await unitsApi.updateDailyDining(editingUnit.unitId, dateStr, newDiningCount)
-
-        const updatedDining = { ...unitDailyDining }
-        updatedDining[editingUnit.unitId] = newDiningCount
-
-        setUnitDailyDining(updatedDining)
-        
-        // Regenerate supply data with new dining counts
-        if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-          generateSupplyOutputFromIngredients(ingredientSummaries, visibleUnits, updatedDining)
+        if (editingUnit.date) {
+          console.log("=== SAVING PERSONNEL DATA ===")
+          console.log("Unit ID:", editingUnit.unitId)
+          console.log("Date:", editingUnit.date)
+          console.log("Personnel Count:", newPersonnelCount)
+          
+          // Update personnel for specific date via API
+          const response = await unitPersonnelDailyApi.updatePersonnelForDate(
+            editingUnit.unitId,
+            editingUnit.date,
+            newPersonnelCount
+          )
+          
+          console.log("Backend response:", response)
+          
+          if (response.success) {
+            // Update local state
+            const updatedPersonnelByDay = { ...unitPersonnelByDay }
+            if (!updatedPersonnelByDay[editingUnit.date]) {
+              updatedPersonnelByDay[editingUnit.date] = {}
+            }
+            updatedPersonnelByDay[editingUnit.date][editingUnit.unitId] = newPersonnelCount
+            console.log("Updated local state:", updatedPersonnelByDay)
+            setUnitPersonnelByDay(updatedPersonnelByDay)
+            
+            toast({
+              title: "Thành công",
+              description: `Đã cập nhật số người ăn cho ${editingUnit.unitName} ngày ${format(new Date(editingUnit.date), "dd/MM/yyyy")}`,
+            })
+          } else {
+            throw new Error(response.message || "Lỗi khi cập nhật")
+          }
         } else {
-          generateSupplyOutputData(dailyRations, visibleUnits, updatedDining, selectedDate, selectedView)
+          // Update general personnel data via units API
+          const response = await unitsApi.updateUnitPersonnel(editingUnit.unitId, newPersonnelCount)
+          
+          if (response.success) {
+            const updatedPersonnel = { ...unitPersonnel }
+            updatedPersonnel[editingUnit.unitId] = newPersonnelCount
+            setUnitPersonnel(updatedPersonnel)
+            
+            toast({
+              title: "Thành công",
+              description: `Đã cập nhật số người ăn chung cho ${editingUnit.unitName}`,
+            })
+          } else {
+            throw new Error(response.message || "Lỗi khi cập nhật")
+          }
         }
         
-        toast({
-          title: "Thành công",
-          description: `Đã cập nhật số người ăn cơm cho ${editingUnit.unitName} thành ${newDiningCount} người ngày ${format(selectedDate, "dd/MM/yyyy")}`,
-        })
+        // Regenerate supply data with new personnel counts
+        if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
+          generateSupplyOutputFromIngredients(ingredientSummaries, units, unitPersonnel, unitPersonnelByDay)
+        } else {
+          generateSupplyOutputData(dailyRations, units, unitPersonnel, selectedDate, selectedView)
+        }
       } catch (error) {
-        console.error("Error updating daily dining count:", error)
+        console.error("Error updating personnel:", error)
         toast({
           title: "Lỗi",
-          description: "Không thể cập nhật số người ăn cơm. Vui lòng thử lại.",
+          description: error instanceof Error ? error.message : "Không thể cập nhật số người ăn",
           variant: "destructive",
         })
-        return // Don't close dialog if there's an error
       }
     }
     setIsEditDialogOpen(false)
@@ -555,6 +608,34 @@ export function OutputManagementContent() {
   }
 
   const categoryTotals = getCategoryTotals()
+
+  // Group supply data by date for day-by-day display
+  const groupSupplyDataByDay = () => {
+    const grouped: { [date: string]: { dayName: string; items: SupplyOutputData[]; dayTotal: { cost: number; personnel: number } } } = {}
+    
+    supplyData.forEach(item => {
+      const date = item.sourceDate || 'no-date'
+      if (!grouped[date]) {
+        // Calculate total personnel for this specific date
+        const dayPersonnelData = unitPersonnelByDay[date] || {}
+        const dayTotalPersonnel = Object.values(dayPersonnelData).reduce((sum, p) => sum + p, 0) || item.totalPersonnel
+        
+        grouped[date] = {
+          dayName: item.dayName || getDayName(new Date(date)),
+          items: [],
+          dayTotal: { cost: 0, personnel: dayTotalPersonnel }
+        }
+      }
+      grouped[date].items.push(item)
+      grouped[date].dayTotal.cost += item.totalCost
+    })
+    
+    // Sort by date
+    const sortedEntries = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b))
+    return sortedEntries
+  }
+
+  const groupedData = groupSupplyDataByDay()
 
   // AI Assistant functions
   const generateAISuggestions = async () => {
@@ -596,40 +677,7 @@ export function OutputManagementContent() {
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-[#b45f06]">QUẢN LÝ NGUỒN XUẤT</h2>
 
-        {/* Weekly Calendar Header */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-center">📆 Dòng ngày trong tuần</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-8 gap-2">
-              {/* Individual Days */}
-              {weekDays.map((day, index) => (
-                <Button
-                  key={day.toISOString()}
-                  variant={isSameDay(day, selectedDate) && selectedView === "day" ? "default" : "outline"}
-                  className="flex flex-col items-center p-4 h-auto"
-                  onClick={() => handleDateSelect(day, "day")}
-                >
-                  <span className="text-sm font-medium">{dayNames[index]}</span>
-                  <span className="text-xs text-gray-500">{format(day, "dd/MM")}</span>
-                </Button>
-              ))}
-              
-              {/* Whole Week Button */}
-              <Button
-                variant={selectedView === "week" ? "default" : "outline"}
-                className="flex flex-col items-center p-4 h-auto"
-                onClick={() => handleDateSelect(selectedDate, "week")}
-              >
-                <span className="text-sm font-medium">Tổng cả tuần</span>
-                <span className="text-xs text-gray-500">
-                  {format(weekDays[0], "dd/MM")} - {format(weekDays[6], "dd/MM")}
-                </span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+
 
         {/* Main Supply Output Table */}
         <Card>
@@ -637,7 +685,7 @@ export function OutputManagementContent() {
             <div className="flex justify-between items-center">
               <div>
                 <CardTitle>
-                  📊 Bảng chính - {selectedView === "week" ? "Tổng cả tuần" : `${dayNames[weekDays.findIndex(day => isSameDay(day, selectedDate))]}`}
+                  📊 Bảng chính - Tổng cả tuần (Thứ 2 đến Chủ nhật)
                 </CardTitle>
                 <div className="flex items-center gap-4 mt-2">
                   <Badge variant={dataSource === "ingredients" ? "default" : "secondary"} className="text-xs">
@@ -645,26 +693,12 @@ export function OutputManagementContent() {
                   </Badge>
                   {dataSource === "ingredients" && (
                     <span className="text-xs text-gray-600">
-                      {loadingIngredients ? "Đang tải..." : 
-                        selectedView === "day" 
-                          ? `${supplyData.length} nguyên liệu cho ngày được chọn`
-                          : `${ingredientSummaries.length} ngày có thực đơn`
-                      }
+                      {loadingIngredients ? "Đang tải..." : `${supplyData.length} nguyên liệu từ ${ingredientSummaries.length} ngày có thực đơn`}
                     </span>
                   )}
-                  {dataSource === "ingredients" && selectedView === "day" && (
-                    <span className="text-xs text-blue-600 font-medium">
-                      📅 {format(selectedDate, "dd/MM/yyyy")}
-                    </span>
-                  )}
-                  {dataSource === "ingredients" && selectedView === "week" && (
+                  {dataSource === "ingredients" && (
                     <span className="text-xs text-green-600 font-medium">
-                      📅 Tuần {getWeek(selectedDate, { locale: vi })}/{getYear(selectedDate)}
-                    </span>
-                  )}
-                  {user && user.role === 'unitAssistant' && (
-                    <span className="text-xs text-blue-600 font-medium">
-                      👤 Hiển thị dữ liệu của: {user.unit?.name || 'đơn vị của bạn'}
+                      📅 Tuần {getWeek(selectedDate, { locale: vi })}/{getYear(selectedDate)} - Tất cả ngày
                     </span>
                   )}
                 </div>
@@ -680,12 +714,12 @@ export function OutputManagementContent() {
                 </Button>
               </div>
             </div>
-              </CardHeader>
-              <CardContent>
+          </CardHeader>
+          <CardContent>
             <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
+              <Table>
+                <TableHeader>
+                  <TableRow>
                     <TableHead className="w-12">STT</TableHead>
                     <TableHead className="min-w-[200px]">
                       {dataSource === "ingredients" ? "Nguyên liệu" : "Tên thực phẩm"}
@@ -696,15 +730,15 @@ export function OutputManagementContent() {
                     {dataSource === "ingredients" && (
                       <TableHead className="min-w-[150px]">Dùng trong món</TableHead>
                     )}
-                    {visibleUnits.map((unit) => (
+                    {units.map((unit) => (
                       <TableHead key={`${unit._id}-personnel`} className="text-center bg-blue-50">
                         <div className="flex flex-col">
                           <span className="font-medium">{unit.name}</span>
-                          <span className="text-xs text-gray-500">Số người ăn cơm</span>
+                          <span className="text-xs text-gray-500">Số người ăn</span>
                         </div>
                       </TableHead>
                     ))}
-                    {visibleUnits.map((unit) => (
+                    {units.map((unit) => (
                       <TableHead key={`${unit._id}-requirement`} className="text-center bg-green-50">
                         <div className="flex flex-col">
                           <span className="font-medium">{unit.name}</span>
@@ -715,143 +749,206 @@ export function OutputManagementContent() {
                     <TableHead className="text-center bg-yellow-50">Tổng - Số người ăn</TableHead>
                     <TableHead className="text-center bg-orange-50">Tổng - Giá thành</TableHead>
                     <TableHead className="text-center bg-red-50">Tổng - Thành tiền</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                  {supplyData.map((item, index) => (
-                    <TableRow key={item.id}>
-                        <TableCell>{index + 1}</TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{item.foodName}</span>
-                          {dataSource === "ingredients" && selectedView === "week" && item.sourceDate && (
-                            <span className="text-xs text-blue-600">
-                              {format(new Date(item.sourceDate), "dd/MM")} - {item.dayName}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={
-                          categoryTotals[item.category] && 
-                          categoryTotals[item.category].total > categoryTotals[item.category].limit
-                            ? "border-red-500 text-red-700"
-                            : "border-green-500 text-green-700"
-                        }>
-                          {item.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{item.unit}</TableCell>
-                        <TableCell>
-                        <div className="flex flex-col items-center">
-                          <span className="font-medium">
-                            {item.quantityPerPerson.toFixed(3)}/người
-                          </span>
-                          {dataSource === "ingredients" && item.baseTotalQuantity && (
-                            <span className="text-xs text-gray-600">
-                              Tổng: {item.baseTotalQuantity.toFixed(1)} {item.unit}
-                            </span>
-                          )}
-                        </div>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groupedData.map(([date, dayData], dayIndex) => (
+                    <React.Fragment key={date}>
+                      {/* Day Header Row */}
+                      <TableRow className="bg-blue-100 font-bold">
+                        <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center text-blue-800">
+                          📅 {dayData.dayName} - {format(new Date(date), "dd/MM/yyyy")} ({dayData.items.length} nguyên liệu)
                         </TableCell>
-                      {dataSource === "ingredients" && (
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {item.usedInDishes && item.usedInDishes.map((dish, dishIndex) => (
-                              <Badge key={dishIndex} variant="outline" className="text-xs">
-                                {dish}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                      )}
+                        {units.map((unit) => {
+                          const dayPersonnelData = unitPersonnelByDay[date] || {}
+                          const currentPersonnel = dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0
+                          const canEdit = canEditPersonnel(unit._id)
+                          
+                          return (
+                            <TableCell key={`${unit._id}-day-header-personnel`} className="text-center bg-blue-200">
+                              {canEdit ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto p-1 hover:bg-blue-300"
+                                  onClick={() => handleEditPersonnel(unit._id, unit.name, currentPersonnel, date)}
+                                >
+                                  <div className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    <span>{currentPersonnel}</span>
+                                    <Edit className="h-3 w-3" />
+                                  </div>
+                                </Button>
+                              ) : (
+                                <div className="flex items-center justify-center gap-1 p-1">
+                                  <Users className="h-3 w-3" />
+                                  <span>{currentPersonnel}</span>
+                                </div>
+                              )}
+                            </TableCell>
+                          )
+                        })}
+                        {units.map((unit) => (
+                          <TableCell key={`${unit._id}-day-header-requirement`} className="text-center bg-blue-200">
+                            -
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center bg-blue-200">{dayData.dayTotal.personnel}</TableCell>
+                        <TableCell className="text-center bg-blue-200">-</TableCell>
+                        <TableCell className="text-center bg-blue-200">-</TableCell>
+                      </TableRow>
                       
-                      {/* Personnel columns - số người ăn cơm trong ngày */}
-                      {visibleUnits.map((unit) => (
-                        <TableCell key={`${unit._id}-dining`} className="text-center bg-blue-50">
-                          {canEditUnitPersonnel(unit._id) ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-auto p-1 hover:bg-blue-100"
-                              onClick={() => handleEditDiningCount(unit._id, unit.name, unitDailyDining[unit._id] || 0)}
-                            >
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                <span>{unitDailyDining[unit._id] || 0}</span>
-                                <Edit className="h-3 w-3" />
-                              </div>
-                            </Button>
-                          ) : (
-                            <div className="flex items-center justify-center gap-1">
-                              <Users className="h-3 w-3" />
-                              <span>{unitDailyDining[unit._id] || 0}</span>
+                      {/* Day Items */}
+                      {dayData.items.map((item, itemIndex) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{itemIndex + 1}</TableCell>
+                          <TableCell className="font-medium">
+                            <span>{item.foodName.replace(` - ${dayData.dayName} (${format(new Date(date), "dd/MM")})`, '')}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={
+                              categoryTotals[item.category] && 
+                              categoryTotals[item.category].total > categoryTotals[item.category].limit
+                                ? "border-red-500 text-red-700"
+                                : "border-green-500 text-green-700"
+                            }>
+                              {item.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{item.unit}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col items-center">
+                              <span className="font-medium">
+                                {item.quantityPerPerson.toFixed(3)}/người
+                              </span>
+                              {dataSource === "ingredients" && item.baseTotalQuantity && (
+                                <span className="text-xs text-gray-600">
+                                  Tổng: {item.baseTotalQuantity.toFixed(1)} {item.unit}
+                                </span>
+                              )}
                             </div>
+                          </TableCell>
+                          {dataSource === "ingredients" && (
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {item.usedInDishes && item.usedInDishes.map((dish, dishIndex) => (
+                                  <Badge key={dishIndex} variant="outline" className="text-xs">
+                                    {dish}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </TableCell>
                           )}
-                        </TableCell>
+                          
+                          {/* Personnel columns */}
+                          {units.map((unit) => {
+                            const dayPersonnelData = unitPersonnelByDay[date] || {}
+                            const currentPersonnel = dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0
+                            return (
+                              <TableCell key={`${unit._id}-personnel`} className="text-center bg-blue-50">
+                                {currentPersonnel}
+                              </TableCell>
+                            )
+                          })}
+                          
+                          {/* Requirement columns */}
+                          {units.map((unit) => (
+                            <TableCell key={`${unit._id}-requirement`} className="text-center bg-green-50">
+                              {item.units[unit._id]?.requirement.toFixed(3) || "0.000"}
+                            </TableCell>
+                          ))}
+                          
+                          <TableCell className="text-center bg-yellow-50 font-medium">
+                            {item.totalPersonnel}
+                          </TableCell>
+                          <TableCell className="text-center bg-orange-50">
+                            {item.pricePerUnit.toLocaleString()} đ/{item.unit}
+                          </TableCell>
+                          <TableCell className="text-center bg-red-50 font-medium">
+                            {item.totalCost.toLocaleString()} đ
+                          </TableCell>
+                        </TableRow>
                       ))}
                       
-                      {/* Requirement columns */}
-                      {visibleUnits.map((unit) => (
-                        <TableCell key={`${unit._id}-requirement`} className="text-center bg-green-50">
-                          {item.units[unit._id]?.requirement.toFixed(3) || "0.000"}
+                      {/* Day Total Row */}
+                      <TableRow className="bg-gray-200 font-bold border-b-2">
+                        <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center">
+                          🔸 TỔNG {dayData.dayName.toUpperCase()}
                         </TableCell>
-                      ))}
-                      
-                      <TableCell className="text-center bg-yellow-50 font-medium">
-                        {item.totalPersonnel}
-                      </TableCell>
-                      <TableCell className="text-center bg-orange-50">
-                        {item.pricePerUnit.toLocaleString()} đ/{item.unit}
-                      </TableCell>
-                      <TableCell className="text-center bg-red-50 font-medium">
-                        {item.totalCost.toLocaleString()} đ
+                        {units.map((unit) => {
+                          const dayPersonnelData = unitPersonnelByDay[date] || {}
+                          const currentPersonnel = dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0
+                          return (
+                            <TableCell key={`${unit._id}-day-total-personnel`} className="text-center bg-gray-300">
+                              {currentPersonnel}
+                            </TableCell>
+                          )
+                        })}
+                        {units.map((unit) => (
+                          <TableCell key={`${unit._id}-day-total-requirement`} className="text-center bg-gray-300">
+                            {dayData.items.reduce((sum, item) => sum + (item.units[unit._id]?.requirement || 0), 0).toFixed(3)}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-center bg-gray-300">
+                          {dayData.dayTotal.personnel}
+                        </TableCell>
+                        <TableCell className="text-center bg-gray-300">-</TableCell>
+                        <TableCell className="text-center bg-gray-300">
+                          {dayData.dayTotal.cost.toLocaleString()} đ
                         </TableCell>
                       </TableRow>
+                    </React.Fragment>
                   ))}
                   
-                  {/* Total Row */}
-                  <TableRow className="bg-gray-100 font-bold">
-                    <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center">TỔNG CỘNG</TableCell>
-                    {visibleUnits.map((unit) => (
-                      <TableCell key={`${unit._id}-total-dining`} className="text-center bg-blue-100">
-                        {unitDailyDining[unit._id] || 0}
-                      </TableCell>
-                    ))}
-                    {visibleUnits.map((unit) => (
-                      <TableCell key={`${unit._id}-total-requirement`} className="text-center bg-green-100">
+                  {/* Grand Total Row */}
+                  <TableRow className="bg-green-100 font-bold border-t-4">
+                    <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center text-green-800">
+                      🏆 TỔNG CỘNG CẢ TUẦN
+                    </TableCell>
+                    {units.map((unit) => {
+                      // Calculate total personnel for this unit across all days
+                      const weeklyTotal = Object.keys(groupedData).reduce((sum, date) => {
+                        const dayPersonnelData = unitPersonnelByDay[date] || {}
+                        return sum + (dayPersonnelData[unit._id] || unitPersonnel[unit._id] || 0)
+                      }, 0)
+                      
+                      return (
+                        <TableCell key={`${unit._id}-grand-total-personnel`} className="text-center bg-green-200">
+                          {weeklyTotal}
+                        </TableCell>
+                      )
+                    })}
+                    {units.map((unit) => (
+                      <TableCell key={`${unit._id}-grand-total-requirement`} className="text-center bg-green-200">
                         {supplyData.reduce((sum, item) => sum + (item.units[unit._id]?.requirement || 0), 0).toFixed(3)}
                       </TableCell>
                     ))}
-                    <TableCell className="text-center bg-yellow-100">
-                      {visibleUnits.reduce((sum, unit) => sum + (unitDailyDining[unit._id] || 0), 0)}
+                    <TableCell className="text-center bg-green-200">
+                      {supplyData.reduce((sum, item) => sum + item.totalPersonnel, 0)}
                     </TableCell>
-                    <TableCell className="text-center bg-orange-100">-</TableCell>
-                    <TableCell className="text-center bg-red-100">
+                    <TableCell className="text-center bg-green-200">-</TableCell>
+                    <TableCell className="text-center bg-green-200">
                       {supplyData.reduce((sum, item) => sum + item.totalCost, 0).toLocaleString()} đ
                     </TableCell>
                   </TableRow>
-                  </TableBody>
-                </Table>
+                </TableBody>
+              </Table>
             </div>
-              </CardContent>
-            </Card>
+          </CardContent>
+        </Card>
 
         {/* Notes Section */}
         <Card className="mt-6">
-              <CardHeader>
+          <CardHeader>
             <CardTitle>📝 Chú thích</CardTitle>
-              </CardHeader>
-              <CardContent>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3 text-sm">
               {dataSource === "ingredients" ? (
                 <>
                   <p>
-                    <strong>📋 Dữ liệu từ thực đơn:</strong> Tên nguyên liệu hiển thị theo thực đơn đã lập. 
-                    {selectedView === "day" ? 
-                      `Hiển thị nguyên liệu cho ngày ${format(selectedDate, "dd/MM/yyyy")} đã chọn.` :
-                      "Hiển thị nguyên liệu cho tất cả ngày trong tuần có thực đơn."
-                    }
+                    <strong>📋 Dữ liệu từ thực đơn:</strong> Hiển thị tất cả nguyên liệu từ Thứ 2 đến Chủ nhật trong tuần được chọn. 
+                    Mỗi nguyên liệu được hiển thị kèm theo ngày sử dụng để dễ dàng theo dõi.
                   </p>
                   <p>
                     <strong>📊 Định lượng:</strong> Hiển thị cả định lượng trên người (kg/người) và tổng số lượng cần chuẩn bị. 
@@ -899,41 +996,38 @@ export function OutputManagementContent() {
                       )}
                     </div>
                   ))}
-                    </div>
-                  </div>
-                  </div>
-              </CardContent>
-            </Card>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Edit Personnel Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Chỉnh sửa số người ăn cơm</DialogTitle>
+              <DialogTitle>Chỉnh sửa số người ăn</DialogTitle>
               <DialogDescription>
-                Cập nhật số người ăn cơm trong ngày {format(selectedDate, "dd/MM/yyyy")} cho {editingUnit?.unitName}
+                Cập nhật số người ăn cho {editingUnit?.unitName}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Số người ăn cơm:</label>
+                <label className="text-sm font-medium">Số người ăn hiện tại:</label>
                 <Input
                   type="number"
-                  value={newDiningCount}
-                  onChange={(e) => setNewDiningCount(parseInt(e.target.value) || 0)}
+                  value={newPersonnelCount}
+                  onChange={(e) => setNewPersonnelCount(parseInt(e.target.value) || 0)}
                   min="0"
                   className="mt-1"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Số quân nhân đơn vị: {unitPersonnel[editingUnit?.unitId || ""] || 0} người
-                </p>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Hủy
               </Button>
-              <Button onClick={handleSaveDiningCount}>
+              <Button onClick={handleSavePersonnelCount}>
                 Lưu
               </Button>
             </DialogFooter>
