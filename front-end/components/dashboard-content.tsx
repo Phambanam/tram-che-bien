@@ -4,12 +4,13 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Eye, Edit, Trash2, Calendar, User } from "lucide-react"
+import { Plus, Eye, Edit, Trash2, Calendar, User, Shield } from "lucide-react"
 import Link from "next/link"
 import { ArticleDialog } from "./articles/article-dialog"
 import { DeleteArticleDialog } from "./articles/delete-article-dialog"
 import { contentApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/components/auth/auth-provider"
 
 interface Article {
   id: string
@@ -53,6 +54,10 @@ export function DashboardContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  // Kiểm tra quyền admin (Trợ lý quân nhu)
+  const isAdmin = user?.role === "unitAssistant" || user?.role === "admin"
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -238,10 +243,20 @@ export function DashboardContent() {
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-center text-[#b45f06]">TRANG CHÍNH</h2>
-          <Button onClick={handleAddArticle} className="bg-[#b45f06] hover:bg-[#8b4513]">
-            <Plus className="h-4 w-4 mr-2" />
-            Thêm bài viết
-          </Button>
+          <div className="flex items-center gap-3">
+            {!isAdmin && (
+              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
+                <Shield className="h-4 w-4" />
+                <span>Chế độ xem</span>
+              </div>
+            )}
+            {isAdmin && (
+              <Button onClick={handleAddArticle} className="bg-[#b45f06] hover:bg-[#8b4513]">
+                <Plus className="h-4 w-4 mr-2" />
+                Thêm bài viết
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="mb-8">
@@ -253,10 +268,26 @@ export function DashboardContent() {
                 thống vẻ vang và nhiều thành tích xuất sắc trong công tác huấn luyện, sẵn sàng chiến đấu và xây dựng đơn
                 vị vững mạnh toàn diện.
               </p>
-              <p>
+              <p className="mb-4">
                 Hệ thống quản lý trạm chế biến là một phần quan trọng trong công tác hậu cần của Lữ đoàn, đảm bảo chất
                 lượng bữa ăn và sức khỏe cho cán bộ, chiến sĩ trong đơn vị.
               </p>
+              
+              {/* Thông báo quyền hạn */}
+              <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+                <h4 className="font-semibold text-blue-800 mb-2">📋 Quyền hạn hệ thống:</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li><strong>• Trợ lý quân nhu (Admin):</strong> Thêm, sửa, xóa bài viết</li>
+                  <li><strong>• Các chức vụ khác:</strong> Chỉ được xem chi tiết bài viết</li>
+                  <li><strong>• Vai trò hiện tại:</strong> 
+                    <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
+                      isAdmin ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {isAdmin ? 'Quản trị viên' : 'Người xem'}
+                    </span>
+                  </li>
+                </ul>
+              </div>
             </div>
             <div className="bg-gray-200 h-64 flex items-center justify-center rounded-lg">
               <img
@@ -276,10 +307,12 @@ export function DashboardContent() {
           {articles.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">Chưa có bài viết nào</p>
-              <Button onClick={handleAddArticle} className="bg-[#b45f06] hover:bg-[#8b4513]">
-                <Plus className="h-4 w-4 mr-2" />
-                Thêm bài viết đầu tiên
-              </Button>
+              {isAdmin && (
+                <Button onClick={handleAddArticle} className="bg-[#b45f06] hover:bg-[#8b4513]">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Thêm bài viết đầu tiên
+                </Button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -291,24 +324,28 @@ export function DashboardContent() {
                         {getTypeIcon(article.type)}{" "}
                         {article.type === "article" ? "Bài viết" : article.type === "video" ? "Video" : "Hình ảnh"}
                       </Badge>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditArticle(article)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteArticle(article)}
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditArticle(article)}
+                            className="h-8 w-8 p-0"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteArticle(article)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            title="Xóa"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <CardTitle className="text-lg leading-tight">{article.title}</CardTitle>
                   </CardHeader>
