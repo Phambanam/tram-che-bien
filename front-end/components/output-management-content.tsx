@@ -212,20 +212,31 @@ export function OutputManagementContent() {
       try {
         const startDate = format(weekDays[0], "yyyy-MM-dd")
         const endDate = format(weekDays[6], "yyyy-MM-dd")
+        console.log("=== LOADING PERSONNEL DATA ===")
+        console.log("Date range:", startDate, "to", endDate)
+        
         const personnelByDayResponse = await unitPersonnelDailyApi.getPersonnelByWeek(startDate, endDate)
+        console.log("Raw backend response:", personnelByDayResponse)
         
         if (personnelByDayResponse.success && personnelByDayResponse.data) {
           // Merge backend data with default data
           console.log("Backend personnel data:", personnelByDayResponse.data)
+          console.log("Default personnelByDayData before merge:", personnelByDayData)
+          
           Object.keys(personnelByDayResponse.data).forEach(date => {
             if (personnelByDayData[date]) {
               Object.keys(personnelByDayResponse.data[date]).forEach(unitId => {
                 console.log(`Setting personnel for unit ${unitId} on ${date}: ${personnelByDayResponse.data[date][unitId]}`)
                 personnelByDayData[date][unitId] = personnelByDayResponse.data[date][unitId]
               })
+            } else {
+              console.log(`Date ${date} not found in personnelByDayData, creating it`)
+              personnelByDayData[date] = personnelByDayResponse.data[date]
             }
           })
-          console.log("Final personnelByDayData:", personnelByDayData)
+          console.log("Final personnelByDayData after merge:", personnelByDayData)
+        } else {
+          console.log("No data or unsuccessful response from backend")
         }
       } catch (error) {
         console.error("Error fetching personnel by day:", error)
@@ -451,12 +462,19 @@ export function OutputManagementContent() {
     if (editingUnit) {
       try {
         if (editingUnit.date) {
+          console.log("=== SAVING PERSONNEL DATA ===")
+          console.log("Unit ID:", editingUnit.unitId)
+          console.log("Date:", editingUnit.date)
+          console.log("Personnel Count:", newPersonnelCount)
+          
           // Update personnel for specific date via API
           const response = await unitPersonnelDailyApi.updatePersonnelForDate(
             editingUnit.unitId,
             editingUnit.date,
             newPersonnelCount
           )
+          
+          console.log("Backend response:", response)
           
           if (response.success) {
             // Update local state
@@ -465,6 +483,7 @@ export function OutputManagementContent() {
               updatedPersonnelByDay[editingUnit.date] = {}
             }
             updatedPersonnelByDay[editingUnit.date][editingUnit.unitId] = newPersonnelCount
+            console.log("Updated local state:", updatedPersonnelByDay)
             setUnitPersonnelByDay(updatedPersonnelByDay)
             
             toast({
