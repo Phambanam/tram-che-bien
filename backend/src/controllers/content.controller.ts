@@ -49,9 +49,16 @@ export const getContentById = async (req: Request, res: Response) => {
   try {
     const contentId = req.params.id
 
+    // Log the ID for debugging
+    console.log("Content ID requested:", contentId)
+
     // Validate ObjectId
+    if (!contentId || contentId === 'undefined' || contentId === 'null') {
+      throw new AppError("ID nội dung không được để trống", 400)
+    }
+
     if (!ObjectId.isValid(contentId)) {
-      throw new AppError("ID nội dung không hợp lệ", 400)
+      throw new AppError(`ID nội dung không hợp lệ: ${contentId}`, 400)
     }
 
     const db = await getDb()

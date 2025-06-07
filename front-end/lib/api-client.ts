@@ -395,6 +395,17 @@ export const contentApi = {
   },
 
   getContentById: async (id: string) => {
+    // Validate ID before making request
+    if (!id || id === 'undefined' || id === 'null') {
+      throw new Error('ID nội dung không được để trống')
+    }
+    
+    // Basic ID format validation (check if it looks like a valid ObjectId)
+    if (id.length !== 24 || !/^[a-fA-F0-9]{24}$/.test(id)) {
+      throw new Error(`ID nội dung không hợp lệ: ${id}`)
+    }
+    
+    console.log('Getting content by ID:', id)
     return apiRequest<any>(`/content/${id}`)
   },
 
