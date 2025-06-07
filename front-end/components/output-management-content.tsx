@@ -140,18 +140,23 @@ export function OutputManagementContent() {
       return false
     }
     
-    console.log(`Checking edit permission for unit ${unitId}:`, {
-      userRole: user.role,
-      userUnit: user.unit,
-      targetUnit: unitId,
-      userUnitString: user.unit?.toString(),
-      matches: user.unit?.toString() === unitId
-    })
+    const userUnitString = user.unit?.toString()
+    console.log(`=== PERMISSION CHECK DEBUG ===`)
+    console.log(`Target unitId: "${unitId}" (length: ${unitId.length})`)
+    console.log(`User unit: "${userUnitString}" (length: ${userUnitString?.length})`)
+    console.log(`User role: "${user.role}"`)
+    console.log(`Exact match check: "${userUnitString}" === "${unitId}" = ${userUnitString === unitId}`)
+    console.log(`Character comparison:`)
+    if (userUnitString && unitId) {
+      for (let i = 0; i < Math.max(userUnitString.length, unitId.length); i++) {
+        console.log(`  [${i}]: "${userUnitString[i] || 'undefined'}" vs "${unitId[i] || 'undefined'}" = ${userUnitString[i] === unitId[i]}`)
+      }
+    }
     
     switch (user.role) {
       case 'brigadeAssistant':
         // Brigade assistant can edit all units
-        console.log("Brigade assistant - can edit all units")
+        console.log("Brigade assistant - can edit all units: TRUE")
         return true
       case 'unitAssistant':
         // Unit assistant can only edit their own unit
@@ -160,7 +165,7 @@ export function OutputManagementContent() {
         return canEdit
       default:
         // Other roles (commanders, etc.) cannot edit
-        console.log(`Role ${user.role} - cannot edit`)
+        console.log(`Role ${user.role} - cannot edit: FALSE`)
         return false
     }
   }
