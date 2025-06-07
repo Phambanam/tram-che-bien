@@ -10,7 +10,7 @@ import { ArticleDialog } from "@/components/articles/article-dialog"
 import { DeleteArticleDialog } from "@/components/articles/delete-article-dialog"
 import { contentApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
-import ReactMarkdown from "react-markdown"
+
 import "@/styles/markdown.css"
 
 interface Article {
@@ -235,11 +235,10 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
           </div>
         )}
 
-        <div className="prose max-w-none markdown-content">
-          <ReactMarkdown>
-            {article.content}
-          </ReactMarkdown>
-        </div>
+        <div 
+          className="prose max-w-none markdown-content"
+          dangerouslySetInnerHTML={{ __html: article.content }}
+        />
       </Card>
 
       <ArticleDialog
