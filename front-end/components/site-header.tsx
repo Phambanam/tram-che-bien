@@ -27,14 +27,16 @@ export function SiteHeader() {
         />
         <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-between px-6">
           <div className="flex-1 flex justify-center">
-            <div className="text-center">
-              <h2 className="text-white text-lg font-bold uppercase tracking-wide drop-shadow-lg mb-1">
-                PHẦN MỀM QUẢN LÝ TRẠM CHẾ BIẾN
-              </h2>
-              <h1 className="text-white text-3xl font-bold uppercase tracking-wider drop-shadow-lg">
-                LỮ ĐOÀN 279
-              </h1>
-            </div>
+            <h1 className="text-white text-3xl font-bold uppercase tracking-wider drop-shadow-lg">
+              LỮ ĐOÀN 279
+            </h1>
+          </div>
+          
+          {/* Text "PHẦN MỀM QUẢN LÝ TRẠM CHẾ BIẾN" ở góc trái dưới */}
+          <div className="absolute bottom-2 left-6">
+            <h2 className="text-white text-sm font-bold uppercase tracking-wide drop-shadow-lg">
+              PHẦN MỀM QUẢN LÝ TRẠM CHẾ BIẾN
+            </h2>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/dashboard">
