@@ -74,10 +74,20 @@ export function RegisterForm() {
     // Fetch units
     const fetchUnits = async () => {
       try {
-        const data = await unitsApi.getUnits()
-        setUnits(data)
+        const response = await unitsApi.getUnits()
+        // API trả về {success: true, count: number, data: array}
+        if (response && response.data && Array.isArray(response.data)) {
+          setUnits(response.data)
+        } else if (Array.isArray(response)) {
+          // Fallback nếu API trả về trực tiếp array
+          setUnits(response)
+        } else {
+          console.error("Units data is not an array:", response)
+          setUnits([])
+        }
       } catch (error) {
         console.error("Error fetching units:", error)
+        setUnits([])
       }
     }
 
@@ -204,7 +214,7 @@ export function RegisterForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {units.map((unit) => (
+                  {units && Array.isArray(units) && units.map((unit) => (
                     <SelectItem key={unit._id} value={unit._id}>
                       {unit.name}
                     </SelectItem>
