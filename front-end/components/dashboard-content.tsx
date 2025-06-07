@@ -57,7 +57,7 @@ export function DashboardContent() {
   const { user } = useAuth()
 
   // Kiểm tra quyền admin (Trợ lý lữ đoàn)
-  const isAdmin = user?.role === "unitAssistant" || user?.role === "admin"
+  const isAdmin = user?.role === "brigadeAssistant" || user?.role === "admin"
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -291,7 +291,7 @@ export function DashboardContent() {
             </div>
             <div className="bg-gray-200 h-64 flex items-center justify-center rounded-lg">
               <img
-                src="/placeholder.svg?height=256&width=400"
+                src="/anh.jpg"
                 alt="Hình ảnh Lữ đoàn 279"
                 className="w-full h-full object-cover rounded-lg"
               />

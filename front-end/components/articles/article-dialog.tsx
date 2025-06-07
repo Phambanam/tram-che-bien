@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -72,7 +72,9 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
         return
       }
 
-      if (!content.trim()) {
+      // Strip HTML tags for validation (for rich text editor)
+      const plainTextContent = content.replace(/<[^>]*>/g, '').trim()
+      if (!plainTextContent) {
         toast({
           title: "Lỗi",
           description: "Vui lòng nhập nội dung bài viết",
@@ -122,7 +124,7 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{article ? "Chỉnh sửa bài viết" : "Thêm bài viết mới"}</DialogTitle>
         </DialogHeader>
@@ -183,13 +185,11 @@ export function ArticleDialog({ article, open, onOpenChange, onSave }: ArticleDi
 
             <div className="grid gap-2">
               <Label htmlFor="content">Nội dung</Label>
-              <Textarea
-                id="content"
+              <RichTextEditor
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={setContent}
                 placeholder="Nhập nội dung bài viết"
                 className="min-h-[150px]"
-                required
               />
             </div>
           </div>
