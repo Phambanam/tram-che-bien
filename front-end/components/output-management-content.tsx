@@ -216,13 +216,16 @@ export function OutputManagementContent() {
         
         if (personnelByDayResponse.success && personnelByDayResponse.data) {
           // Merge backend data with default data
+          console.log("Backend personnel data:", personnelByDayResponse.data)
           Object.keys(personnelByDayResponse.data).forEach(date => {
             if (personnelByDayData[date]) {
               Object.keys(personnelByDayResponse.data[date]).forEach(unitId => {
+                console.log(`Setting personnel for unit ${unitId} on ${date}: ${personnelByDayResponse.data[date][unitId]}`)
                 personnelByDayData[date][unitId] = personnelByDayResponse.data[date][unitId]
               })
             }
           })
+          console.log("Final personnelByDayData:", personnelByDayData)
         }
       } catch (error) {
         console.error("Error fetching personnel by day:", error)
@@ -246,7 +249,8 @@ export function OutputManagementContent() {
       
       if (ingredientData.length > 0) {
         setDataSource("ingredients")
-        generateSupplyOutputFromIngredients(ingredientData, unitsData, personnelData)
+        // Pass the updated personnelByDayData instead of just personnelData
+        generateSupplyOutputFromIngredients(ingredientData, unitsData, personnelData, personnelByDayData)
       } else {
         // Fallback to daily rations if no ingredient data
         setDataSource("dailyrations")
@@ -271,7 +275,7 @@ export function OutputManagementContent() {
   }
 
   // Generate supply output data from ingredient summaries
-  const generateSupplyOutputFromIngredients = (ingredientData: DailyIngredientSummary[], unitsData: Unit[], personnelData: UnitPersonnelData) => {
+  const generateSupplyOutputFromIngredients = (ingredientData: DailyIngredientSummary[], unitsData: Unit[], personnelData: UnitPersonnelData, personnelByDayData?: UnitPersonnelByDay) => {
     const outputData: SupplyOutputData[] = []
     
     // Filter ingredient data based on selected view and date
@@ -287,7 +291,7 @@ export function OutputManagementContent() {
         let totalAmount = ingredient.totalQuantity
         
         // Calculate requirements per unit based on their personnel for this specific date
-        const dayPersonnelData = unitPersonnelByDay[dailySummary.date] || {}
+        const dayPersonnelData = (personnelByDayData && personnelByDayData[dailySummary.date]) || unitPersonnelByDay[dailySummary.date] || {}
         unitsData.forEach((unit) => {
           const personnel = dayPersonnelData[unit._id] || personnelData[unit._id] || 0
           const totalPeople = Object.values(dayPersonnelData).reduce((sum, p) => sum + p, 0) || Object.values(personnelData).reduce((sum, p) => sum + p, 0)
@@ -421,6 +425,13 @@ export function OutputManagementContent() {
     fetchData()
   }, [])
 
+  // Additional effect to regenerate data when unitPersonnelByDay changes
+  useEffect(() => {
+    if (units.length > 0 && dataSource === "ingredients" && ingredientSummaries.length > 0) {
+      generateSupplyOutputFromIngredients(ingredientSummaries, units, unitPersonnel, unitPersonnelByDay)
+    }
+  }, [unitPersonnelByDay])
+
   // Handle day/week selection
   const handleDateSelect = (date: Date, view: "day" | "week") => {
     setSelectedDate(date)
@@ -484,7 +495,7 @@ export function OutputManagementContent() {
         
         // Regenerate supply data with new personnel counts
         if (dataSource === "ingredients" && ingredientSummaries.length > 0) {
-          generateSupplyOutputFromIngredients(ingredientSummaries, units, unitPersonnel)
+          generateSupplyOutputFromIngredients(ingredientSummaries, units, unitPersonnel, unitPersonnelByDay)
         } else {
           generateSupplyOutputData(dailyRations, units, unitPersonnel, selectedDate, selectedView)
         }
