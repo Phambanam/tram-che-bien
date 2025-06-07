@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Upload, X, Image, Video, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { uploadApi } from "@/lib/api-client"
 
 interface FileUploadProps {
   accept?: "image" | "video" | "both"
@@ -86,19 +87,7 @@ export function FileUpload({
     setIsUploading(true)
     
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload/file`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      })
-
-      const data = await response.json()
+      const data = await uploadApi.uploadFile(file)
 
       if (data.success) {
         const fileInfo = {

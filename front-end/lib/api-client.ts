@@ -701,17 +701,34 @@ export const supplyOutputsApi = {
 
 // Upload API
 export const uploadApi = {
-  uploadImage: async (file: File) => {
+  uploadFile: async (file: File) => {
     const formData = new FormData()
-    formData.append("image", file)
+    formData.append("file", file)
 
     const token = getAuthToken()
-    const response = await fetch(`${API_BASE_URL}/upload/image`, {
+    const response = await fetch(`${API_BASE_URL}/upload/file`, {
       method: "POST",
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: formData,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
+    }
+
+    return response.json()
+  },
+  
+  deleteFile: async (filename: string) => {
+    const token = getAuthToken()
+    const response = await fetch(`${API_BASE_URL}/upload/file/${filename}`, {
+      method: "DELETE",
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
     })
 
     if (!response.ok) {
