@@ -18,7 +18,7 @@ const navItems = [
     href: "/dashboard/quan-ly-nguon-nhap",
   },
   {
-    title: "BÁO CÁO THỰC ĐƠN",
+    title: "THỰC ĐƠN TUẦN",
     href: "/dashboard/bao-cao-thuc-don",
   },
   {
