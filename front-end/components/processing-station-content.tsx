@@ -259,9 +259,9 @@ export function ProcessingStationContent() {
       
       setSoybeanData(soybeanSupplies)
       
-      // Generate weekly data with real soybean input
-      const weeklyData = generateWeeklyDataWithRealSoybean()
-      setWeeklyTofuData(weeklyData)
+      // Generate weekly data with real soybean input (will be triggered by useEffect)
+      // const weeklyData = generateWeeklyDataWithRealSoybean()
+      // setWeeklyTofuData(weeklyData)
       
       console.log("Soybean data loaded:", soybeanSupplies)
       
@@ -384,6 +384,13 @@ export function ProcessingStationContent() {
       
       console.log("Fetched soybean supplies:", soybeanSupplies)
       console.log("Week date range:", startDateStr, "to", endDateStr)
+      
+      // Generate weekly data with real soybean input after setting soybeanData
+      setTimeout(() => {
+        const weeklyData = generateWeeklyDataWithRealSoybean()
+        setWeeklyTofuData(weeklyData)
+        console.log("Generated weekly data with real soybean:", weeklyData)
+      }, 100)
 
       // Get output data
       let tofuOutputs: any[] = []
@@ -474,6 +481,15 @@ export function ProcessingStationContent() {
     }
   }, [activeSection])
 
+  // Generate weekly data when soybeanData changes
+  useEffect(() => {
+    if (soybeanData.length >= 0 && activeSection === "tofu") {
+      const weeklyData = generateWeeklyDataWithRealSoybean()
+      setWeeklyTofuData(weeklyData)
+      console.log("Generated weekly data with real soybean:", weeklyData)
+    }
+  }, [soybeanData, activeSection])
+
   // Calculate input quantities by unit from livestock data
   const getInputQuantityByUnit = (unitName: string, productName: string) => {
     const unitSupplies = livestockData.filter((supply: any) => 
@@ -500,9 +516,16 @@ export function ProcessingStationContent() {
   // Calculate soybean input quantity for specific date
   const getSoybeanInputByDate = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd")
+    
+    console.log(`Checking soybean input for ${dateStr}, total soybeanData:`, soybeanData.length)
+    
     const daySupplies = soybeanData.filter((supply: any) => {
       const supplyDate = supply.stationEntryDate || supply.createdAt
-      return supplyDate && format(new Date(supplyDate), "yyyy-MM-dd") === dateStr
+      const supplyDateStr = supplyDate ? format(new Date(supplyDate), "yyyy-MM-dd") : null
+      
+      console.log(`Supply ${supply.id}: date=${supplyDateStr}, matching=${supplyDateStr === dateStr}`)
+      
+      return supplyDate && supplyDateStr === dateStr
     })
     
     const totalQuantity = daySupplies.reduce((total: number, supply: any) => {
@@ -510,9 +533,7 @@ export function ProcessingStationContent() {
     }, 0)
     
     // Debug log for specific date
-    if (totalQuantity > 0) {
-      console.log(`Soybean input for ${dateStr}:`, totalQuantity, "from supplies:", daySupplies)
-    }
+    console.log(`Soybean input for ${dateStr}:`, totalQuantity, "from", daySupplies.length, "supplies:", daySupplies)
     
     return totalQuantity
   }
