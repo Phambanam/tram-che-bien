@@ -83,7 +83,17 @@ const FOOD_PRODUCTS = {
 // @access  Private
 export const getSupplies = async (req: Request, res: Response) => {
   try {
-    const { unit, category, status, fromDate, toDate } = req.query
+    const { 
+      unit, 
+      category, 
+      status, 
+      fromDate, 
+      toDate, 
+      stationEntryFromDate, 
+      stationEntryToDate,
+      createdFromDate,
+      createdToDate
+    } = req.query
 
     // Make sure the database is connected
     await connectToDatabase()
@@ -148,6 +158,28 @@ export const getSupplies = async (req: Request, res: Response) => {
       }
       if (toDate) {
         query.expectedHarvestDate.$lte = new Date(toDate as string)
+      }
+    }
+
+    // Filter by station entry date range if specified
+    if (stationEntryFromDate || stationEntryToDate) {
+      query.stationEntryDate = {}
+      if (stationEntryFromDate) {
+        query.stationEntryDate.$gte = new Date(stationEntryFromDate as string)
+      }
+      if (stationEntryToDate) {
+        query.stationEntryDate.$lte = new Date(stationEntryToDate as string)
+      }
+    }
+
+    // Filter by created date range if specified
+    if (createdFromDate || createdToDate) {
+      query.createdAt = {}
+      if (createdFromDate) {
+        query.createdAt.$gte = new Date(createdFromDate as string)
+      }
+      if (createdToDate) {
+        query.createdAt.$lte = new Date(createdToDate as string)
       }
     }
 

@@ -15,7 +15,22 @@ import { Eye, Edit, Trash2, CheckCircle, XCircle } from "lucide-react"
 import { suppliesApi } from "@/lib/api-client"
 import { SupplySource } from "@/types"
 
-export function SuppliesTable() {
+interface SuppliesTableProps {
+  filters?: {
+    unit?: string
+    category?: string
+    status?: string
+    product?: string
+    fromDate?: string
+    toDate?: string
+    stationEntryFromDate?: string
+    stationEntryToDate?: string
+    createdFromDate?: string
+    createdToDate?: string
+  }
+}
+
+export function SuppliesTable({ filters = {} }: SuppliesTableProps) {
   const router = useRouter()
   const { data: session } = useSession()
   const { toast } = useToast()
@@ -40,8 +55,8 @@ export function SuppliesTable() {
         setLoading(true)
         setError(null)
 
-        const data = await suppliesApi.getSupplies()
-        console.log("Fetched supplies:", data)
+        const data = await suppliesApi.getSupplies(filters)
+        console.log("Fetched supplies with filters:", filters, data)
         setSupplies(data)
       } catch (error) {
         console.error("Error fetching supplies:", error)
@@ -59,7 +74,7 @@ export function SuppliesTable() {
     if (session) {
       fetchSupplies()
     }
-  }, [session, toast])
+  }, [session, toast, filters])
 
   const handleApprove = (supply: SupplySource) => {
     setSelectedSupply(supply)
