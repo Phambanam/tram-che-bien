@@ -47,6 +47,12 @@ export const getRoles = async (req: Request, res: Response) => {
         permissions: ["view_reports", "view_statistics", "view_supplies"],
         description: "Có thể xem báo cáo, thống kê và nguồn nhập.",
       },
+      {
+        id: "stationManager",
+        name: "Trạm trưởng trạm chế biến",
+        permissions: ["manage_categories", "manage_products", "view_reports", "send_notifications", "approve_supplies"],
+        description: "Có thể phê duyệt nguồn nhập, quản lý danh mục và sản phẩm, xem báo cáo. Không được chỉnh sửa thực đơn.",
+      },
     ]
 
     // Get users count for each role
@@ -88,7 +94,7 @@ export const getUsersByRole = async (req: Request, res: Response) => {
     const { roleId } = req.params
 
     // Validate role ID
-    const validRoles = ["admin", "brigadeAssistant", "unitAssistant", "commander"]
+    const validRoles = ["admin", "brigadeAssistant", "unitAssistant", "commander", "stationManager"]
     if (!validRoles.includes(roleId)) {
       throw new AppError("Vai trò không hợp lệ", 400)
     }
@@ -138,7 +144,7 @@ export const updateUserRole = async (req: Request, res: Response) => {
     }
 
     // Validate role
-    const validRoles = ["admin", "brigadeAssistant", "unitAssistant", "commander"]
+    const validRoles = ["admin", "brigadeAssistant", "unitAssistant", "commander", "stationManager"]
     if (!validRoles.includes(role)) {
       throw new AppError("Vai trò không hợp lệ", 400)
     }
@@ -216,6 +222,8 @@ function getVietnameseRoleName(role: string): string {
       return "Trợ lý Đơn vị"
     case "commander":
       return "Chỉ huy"
+    case "stationManager":
+      return "Trạm trưởng trạm chế biến"
     default:
       return role
   }

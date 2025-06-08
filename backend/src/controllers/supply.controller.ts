@@ -108,9 +108,9 @@ export const getSupplies = async (req: Request, res: Response) => {
     // Build query based on role and filters
     const query: any = {}
 
-    // Don't filter by unit for admin or brigadeAssistant roles
-    if (req.user!.role === "admin" || req.user!.role === "brigadeAssistant") {
-      console.log("DEBUG - Not filtering by unit for admin/brigadeAssistant role")
+    // Don't filter by unit for admin, brigadeAssistant or stationManager roles
+    if (req.user!.role === "admin" || req.user!.role === "brigadeAssistant" || req.user!.role === "stationManager") {
+      console.log("DEBUG - Not filtering by unit for admin/brigadeAssistant/stationManager role")
     } 
     // Unit assistants can only see their own unit's supplies
     else if (req.user!.role === "unitAssistant") {
@@ -607,9 +607,9 @@ export const approveSupply = async (req: Request, res: Response) => {
     const supplyId = req.params.id
     const { stationEntryDate, requestedQuantity, actualQuantity, unitPrice, expiryDate, note } = req.body
 
-    // Only brigade assistants can approve supplies
-    if (req.user!.role !== "brigadeAssistant") {
-      throw new AppError("Chỉ trợ lý lữ đoàn mới có thể phê duyệt nguồn nhập", 403)
+    // Only brigade assistants and station managers can approve supplies
+    if (req.user!.role !== "brigadeAssistant" && req.user!.role !== "stationManager") {
+      throw new AppError("Chỉ trợ lý lữ đoàn hoặc trạm trưởng trạm chế biến mới có thể phê duyệt nguồn nhập", 403)
     }
 
     // Validate ObjectId
@@ -682,9 +682,9 @@ export const rejectSupply = async (req: Request, res: Response) => {
     const supplyId = req.params.id
     const { note } = req.body
 
-    // Only brigade assistants can reject supplies
-    if (req.user!.role !== "brigadeAssistant") {
-      throw new AppError("Chỉ trợ lý lữ đoàn mới có thể từ chối nguồn nhập", 403)
+    // Only brigade assistants and station managers can reject supplies
+    if (req.user!.role !== "brigadeAssistant" && req.user!.role !== "stationManager") {
+      throw new AppError("Chỉ trợ lý lữ đoàn hoặc trạm trưởng trạm chế biến mới có thể từ chối nguồn nhập", 403)
     }
 
     // Validate ObjectId

@@ -12,10 +12,10 @@ const router = express.Router()
 // All routes are protected
 router.use(protect)
 
-// Routes for admin, brigade assistant, and commander
-router.get("/overview", authorize("admin", "brigadeAssistant", "commander"), getStatisticsOverview)
-router.get("/trends", authorize("admin", "brigadeAssistant", "commander"), getSupplyTrends)
-router.get("/distribution", authorize("admin", "brigadeAssistant", "commander"), getCategoryDistribution)
-router.get("/performance", authorize("admin", "brigadeAssistant", "commander"), getUnitPerformance)
+// Routes for admin, brigade assistant, station manager, and commander
+router.get("/overview", authorize("admin", "brigadeAssistant", "stationManager", "commander"), getStatisticsOverview)
+router.get("/trends", authorize("admin", "brigadeAssistant", "stationManager", "commander"), getSupplyTrends)
+router.get("/distribution", authorize("admin", "brigadeAssistant", "stationManager", "commander"), getCategoryDistribution)
+router.get("/performance", authorize("admin", "brigadeAssistant", "stationManager", "commander"), getUnitPerformance)
 
 export default router
