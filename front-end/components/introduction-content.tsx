@@ -12,7 +12,14 @@ export function IntroductionContent() {
         <div className="bg-gradient-to-r from-green-700 to-green-900 text-white p-8 rounded-lg mb-8">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-white/20 p-3 rounded-full">
-              <span className="text-2xl">🛡️</span>
+              
+              <Image
+                  src="/images/logo-ludoan.png"
+                  alt="Lữ đoàn Công binh hỗn hợp 279"
+                  width={40}
+                  height={40}
+                  style={{ width: '40', height: '40' }}
+                />
             </div>
             <div>
               <h2 className="text-3xl font-bold">Lữ đoàn Công binh hỗn hợp 279</h2>
@@ -41,7 +48,13 @@ export function IntroductionContent() {
               <div className="relative rounded-lg overflow-hidden shadow-lg">
                 <div className="w-full h-64 bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center">
                   <div className="text-center text-white">
-                    <span className="text-6xl mb-4 block">🛡️</span>
+                    <Image
+                      src="/images/logo-binchung.png"
+                      alt="Lữ đoàn Công binh hỗn hợp 279"
+                      width={40}
+                      height={40}
+                      style={{ width: '40', height: '40' }}
+                    />
                     <p className="text-lg font-bold">MỞ ĐƯỜNG THẮNG LỢI</p>
                     <p className="text-sm">Truyền thống vẻ vang</p>
                   </div>
@@ -76,7 +89,7 @@ export function IntroductionContent() {
 
                 <blockquote className="border-l-4 border-yellow-300 pl-4 bg-white/10 p-3 rounded-r-lg">
                   <p className="italic text-yellow-100 font-medium">
-                    "Mở đường, xây dựng những trình chiến đấu, rà phá bom mìn, đánh bảo giao thông vận tải 
+                    "Mở đường, xây dựng những trình chiến đấu, rà phá bom mìn, đảm bảo giao thông vận tải 
                     và bảo vệ các tuyến đường huyết mạch..."
                   </p>
                   <footer className="text-yellow-200 text-sm mt-2">
@@ -97,7 +110,7 @@ export function IntroductionContent() {
               <h2 className="text-3xl font-bold text-gray-800 mb-6">Quá trình hình thành và phát triển</h2>
               
               <p className="text-lg leading-8 mb-6 text-justify">
-                <strong>Lữ đoàn 279 được thành lập ngày 12 tháng 8 năm 1972</strong>, trong bối cảnh cuộc kháng chiến chống Mỹ của nhân dân Việt Nam đang diễn ra quyết liệt. Ngay từ những ngày đầu tiên, lữ đoàn đã đảm nhiệm nhiệm vụ đặc biệt quan trọng: <strong>mở đường, xây dựng những trình chiến đấu, rà phá bom mìn, đánh bảo giao thông vận tải và bảo vệ các tuyến đường huyết mạch</strong>, phục vụ trực tiếp cho các chiến dịch lớn ở chiến trường miền Nam và miền Bắc.
+                <strong>Lữ đoàn 279 được thành lập ngày 12 tháng 8 năm 1972</strong>, trong bối cảnh cuộc kháng chiến chống Mỹ của nhân dân Việt Nam đang diễn ra quyết liệt. Ngay từ những ngày đầu tiên, lữ đoàn đã đảm nhiệm nhiệm vụ đặc biệt quan trọng: <strong>mở đường, xây dựng những trình chiến đấu, rà phá bom mìn, đảm bảo giao thông vận tải và bảo vệ các tuyến đường huyết mạch</strong>, phục vụ trực tiếp cho các chiến dịch lớn ở chiến trường miền Nam và miền Bắc.
               </p>
 
               <div className="bg-red-50 p-6 rounded-lg mb-6 border-l-4 border-red-500">
