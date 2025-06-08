@@ -101,14 +101,20 @@ export const login = async (req: Request, res: Response) => {
 
     // Check if user is active
     if (user.status !== "active") {
-      throw new AppError("Tài khoản chưa được kích hoạt hoặc đã bị khóa", 401)
+      return res.status(401).json({
+        success: false,
+        message: "Tài khoản chưa được kích hoạt",
+      })
     }
 
     // Verify password
     const isPasswordValid = await comparePassword(password, user.password)
 
     if (!isPasswordValid) {
-      throw new AppError("Số điện thoại hoặc mật khẩu không chính xác", 401)
+      return res.status(401).json({
+        success: false,
+        message: "Số điện thoại hoặc mật khẩu không chính xác",
+      })
     }
 
     // Generate token
