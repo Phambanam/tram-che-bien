@@ -79,6 +79,7 @@ export function ProcessingStationContent() {
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedDate, setSelectedDate] = useState(new Date())
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -632,12 +633,99 @@ export function ProcessingStationContent() {
                   Quản lý phân phối thịt
                 </Badge>
               </div>
+
+              {/* Date Filter */}
+              <Card className="mb-6">
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-gray-500" />
+                        <label htmlFor="livestock-date" className="font-medium text-sm">
+                          Chọn ngày:
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const newDate = new Date(selectedDate)
+                            newDate.setDate(newDate.getDate() - 1)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã chuyển sang hôm qua",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        >
+                          ← Hôm qua
+                        </Button>
+                        <Input
+                          id="livestock-date"
+                          type="date"
+                          value={format(selectedDate, "yyyy-MM-dd")}
+                          className="w-40"
+                          onChange={(e) => {
+                            const newDate = new Date(e.target.value)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã thay đổi ngày",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const newDate = new Date(selectedDate)
+                            newDate.setDate(newDate.getDate() + 1)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã chuyển sang ngày mai",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        >
+                          Ngày mai →
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedDate(new Date())
+                          toast({
+                            title: "Đã chuyển về hôm nay",
+                            description: `Xem dữ liệu ngày ${format(new Date(), "dd/MM/yyyy", { locale: vi })}`,
+                          })
+                        }}
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-1" />
+                        Hôm nay
+                      </Button>
+                      <Badge variant="outline" className="text-sm">
+                        {format(selectedDate, "EEEE, dd/MM/yyyy", { locale: vi })}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               
               <Card>
                 <CardHeader>
-                  <CardTitle>Bảng tổng hợp ngày trước chuyển qua và nhập trong ngày</CardTitle>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Bảng tổng hợp ngày trước chuyển qua và nhập trong ngày</span>
+                    <Badge variant="secondary" className="text-sm">
+                      {format(selectedDate, "dd/MM/yyyy", { locale: vi })}
+                    </Badge>
+                  </CardTitle>
                   <p className="text-sm text-gray-600">
-                    Theo dõi nhập - xuất - tồn thịt và sản phẩm gia súc cho các đơn vị
+                    Theo dõi nhập - xuất - tồn thịt và sản phẩm gia súc cho các đơn vị • Ngày được chọn: {format(selectedDate, "EEEE, dd/MM/yyyy", { locale: vi })}
                   </p>
                 </CardHeader>
                 <CardContent>
