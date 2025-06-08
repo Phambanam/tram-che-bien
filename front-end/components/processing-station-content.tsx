@@ -645,461 +645,98 @@ export function ProcessingStationContent() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-center w-12">TT</TableHead>
-                          <TableHead className="w-32">Tên LTP</TableHead>
-                          <TableHead className="text-center w-16">Đvt</TableHead>
-                          <TableHead className="text-center w-24">Đơn giá</TableHead>
-                          <TableHead className="text-center w-20">Số lượng</TableHead>
-                          <TableHead className="text-center w-24">Thành tiền</TableHead>
-                          <TableHead className="text-center w-20">Tiểu đoàn 1</TableHead>
-                          <TableHead className="text-center w-20">Tiểu đoàn 2</TableHead>
-                          <TableHead className="text-center w-20">Tiểu đoàn 3</TableHead>
-                          <TableHead className="text-center w-20">Lữ đoàn bộ</TableHead>
-                          <TableHead className="text-center w-24">Nhập trong ngày</TableHead>
-                          <TableHead className="text-center w-24">Xuất trong ngày</TableHead>
-                          <TableHead className="text-center w-24">Tồn cuối ngày</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-8">TT</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-24">Tên LTP</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-12">Đvt</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-20">Đơn giá</TableHead>
+                          <TableHead colSpan={2} className="text-center border-r bg-gray-50">Ngày trước chuyển qua</TableHead>
+                          <TableHead colSpan={8} className="text-center border-r bg-blue-50">Nhập trong ngày</TableHead>
+                          <TableHead colSpan={8} className="text-center border-r bg-yellow-50">Xuất trong ngày</TableHead>
+                          <TableHead colSpan={2} className="text-center bg-purple-50">Tồn cuối ngày</TableHead>
+                        </TableRow>
+                        <TableRow>
+                          <TableHead className="text-center w-16 border-r">Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 1<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 2<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 3<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16 border-r">Lữ đoàn bộ<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 1<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 2<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 3<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16 border-r">Lữ đoàn bộ<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {/* Thịt xá */}
-                        <TableRow>
-                          <TableCell className="text-center font-medium">1</TableCell>
-                          <TableCell className="font-medium">Thịt xá</TableCell>
-                          <TableCell className="text-center">kg</TableCell>
-                          <TableCell className="text-center">65,000</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-blue-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-blue-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-yellow-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-yellow-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-purple-50">
-                            <span className="font-semibold">0</span>
-                          </TableCell>
-                        </TableRow>
+                        {[
+                          { id: 1, name: "Thịt xá", price: "65,000" },
+                          { id: 2, name: "Thịt nạc", price: "80,000" },
+                          { id: 3, name: "Xương", price: "15,000" },
+                          { id: 4, name: "Sườn", price: "70,000" },
+                          { id: 5, name: "Lòng", price: "45,000" },
+                          { id: 6, name: "Sụn", price: "35,000" },
+                          { id: 7, name: "Da con", price: "25,000" },
+                          { id: 8, name: "Mỡ", price: "30,000" }
+                        ].map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="text-center font-medium border-r">{item.id}</TableCell>
+                            <TableCell className="font-medium border-r">{item.name}</TableCell>
+                            <TableCell className="text-center border-r">kg</TableCell>
+                            <TableCell className="text-center border-r">{item.price}</TableCell>
+                            {/* Ngày trước chuyển qua */}
+                            <TableCell className="text-center bg-gray-50">0</TableCell>
+                            <TableCell className="text-center bg-gray-50 border-r">0</TableCell>
+                            {/* Nhập trong ngày - 4 đơn vị */}
+                            <TableCell className="text-center bg-blue-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-blue-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-blue-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-blue-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-blue-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50 border-r"><span className="text-xs">0</span></TableCell>
+                            {/* Xuất trong ngày - 4 đơn vị */}
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50 border-r"><span className="text-xs">0</span></TableCell>
+                            {/* Tồn cuối ngày */}
+                            <TableCell className="text-center bg-purple-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-purple-50"><span className="text-xs">0</span></TableCell>
+                          </TableRow>
+                        ))}
 
-                        {/* Thịt nạc */}
-                        <TableRow>
-                          <TableCell className="text-center font-medium">2</TableCell>
-                          <TableCell className="font-medium">Thịt nạc</TableCell>
-                          <TableCell className="text-center">kg</TableCell>
-                          <TableCell className="text-center">80,000</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-blue-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-blue-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-yellow-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-yellow-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-purple-50">
-                            <span className="font-semibold">0</span>
-                          </TableCell>
-                        </TableRow>
 
-                        {/* Xương */}
-                        <TableRow>
-                          <TableCell className="text-center font-medium">3</TableCell>
-                          <TableCell className="font-medium">Xương</TableCell>
-                          <TableCell className="text-center">kg</TableCell>
-                          <TableCell className="text-center">15,000</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-blue-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-blue-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-yellow-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-yellow-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-purple-50">
-                            <span className="font-semibold">0</span>
-                          </TableCell>
-                        </TableRow>
-
-                        {/* Sườn */}
-                        <TableRow>
-                          <TableCell className="text-center font-medium">4</TableCell>
-                          <TableCell className="font-medium">Sườn</TableCell>
-                          <TableCell className="text-center">kg</TableCell>
-                          <TableCell className="text-center">70,000</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-blue-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-blue-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-yellow-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-yellow-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-purple-50">
-                            <span className="font-semibold">0</span>
-                          </TableCell>
-                        </TableRow>
-
-                        {/* Lòng */}
-                        <TableRow>
-                          <TableCell className="text-center font-medium">5</TableCell>
-                          <TableCell className="font-medium">Lòng</TableCell>
-                          <TableCell className="text-center">kg</TableCell>
-                          <TableCell className="text-center">45,000</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-blue-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-blue-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-yellow-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-yellow-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-purple-50">
-                            <span className="font-semibold">0</span>
-                          </TableCell>
-                        </TableRow>
-
-                        {/* Sụn */}
-                        <TableRow>
-                          <TableCell className="text-center font-medium">6</TableCell>
-                          <TableCell className="font-medium">Sụn</TableCell>
-                          <TableCell className="text-center">kg</TableCell>
-                          <TableCell className="text-center">35,000</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-blue-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-blue-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-yellow-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-yellow-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-purple-50">
-                            <span className="font-semibold">0</span>
-                          </TableCell>
-                        </TableRow>
-
-                        {/* Da con */}
-                        <TableRow>
-                          <TableCell className="text-center font-medium">7</TableCell>
-                          <TableCell className="font-medium">Da con</TableCell>
-                          <TableCell className="text-center">kg</TableCell>
-                          <TableCell className="text-center">25,000</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-blue-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-blue-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-yellow-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-yellow-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-purple-50">
-                            <span className="font-semibold">0</span>
-                          </TableCell>
-                        </TableRow>
-
-                        {/* Mỡ */}
-                        <TableRow>
-                          <TableCell className="text-center font-medium">8</TableCell>
-                          <TableCell className="font-medium">Mỡ</TableCell>
-                          <TableCell className="text-center">kg</TableCell>
-                          <TableCell className="text-center">30,000</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center">0</TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-green-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-16 h-8 text-center border-green-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-blue-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-blue-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-yellow-50">
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className="w-20 h-8 text-center border-yellow-200"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center bg-purple-50">
-                            <span className="font-semibold">0</span>
-                          </TableCell>
-                        </TableRow>
                       </TableBody>
                     </Table>
                   </div>
