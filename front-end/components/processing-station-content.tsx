@@ -204,10 +204,10 @@ export function ProcessingStationContent() {
       
       // Filter for pork/livestock specifically
       const porkSupplies = supplies.filter((supply: any) => 
-        supply.foodName && (
-          supply.foodName.toLowerCase().includes("lợn") ||
-          supply.foodName.toLowerCase().includes("heo") ||
-          supply.foodName.toLowerCase().includes("thịt")
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("lợn") ||
+          supply.product.name.toLowerCase().includes("heo") ||
+          supply.product.name.toLowerCase().includes("thịt")
         )
       )
       
@@ -249,12 +249,13 @@ export function ProcessingStationContent() {
       
       // Filter for soybean specifically
       const soybeanSupplies = supplies.filter((supply: any) => 
-        supply.foodName && (
-          supply.foodName.toLowerCase().includes("đậu nành") ||
-          supply.foodName.toLowerCase().includes("đậu hạt") ||
-          supply.foodName.toLowerCase().includes("soybean")
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("đậu nành") ||
+          supply.product.name.toLowerCase().includes("đậu hạt") ||
+          supply.product.name.toLowerCase().includes("soybean")
         )
       )
+      console.log("Soybean data loaded:", soybeanSupplies)
       
       setSoybeanData(soybeanSupplies)
       
@@ -371,10 +372,10 @@ export function ProcessingStationContent() {
       
       // Filter for soybean (đậu nành) supplies that are approved
       const soybeanSupplies = supplies.filter((supply: any) => 
-        supply.foodName && (
-          supply.foodName.toLowerCase().includes("đậu nành") ||
-          supply.foodName.toLowerCase().includes("đậu hạt") ||
-          supply.foodName.toLowerCase().includes("soybean")
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("đậu nành") ||
+          supply.product.name.toLowerCase().includes("đậu hạt") ||
+          supply.product.name.toLowerCase().includes("soybean")
         )
       )
       
@@ -477,7 +478,7 @@ export function ProcessingStationContent() {
   const getInputQuantityByUnit = (unitName: string, productName: string) => {
     const unitSupplies = livestockData.filter((supply: any) => 
       supply.unitName && supply.unitName.includes(unitName) &&
-      supply.foodName && supply.foodName.toLowerCase().includes(productName.toLowerCase())
+      supply.product && supply.product.name && supply.product.name.toLowerCase().includes(productName.toLowerCase())
     )
     
     return unitSupplies.reduce((total: number, supply: any) => {
@@ -488,7 +489,7 @@ export function ProcessingStationContent() {
   // Calculate total input quantity for a product
   const getTotalInputQuantity = (productName: string) => {
     const productSupplies = livestockData.filter((supply: any) =>
-      supply.foodName && supply.foodName.toLowerCase().includes(productName.toLowerCase())
+      supply.product && supply.product.name && supply.product.name.toLowerCase().includes(productName.toLowerCase())
     )
     
     return productSupplies.reduce((total: number, supply: any) => {
