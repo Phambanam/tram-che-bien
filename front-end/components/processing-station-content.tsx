@@ -82,6 +82,8 @@ export function ProcessingStationContent() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [livestockData, setLivestockData] = useState<any[]>([])
   const [isLoadingLivestock, setIsLoadingLivestock] = useState(false)
+  const [soybeanData, setSoybeanData] = useState<any[]>([])
+  const [isLoadingSoybean, setIsLoadingSoybean] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -202,10 +204,10 @@ export function ProcessingStationContent() {
       
       // Filter for pork/livestock specifically
       const porkSupplies = supplies.filter((supply: any) => 
-        supply.foodName && (
-          supply.foodName.toLowerCase().includes("lợn") ||
-          supply.foodName.toLowerCase().includes("heo") ||
-          supply.foodName.toLowerCase().includes("thịt")
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("lợn") ||
+          supply.product.name.toLowerCase().includes("heo") ||
+          supply.product.name.toLowerCase().includes("thịt")
         )
       )
       
@@ -224,6 +226,116 @@ export function ProcessingStationContent() {
     } finally {
       setIsLoadingLivestock(false)
     }
+  }
+
+  // Fetch soybean data from supplies API for tofu processing
+  const fetchSoybeanDataForWeek = async (startDate: Date, endDate: Date) => {
+    try {
+      setIsLoadingSoybean(true)
+      
+      // Format dates for API filter
+      const startDateStr = format(startDate, "yyyy-MM-dd")
+      const endDateStr = format(endDate, "yyyy-MM-dd")
+      
+      // Get supplies data filtered for soybean and date range
+      const filters = {
+        stationEntryFromDate: startDateStr,
+        stationEntryToDate: endDateStr,
+        status: "approved" // Only approved supplies
+      }
+      
+      const suppliesResponse = await suppliesApi.getSupplies(filters)
+      const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
+      
+      // Filter for soybean specifically
+      const soybeanSupplies = supplies.filter((supply: any) => 
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("đậu nành") ||
+          supply.product.name.toLowerCase().includes("đậu hạt") ||
+          supply.product.name.toLowerCase().includes("soybean")
+        )
+      )
+      console.log("Soybean data loaded:", soybeanSupplies)
+      
+      setSoybeanData(soybeanSupplies)
+      
+      // Generate weekly data with real soybean input (will be triggered by useEffect)
+      // const weeklyData = generateWeeklyDataWithRealSoybean()
+      // setWeeklyTofuData(weeklyData)
+      
+      console.log("Soybean data loaded:", soybeanSupplies)
+      
+    } catch (error) {
+      console.error("Error fetching soybean data:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu đậu nành",
+        variant: "destructive",
+      })
+      // Don't reset soybeanData to empty array - keep existing data
+      // setSoybeanData([])
+      
+      // Fallback to sample data only if no existing weekly data
+      if (weeklyTofuData.length === 0) {
+        const weeklyData = generateSampleWeeklyData()
+        setWeeklyTofuData(weeklyData)
+      }
+    } finally {
+      setIsLoadingSoybean(false)
+    }
+  }
+
+  // Generate weekly data using real soybean input data
+  const generateWeeklyDataWithRealSoybean = (): WeeklyTofuData[] => {
+    const weekDates = getCurrentWeekDates()
+    const startDate = weekDates[0]
+    const endDate = weekDates[6]
+    
+    const dailyData: DailyTofuData[] = weekDates.map((date, index) => {
+      // Get real soybean input for this date
+      const realSoybeanInput = getSoybeanInputByDate(date)
+      
+      return {
+        date: format(date, "yyyy-MM-dd"),
+        dayOfWeek: getDayName(date.getDay()),
+        soybeanInput: realSoybeanInput, // Real data from API
+        soybeanOutput: realSoybeanInput > 0 ? Math.floor(realSoybeanInput * 0.8) : 0, // 80% processing rate
+        soybeanRemaining: 0, // Will be calculated
+        tofuOutputToUnits: realSoybeanInput > 0 && index < 5 ? [
+          { unitId: "unit1", unitName: "Tiểu đoàn 1", quantity: Math.floor(realSoybeanInput * 0.3) },
+          { unitId: "unit2", unitName: "Tiểu đoàn 2", quantity: Math.floor(realSoybeanInput * 0.25) }
+        ] : [],
+        tofuOutputToOthers: realSoybeanInput > 0 && index < 5 ? `Đơn vị khác: ${Math.floor(realSoybeanInput * 0.1)}kg` : "",
+        tofuRemaining: 0, // Will be calculated
+        note: realSoybeanInput > 0 ? `Đậu nành nhập: ${realSoybeanInput}kg` : ""
+      }
+    })
+
+    // Calculate remaining quantities
+    dailyData.forEach(day => {
+      day.soybeanRemaining = day.soybeanInput - day.soybeanOutput
+      const totalTofuToUnits = day.tofuOutputToUnits.reduce((sum, unit) => sum + unit.quantity, 0)
+      day.tofuRemaining = day.soybeanOutput - totalTofuToUnits // Assuming 1:1 conversion
+    })
+
+    const weeklyTotal: TofuSummary = {
+      totalSoybeanInput: dailyData.reduce((sum, day) => sum + day.soybeanInput, 0),
+      totalSoybeanOutput: dailyData.reduce((sum, day) => sum + day.soybeanOutput, 0),
+      totalSoybeanRemaining: dailyData.reduce((sum, day) => sum + day.soybeanRemaining, 0),
+      totalTofuOutputToUnits: dailyData.reduce((sum, day) => 
+        sum + day.tofuOutputToUnits.reduce((unitSum, unit) => unitSum + unit.quantity, 0), 0),
+      totalTofuOutputToOthers: "Tổng các đơn vị khác trong tuần",
+      totalTofuRemaining: dailyData.reduce((sum, day) => sum + day.tofuRemaining, 0)
+    }
+
+    return [{
+      id: "week-current",
+      week: format(startDate, "yyyy-'W'ww"),
+      startDate: format(startDate, "yyyy-MM-dd"),
+      endDate: format(endDate, "yyyy-MM-dd"),
+      dailyData,
+      weeklyTotal
+    }]
   }
 
   // Fetch data for tofu processing
@@ -246,15 +358,33 @@ export function ProcessingStationContent() {
         ])
       }
 
-      // Get soybean input data from supplies
-      const suppliesResponse = await suppliesApi.getSupplies()
+      // Get current week dates for soybean data filtering
+      const weekDates = getCurrentWeekDates()
+      const startDateStr = format(weekDates[0], "yyyy-MM-dd")
+      const endDateStr = format(weekDates[6], "yyyy-MM-dd")
+      
+      // Get soybean input data from supplies with date filter
+      const suppliesFilters = {
+        stationEntryFromDate: startDateStr,
+        stationEntryToDate: endDateStr,
+        status: "approved"
+      }
+      
+      const suppliesResponse = await suppliesApi.getSupplies(suppliesFilters)
       const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
       
       // Filter for soybean (đậu nành) supplies that are approved
       const soybeanSupplies = supplies.filter((supply: any) => 
-        supply.status === "approved" && 
-        supply.product?.name?.toLowerCase().includes("đậu nành")
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("đậu nành") ||
+          supply.product.name.toLowerCase().includes("đậu hạt") ||
+          supply.product.name.toLowerCase().includes("soybean")
+        )
       )
+      
+      // Don't set soybean data here - it will be handled by fetchSoybeanDataForWeek
+      // Only use soybean data for inventory calculation
+      console.log("Fetched soybean supplies for inventory calculation:", soybeanSupplies)
 
       // Get output data
       let tofuOutputs: any[] = []
@@ -276,9 +406,8 @@ export function ProcessingStationContent() {
       const totalOutput = tofuOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
       const remaining = totalInput - totalOutput
 
-      // Generate weekly data (sample for now)
-      const weeklyData = generateSampleWeeklyData()
-      setWeeklyTofuData(weeklyData)
+      // Weekly data will be generated by useEffect when soybeanData changes
+      // Don't generate here to avoid conflicts
 
       // Set inventory data
       if (soybeanSupplies.length === 0) {
@@ -331,17 +460,37 @@ export function ProcessingStationContent() {
     fetchTofuData()
   }, [])
 
+  // Initialize soybean data when component mounts or tofu section is active
+  useEffect(() => {
+    if (activeSection === "tofu") {
+      const weekDates = getCurrentWeekDates()
+      fetchSoybeanDataForWeek(weekDates[0], weekDates[6])
+    }
+  }, [activeSection])
+
   useEffect(() => {
     if (activeSection === "livestock") {
       fetchLivestockData(selectedDate)
     }
   }, [selectedDate, activeSection])
 
+
+
+  // Generate weekly data when soybeanData changes
+  useEffect(() => {
+    if (soybeanData.length > 0 && activeSection === "tofu") {
+      console.log("Regenerating weekly data with soybeanData:", soybeanData.length, "items")
+      const weeklyData = generateWeeklyDataWithRealSoybean()
+      setWeeklyTofuData(weeklyData)
+      console.log("Generated weekly data with real soybean:", weeklyData)
+    }
+  }, [soybeanData, activeSection])
+
   // Calculate input quantities by unit from livestock data
   const getInputQuantityByUnit = (unitName: string, productName: string) => {
     const unitSupplies = livestockData.filter((supply: any) => 
       supply.unitName && supply.unitName.includes(unitName) &&
-      supply.foodName && supply.foodName.toLowerCase().includes(productName.toLowerCase())
+      supply.product && supply.product.name && supply.product.name.toLowerCase().includes(productName.toLowerCase())
     )
     
     return unitSupplies.reduce((total: number, supply: any) => {
@@ -352,12 +501,37 @@ export function ProcessingStationContent() {
   // Calculate total input quantity for a product
   const getTotalInputQuantity = (productName: string) => {
     const productSupplies = livestockData.filter((supply: any) =>
-      supply.foodName && supply.foodName.toLowerCase().includes(productName.toLowerCase())
+      supply.product && supply.product.name && supply.product.name.toLowerCase().includes(productName.toLowerCase())
     )
     
     return productSupplies.reduce((total: number, supply: any) => {
       return total + (supply.actualQuantity || supply.requestedQuantity || 0)
     }, 0)
+  }
+
+  // Calculate soybean input quantity for specific date
+  const getSoybeanInputByDate = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd")
+    
+    console.log(`Checking soybean input for ${dateStr}, total soybeanData:`, soybeanData.length)
+    
+    const daySupplies = soybeanData.filter((supply: any) => {
+      const supplyDate = supply.stationEntryDate || supply.createdAt
+      const supplyDateStr = supplyDate ? format(new Date(supplyDate), "yyyy-MM-dd") : null
+      
+      console.log(`Supply ${supply.id}: date=${supplyDateStr}, matching=${supplyDateStr === dateStr}`)
+      
+      return supplyDate && supplyDateStr === dateStr
+    })
+    
+    const totalQuantity = daySupplies.reduce((total: number, supply: any) => {
+      return total + (supply.actualQuantity || supply.requestedQuantity || 0)
+    }, 0)
+    
+    // Debug log for specific date
+    console.log(`Soybean input for ${dateStr}:`, totalQuantity, "from", daySupplies.length, "supplies:", daySupplies)
+    
+    return totalQuantity
   }
 
   const sections = [
