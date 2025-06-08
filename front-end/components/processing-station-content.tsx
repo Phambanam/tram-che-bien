@@ -80,6 +80,8 @@ export function ProcessingStationContent() {
   const [units, setUnits] = useState<Unit[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [livestockData, setLivestockData] = useState<any[]>([])
+  const [isLoadingLivestock, setIsLoadingLivestock] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -177,6 +179,51 @@ export function ProcessingStationContent() {
       dailyData,
       weeklyTotal
     }]
+  }
+
+  // Fetch livestock data from supplies API
+  const fetchLivestockData = async (date: Date) => {
+    try {
+      setIsLoadingLivestock(true)
+      
+      // Format date for API filter
+      const dateStr = format(date, "yyyy-MM-dd")
+      
+      // Get supplies data filtered for meat/livestock and date
+      const filters = {
+        stationEntryFromDate: dateStr,
+        stationEntryToDate: dateStr,
+        category: "thịt", // Filter for meat category
+        status: "approved" // Only approved supplies
+      }
+      
+      const suppliesResponse = await suppliesApi.getSupplies(filters)
+      const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
+      
+      // Filter for pork/livestock specifically
+      const porkSupplies = supplies.filter((supply: any) => 
+        supply.foodName && (
+          supply.foodName.toLowerCase().includes("lợn") ||
+          supply.foodName.toLowerCase().includes("heo") ||
+          supply.foodName.toLowerCase().includes("thịt")
+        )
+      )
+      
+      setLivestockData(porkSupplies)
+      
+      console.log("Livestock data loaded:", porkSupplies)
+      
+    } catch (error) {
+      console.error("Error fetching livestock data:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu thịt lợn",
+        variant: "destructive",
+      })
+      setLivestockData([])
+    } finally {
+      setIsLoadingLivestock(false)
+    }
   }
 
   // Fetch data for tofu processing
@@ -284,12 +331,41 @@ export function ProcessingStationContent() {
     fetchTofuData()
   }, [])
 
+  useEffect(() => {
+    if (activeSection === "livestock") {
+      fetchLivestockData(selectedDate)
+    }
+  }, [selectedDate, activeSection])
+
+  // Calculate input quantities by unit from livestock data
+  const getInputQuantityByUnit = (unitName: string, productName: string) => {
+    const unitSupplies = livestockData.filter((supply: any) => 
+      supply.unitName && supply.unitName.includes(unitName) &&
+      supply.foodName && supply.foodName.toLowerCase().includes(productName.toLowerCase())
+    )
+    
+    return unitSupplies.reduce((total: number, supply: any) => {
+      return total + (supply.actualQuantity || supply.requestedQuantity || 0)
+    }, 0)
+  }
+
+  // Calculate total input quantity for a product
+  const getTotalInputQuantity = (productName: string) => {
+    const productSupplies = livestockData.filter((supply: any) =>
+      supply.foodName && supply.foodName.toLowerCase().includes(productName.toLowerCase())
+    )
+    
+    return productSupplies.reduce((total: number, supply: any) => {
+      return total + (supply.actualQuantity || supply.requestedQuantity || 0)
+    }, 0)
+  }
+
   const sections = [
     { id: "tofu", name: "Chế biến đậu phụ", icon: Package, color: "bg-green-100 text-green-800" },
     { id: "sausage", name: "Làm giò chả", icon: Utensils, color: "bg-orange-100 text-orange-800" },
     { id: "sprouts", name: "Giá đỗ", icon: Wheat, color: "bg-yellow-100 text-yellow-800" },
     { id: "salt", name: "Muối nén", icon: Droplets, color: "bg-blue-100 text-blue-800" },
-    { id: "livestock", name: "Giết mổ gia súc", icon: Beef, color: "bg-red-100 text-red-800" },
+    { id: "livestock", name: "Giết mổ lợn", icon: Beef, color: "bg-red-100 text-red-800" },
     { id: "seafood", name: "Gia cầm, hải sản", icon: Fish, color: "bg-purple-100 text-purple-800" },
     { id: "lttp", name: "Quản lý LTTP", icon: Package, color: "bg-indigo-100 text-indigo-800" },
   ]
@@ -628,9 +704,9 @@ export function ProcessingStationContent() {
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-4">
                 <Beef className="h-6 w-6 text-red-600" />
-                <h2 className="text-2xl font-bold text-red-800">Giết mổ gia súc</h2>
+                <h2 className="text-2xl font-bold text-red-800">Giết mổ lợn</h2>
                 <Badge className="bg-red-100 text-red-800">
-                  Quản lý phân phối thịt
+                  Quản lý phân phối thịt lợn
                 </Badge>
               </div>
 
@@ -782,25 +858,57 @@ export function ProcessingStationContent() {
                             <TableCell className="text-center border-r">kg</TableCell>
                             <TableCell className="text-center border-r">{item.price}</TableCell>
                             {/* Ngày trước chuyển qua */}
-                            <TableCell className="text-center bg-gray-50">0</TableCell>
-                            <TableCell className="text-center bg-gray-50 border-r">0</TableCell>
+                            <TableCell className="text-center bg-gray-50">
+                              <span className="text-xs font-semibold">
+                                {isLoadingLivestock ? "..." : getTotalInputQuantity(item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-gray-50 border-r">
+                              <span className="text-xs">
+                                {((getTotalInputQuantity(item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
                             {/* Nhập trong ngày - 4 đơn vị */}
                             <TableCell className="text-center bg-blue-50">
-                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-blue-200" />
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 1", item.name)}
+                              </span>
                             </TableCell>
-                            <TableCell className="text-center bg-blue-50"><span className="text-xs">0</span></TableCell>
                             <TableCell className="text-center bg-blue-50">
-                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-blue-200" />
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 1", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
                             </TableCell>
-                            <TableCell className="text-center bg-blue-50"><span className="text-xs">0</span></TableCell>
                             <TableCell className="text-center bg-blue-50">
-                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-blue-200" />
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 2", item.name)}
+                              </span>
                             </TableCell>
-                            <TableCell className="text-center bg-blue-50"><span className="text-xs">0</span></TableCell>
                             <TableCell className="text-center bg-blue-50">
-                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-blue-200" />
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 2", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
                             </TableCell>
-                            <TableCell className="text-center bg-blue-50 border-r"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 3", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 3", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Lữ đoàn", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50 border-r">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Lữ đoàn", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
                             {/* Xuất trong ngày - 4 đơn vị */}
                             <TableCell className="text-center bg-yellow-50">
                               <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
