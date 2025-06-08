@@ -272,11 +272,14 @@ export function ProcessingStationContent() {
         description: "Không thể tải dữ liệu đậu nành",
         variant: "destructive",
       })
-      setSoybeanData([])
+      // Don't reset soybeanData to empty array - keep existing data
+      // setSoybeanData([])
       
-      // Fallback to sample data
-      const weeklyData = generateSampleWeeklyData()
-      setWeeklyTofuData(weeklyData)
+      // Fallback to sample data only if no existing weekly data
+      if (weeklyTofuData.length === 0) {
+        const weeklyData = generateSampleWeeklyData()
+        setWeeklyTofuData(weeklyData)
+      }
     } finally {
       setIsLoadingSoybean(false)
     }
@@ -475,7 +478,8 @@ export function ProcessingStationContent() {
 
   // Generate weekly data when soybeanData changes
   useEffect(() => {
-    if (soybeanData.length >= 0 && activeSection === "tofu") {
+    if (soybeanData.length > 0 && activeSection === "tofu") {
+      console.log("Regenerating weekly data with soybeanData:", soybeanData.length, "items")
       const weeklyData = generateWeeklyDataWithRealSoybean()
       setWeeklyTofuData(weeklyData)
       console.log("Generated weekly data with real soybean:", weeklyData)
