@@ -18,13 +18,14 @@ const navItems = [
     href: "/dashboard/quan-ly-nguon-nhap",
   },
   {
-    title: "TRẠM CHẾ BIẾN",
-    href: "/dashboard/tram-che-bien",
-  },
-  {
     title: "BÁO CÁO THỰC ĐƠN",
     href: "/dashboard/bao-cao-thuc-don",
   },
+  {
+    title: "HOẠT ĐỘNG TRẠM CHẾ BIẾN",
+    href: "/dashboard/tram-che-bien",
+  },
+ 
   {
     title: "QUẢN LÝ NGUỒN XUẤT",
     href: "/dashboard/quan-ly-nguon-xuat",
