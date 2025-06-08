@@ -26,9 +26,9 @@ interface SuppliesFilterProps {
 export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
   const [expanded, setExpanded] = useState(false)
   const [filters, setFilters] = useState({
-    unit: "",
-    category: "",
-    status: "",
+    unit: "all",
+    category: "all",
+    status: "all",
     product: "",
     fromDate: "",
     toDate: "",
@@ -55,9 +55,9 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
 
   const handleReset = useCallback(() => {
     const resetFilters = {
-      unit: "",
-      category: "",
-      status: "",
+      unit: "all",
+      category: "all",
+      status: "all",
       product: "",
       fromDate: "",
       toDate: "",
@@ -88,7 +88,7 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
                   <SelectValue placeholder="Tất cả đơn vị" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tất cả đơn vị</SelectItem>
+                  <SelectItem value="all">Tất cả đơn vị</SelectItem>
                   <SelectItem value="tieu-doan-1">Tiểu đoàn 1</SelectItem>
                   <SelectItem value="tieu-doan-2">Tiểu đoàn 2</SelectItem>
                   <SelectItem value="tieu-doan-3">Tiểu đoàn 3</SelectItem>
@@ -103,7 +103,7 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
                   <SelectValue placeholder="Tất cả phân loại" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tất cả phân loại</SelectItem>
+                  <SelectItem value="all">Tất cả phân loại</SelectItem>
                   <SelectItem value="rau">Rau</SelectItem>
                   <SelectItem value="gia-suc">Gia súc</SelectItem>
                   <SelectItem value="gia-cam">Gia cầm</SelectItem>
@@ -120,7 +120,7 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
                   <SelectValue placeholder="Tất cả trạng thái" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tất cả trạng thái</SelectItem>
+                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
                   <SelectItem value="pending">Chờ phê duyệt</SelectItem>
                   <SelectItem value="approved">Đã phê duyệt</SelectItem>
                   <SelectItem value="rejected">Đã từ chối</SelectItem>
