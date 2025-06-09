@@ -12,15 +12,15 @@ const navItems = [
   {
     title: "GIỚI THIỆU",
     href: "/dashboard/gioi-thieu",
+  }, {
+    title: "THỰC ĐƠN TUẦN",
+    href: "/dashboard/bao-cao-thuc-don",
   },
   {
     title: "QUẢN LÝ NGUỒN NHẬP",
     href: "/dashboard/quan-ly-nguon-nhap",
   },
-  {
-    title: "BÁO CÁO THỰC ĐƠN",
-    href: "/dashboard/bao-cao-thuc-don",
-  },
+  
   {
     title: "HOẠT ĐỘNG TRẠM CHẾ BIẾN",
     href: "/dashboard/tram-che-bien",
