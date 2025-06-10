@@ -88,8 +88,15 @@ export function DataLibraryContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1)
+  // Pagination states for each tab
+  const [currentPages, setCurrentPages] = useState({
+    units: 1,
+    categories: 1,
+    lttp: 1,
+    dishes: 1,
+    rations: 1,
+    users: 1
+  })
   const [itemsPerPage] = useState(10)
 
   // Data states
@@ -118,10 +125,13 @@ export function DataLibraryContent() {
   // Category ingredients cache for tooltip
   const [categoryIngredients, setCategoryIngredients] = useState<{ [categoryId: string]: LTTPItem[] }>({})
 
-  // Reset pagination when tab changes or search term changes
+  // Reset pagination when search term changes
   useEffect(() => {
-    setCurrentPage(1)
-  }, [activeTab, searchTerm])
+    setCurrentPages(prev => ({
+      ...prev,
+      [activeTab]: 1
+    }))
+  }, [searchTerm])
 
   // Fetch data
   const fetchData = async () => {
@@ -461,6 +471,7 @@ export function DataLibraryContent() {
   // Pagination logic
   const paginateData = (data: any[]) => {
     const filtered = filteredData(data)
+    const currentPage = currentPages[activeTab as keyof typeof currentPages]
     const startIndex = (currentPage - 1) * itemsPerPage
     const endIndex = startIndex + itemsPerPage
     return {
@@ -471,7 +482,10 @@ export function DataLibraryContent() {
   }
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page)
+    setCurrentPages(prev => ({
+      ...prev,
+      [activeTab]: page
+    }))
   }
 
   const tabs = [
@@ -716,7 +730,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(units).data.map((unit, index) => (
                       <TableRow key={unit._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.units - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{unit.code}</TableCell>
                         <TableCell className="font-medium">{unit.name}</TableCell>
                         <TableCell>{unit.personnel}</TableCell>
@@ -737,7 +751,7 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.units}
                   totalPages={paginateData(units).totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -763,7 +777,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(categories).data.map((category, index) => (
                       <TableRow key={category._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.categories - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{category.name}</TableCell>
                         <TableCell>{category.description}</TableCell>
                         <TableCell>
@@ -782,7 +796,7 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.categories}
                   totalPages={paginateData(categories).totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -809,7 +823,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(lttpItems).data.map((item, index) => (
                       <TableRow key={item._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.lttp - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell>{item.categoryName}</TableCell>
                         <TableCell>{item.unit}</TableCell>
@@ -828,7 +842,7 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.lttp}
                   totalPages={paginateData(lttpItems).totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -859,7 +873,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(dishes).data.map((dish, index) => (
                       <TableRow key={dish._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.dishes - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{dish.name}</TableCell>
                         <TableCell>
                           {dish.mainLTTP ? (
@@ -902,7 +916,7 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.dishes}
                   totalPages={paginateData(dishes).totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -932,7 +946,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(dailyRations).data.map((ration, index) => (
                       <TableRow key={ration._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.rations - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{ration.name}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{ration.categoryName}</Badge>
@@ -958,7 +972,7 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.rations}
                   totalPages={paginateData(dailyRations).totalPages}
                   onPageChange={handlePageChange}
                 />
