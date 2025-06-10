@@ -63,7 +63,10 @@ export const createCategory = async (req: Request, res: Response) => {
 
     // Validate input
     if (!name) {
-      throw new AppError("Tên phân loại không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tên phân loại không được để trống"
+      })
     }
 
     const db = await getDb()
@@ -79,7 +82,10 @@ export const createCategory = async (req: Request, res: Response) => {
       ]
     })
     if (existingCategory) {
-      throw new AppError("Phân loại đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Phân loại đã tồn tại"
+      })
     }
 
     // Create new category
@@ -97,11 +103,11 @@ export const createCategory = async (req: Request, res: Response) => {
       categoryId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating category:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm phân loại", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm phân loại"
+    })
   }
 }
 
@@ -114,7 +120,10 @@ export const getCategoryById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(categoryId)) {
-      throw new AppError("ID phân loại không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID phân loại không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -122,7 +131,10 @@ export const getCategoryById = async (req: Request, res: Response) => {
     const category = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
 
     if (!category) {
-      throw new AppError("Không tìm thấy phân loại", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy phân loại"
+      })
     }
 
     // Calculate item count
@@ -146,11 +158,11 @@ export const getCategoryById = async (req: Request, res: Response) => {
       data: transformedCategory,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching category:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin phân loại", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin phân loại"
+    })
   }
 }
 
@@ -164,12 +176,18 @@ export const updateCategory = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(categoryId)) {
-      throw new AppError("ID phân loại không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID phân loại không hợp lệ"
+      })
     }
 
     // Validate input
     if (!name) {
-      throw new AppError("Tên phân loại không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tên phân loại không được để trống"
+      })
     }
 
     const db = await getDb()
@@ -177,17 +195,23 @@ export const updateCategory = async (req: Request, res: Response) => {
     // Generate slug if not provided
     const finalSlug = slug || generateSlug(name)
 
-    // Check if category with the same name or slug already exists (excluding current category)
+    // Check if category already exists by name or slug (excluding current category)
     const existingCategory = await db.collection("categories").findOne({
-      _id: { $ne: new ObjectId(categoryId) },
-      $or: [
-        { name },
-        { slug: finalSlug }
+      $and: [
+        { _id: { $ne: new ObjectId(categoryId) } },
+        {
+          $or: [
+            { name },
+            { slug: finalSlug }
+          ]
+        }
       ]
     })
-
     if (existingCategory) {
-      throw new AppError("Phân loại với tên hoặc slug này đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Phân loại với tên hoặc slug này đã tồn tại"
+      })
     }
 
     const result = await db.collection("categories").updateOne(
@@ -203,7 +227,10 @@ export const updateCategory = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy phân loại", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy phân loại"
+      })
     }
 
     res.status(200).json({
@@ -211,11 +238,11 @@ export const updateCategory = async (req: Request, res: Response) => {
       message: "Cập nhật phân loại thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating category:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật phân loại", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật phân loại"
+    })
   }
 }
 
@@ -228,27 +255,38 @@ export const deleteCategory = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(categoryId)) {
-      throw new AppError("ID phân loại không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID phân loại không hợp lệ"
+      })
     }
 
     const db = await getDb()
 
-    // Check if category is being used by any product
-    const productWithCategory = await db.collection("products").findOne({ category: new ObjectId(categoryId) })
-    if (productWithCategory) {
-      throw new AppError("Không thể xóa phân loại đang được sử dụng bởi sản phẩm", 400)
+    // Check if category is being used
+    const productCount = await db.collection("products").countDocuments({ category: new ObjectId(categoryId) })
+    if (productCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể xóa phân loại đang được sử dụng bởi sản phẩm"
+      })
     }
 
-    // Check if category is being used by any supply
-    const supplyWithCategory = await db.collection("supplies").findOne({ category: new ObjectId(categoryId) })
-    if (supplyWithCategory) {
-      throw new AppError("Không thể xóa phân loại đang được sử dụng trong nguồn nhập", 400)
+    const supplyCount = await db.collection("supplies").countDocuments({ categoryId })
+    if (supplyCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể xóa phân loại đang được sử dụng trong nguồn nhập"
+      })
     }
 
     const result = await db.collection("categories").deleteOne({ _id: new ObjectId(categoryId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy phân loại", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy phân loại"
+      })
     }
 
     res.status(200).json({
@@ -256,10 +294,10 @@ export const deleteCategory = async (req: Request, res: Response) => {
       message: "Xóa phân loại thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting category:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa phân loại", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa phân loại"
+    })
   }
 }
