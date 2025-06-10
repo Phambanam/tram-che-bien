@@ -446,17 +446,30 @@ export const contentApi = {
   getContentById: async (id: string) => {
     // Validate ID before making request
     if (!id || id === 'undefined' || id === 'null') {
-      throw new Error('ID nội dung không được để trống')
+      return {
+        success: false,
+        message: 'ID nội dung không được để trống'
+      }
     }
     
     // Basic ID format validation (check if it looks like a valid ObjectId)
     if (id.length !== 24 || !/^[a-fA-F0-9]{24}$/.test(id)) {
-      throw new Error(`ID nội dung không hợp lệ: ${id}`)
+      return {
+        success: false,
+        message: `ID nội dung không hợp lệ: ${id}`
+      }
     }
     
-    console.log('Getting content by ID:', id)
-    const response = await apiRequest<{ success: boolean; data: any }>(`/content/${id}`)
-    return response.data
+    try {
+      console.log('Getting content by ID:', id)
+      const response = await apiRequest<{ success: boolean; data: any }>(`/content/${id}`)
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "Đã xảy ra lỗi khi lấy nội dung"
+      }
+    }
   },
 
   createContent: async (data: any) => {
