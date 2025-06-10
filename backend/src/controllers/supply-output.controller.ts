@@ -251,7 +251,8 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
     if (!supplyOutput || supplyOutput.length === 0) {
       return res.status(404).json({
         success: false,
-      throw new AppError("Không tìm thấy nguồn xuất", 404)
+        message: "Không tìm thấy nguồn xuất"
+      })
     }
 
     res.status(200).json({
@@ -259,11 +260,11 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
       data: supplyOutput[0],
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching supply output:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin nguồn xuất", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin nguồn xuất"
+    })
   }
 }
 
@@ -276,12 +277,18 @@ export const createSupplyOutput = async (req: Request, res: Response) => {
 
     // Validate input
     if (!receivingUnit || !productId || !quantity || !outputDate || !receiver) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     // Validate ObjectIds
     if (!ObjectId.isValid(receivingUnit) || !ObjectId.isValid(productId)) {
-      throw new AppError("ID đơn vị hoặc sản phẩm không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị hoặc sản phẩm không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -289,13 +296,19 @@ export const createSupplyOutput = async (req: Request, res: Response) => {
     // Check if unit exists
     const unitExists = await db.collection("units").findOne({ _id: new ObjectId(receivingUnit) })
     if (!unitExists) {
-      throw new AppError("Đơn vị không tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Đơn vị không tồn tại"
+      })
     }
 
     // Check if product exists
     const productExists = await db.collection("products").findOne({ _id: new ObjectId(productId) })
     if (!productExists) {
-      throw new AppError("Sản phẩm không tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Sản phẩm không tồn tại"
+      })
     }
 
     // Check if there is enough inventory
@@ -321,7 +334,10 @@ export const createSupplyOutput = async (req: Request, res: Response) => {
     const availableQuantity = inventory.length > 0 ? inventory[0].totalNonExpired : 0
 
     if (availableQuantity < quantity) {
-      throw new AppError(`Không đủ số lượng trong kho. Hiện có ${availableQuantity}kg, cần xuất ${quantity}kg`, 400)
+      return res.status(400).json({
+        success: false,
+        message: `Không đủ số lượng trong kho. Hiện có ${availableQuantity}kg, cần xuất ${quantity}kg`
+      })
     }
 
     // Create new supply output
@@ -371,11 +387,11 @@ export const createSupplyOutput = async (req: Request, res: Response) => {
       supplyOutputId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating supply output:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm nguồn xuất", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm nguồn xuất"
+    })
   }
 }
 
@@ -389,17 +405,26 @@ export const updateSupplyOutput = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(outputId)) {
-      throw new AppError("ID nguồn xuất không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID nguồn xuất không hợp lệ"
+      })
     }
 
     // Validate input
     if (!receivingUnit || !productId || !quantity || !outputDate || !receiver) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     // Validate ObjectIds
     if (!ObjectId.isValid(receivingUnit) || !ObjectId.isValid(productId)) {
-      throw new AppError("ID đơn vị hoặc sản phẩm không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị hoặc sản phẩm không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -408,19 +433,28 @@ export const updateSupplyOutput = async (req: Request, res: Response) => {
     const currentOutput = await db.collection("supplyOutputs").findOne({ _id: new ObjectId(outputId) })
 
     if (!currentOutput) {
-      throw new AppError("Không tìm thấy nguồn xuất", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nguồn xuất"
+      })
     }
 
     // Check if unit exists
     const unitExists = await db.collection("units").findOne({ _id: new ObjectId(receivingUnit) })
     if (!unitExists) {
-      throw new AppError("Đơn vị không tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Đơn vị không tồn tại"
+      })
     }
 
     // Check if product exists
     const productExists = await db.collection("products").findOne({ _id: new ObjectId(productId) })
     if (!productExists) {
-      throw new AppError("Sản phẩm không tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Sản phẩm không tồn tại"
+      })
     }
 
     // If product or quantity changed, check inventory and update
@@ -461,7 +495,10 @@ export const updateSupplyOutput = async (req: Request, res: Response) => {
       const availableQuantity = inventory.length > 0 ? inventory[0].totalNonExpired : 0
 
       if (availableQuantity < Number(quantity)) {
-        throw new AppError(`Không đủ số lượng trong kho. Hiện có ${availableQuantity}kg, cần xuất ${quantity}kg`, 400)
+        return res.status(400).json({
+          success: false,
+          message: `Không đủ số lượng trong kho. Hiện có ${availableQuantity}kg, cần xuất ${quantity}kg`
+        })
       }
 
       // Update inventory with new quantity
@@ -510,7 +547,10 @@ export const updateSupplyOutput = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy nguồn xuất", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nguồn xuất"
+      })
     }
 
     res.status(200).json({
@@ -518,11 +558,11 @@ export const updateSupplyOutput = async (req: Request, res: Response) => {
       message: "Cập nhật nguồn xuất thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating supply output:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật nguồn xuất", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật nguồn xuất"
+    })
   }
 }
 
@@ -535,7 +575,10 @@ export const deleteSupplyOutput = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(outputId)) {
-      throw new AppError("ID nguồn xuất không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID nguồn xuất không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -544,7 +587,10 @@ export const deleteSupplyOutput = async (req: Request, res: Response) => {
     const currentOutput = await db.collection("supplyOutputs").findOne({ _id: new ObjectId(outputId) })
 
     if (!currentOutput) {
-      throw new AppError("Không tìm thấy nguồn xuất", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nguồn xuất"
+      })
     }
 
     // Return quantity to inventory
@@ -564,7 +610,10 @@ export const deleteSupplyOutput = async (req: Request, res: Response) => {
     const result = await db.collection("supplyOutputs").deleteOne({ _id: new ObjectId(outputId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy nguồn xuất", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nguồn xuất"
+      })
     }
 
     res.status(200).json({
@@ -572,10 +621,10 @@ export const deleteSupplyOutput = async (req: Request, res: Response) => {
       message: "Xóa nguồn xuất thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting supply output:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa nguồn xuất", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa nguồn xuất"
+    })
   }
 }
