@@ -84,7 +84,10 @@ export const getProducts = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching products:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách sản phẩm", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách sản phẩm"
+    })
   }
 }
 
@@ -97,12 +100,18 @@ export const createProduct = async (req: Request, res: Response) => {
 
     // Validate input
     if (!name || !categoryId) {
-      throw new AppError("Tên sản phẩm và phân loại không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tên sản phẩm và phân loại không được để trống"
+      })
     }
 
     // Validate ObjectId
     if (!ObjectId.isValid(categoryId)) {
-      throw new AppError("ID phân loại không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID phân loại không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -110,7 +119,10 @@ export const createProduct = async (req: Request, res: Response) => {
     // Check if category exists
     const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
     if (!categoryExists) {
-      throw new AppError("Phân loại không tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Phân loại không tồn tại"
+      })
     }
 
     // Create new product
@@ -131,11 +143,11 @@ export const createProduct = async (req: Request, res: Response) => {
       productId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating product:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm sản phẩm", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm sản phẩm"
+    })
   }
 }
 
@@ -148,7 +160,10 @@ export const getProductById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(productId)) {
-      throw new AppError("ID sản phẩm không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID sản phẩm không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -175,7 +190,10 @@ export const getProductById = async (req: Request, res: Response) => {
       .toArray()
 
     if (!product || product.length === 0) {
-      throw new AppError("Không tìm thấy sản phẩm", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy sản phẩm"
+      })
     }
 
     // Transform data for response
@@ -201,11 +219,11 @@ export const getProductById = async (req: Request, res: Response) => {
       data: transformedProduct,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching product:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin sản phẩm", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin sản phẩm"
+    })
   }
 }
 
