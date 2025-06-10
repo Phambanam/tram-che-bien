@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { menusApi, dishesApi, menuPlanningApi } from "@/lib/api-client"
 import { DishTooltip } from "@/components/dish-tooltip"
+import { MultiSelect, Option } from "@/components/ui/multi-select"
 import { 
   exportMenuToExcel, 
   exportIngredientsToExcel, 
@@ -558,57 +559,23 @@ export function MenuReportContent() {
     }
   }
 
-  // Handle dish selection for daily menu creation
-  const handleDishSelection = (mealType: "morning" | "noon" | "evening", dishId: string, isSelected: boolean) => {
+  // Handle dish selection for daily menu creation using MultiSelect
+  const handleMealDishesChange = (mealType: "morning" | "noon" | "evening", selectedDishIds: string[]) => {
     setDailyMenuForm(prev => ({
       ...prev,
       meals: {
         ...prev.meals,
-        [mealType]: isSelected 
-          ? [...prev.meals[mealType], dishId]
-          : prev.meals[mealType].filter(id => id !== dishId)
+        [mealType]: selectedDishIds
       }
     }))
   }
 
-  // Check if dish is selected for a meal type
-  const isDishSelected = (mealType: "morning" | "noon" | "evening", dishId: string) => {
-    return dailyMenuForm.meals[mealType].includes(dishId)
-  }
-
-  // Select all dishes for a meal type
-  const selectAllDishes = (mealType: "morning" | "noon" | "evening") => {
-    setDailyMenuForm(prev => ({
-      ...prev,
-      meals: {
-        ...prev.meals,
-        [mealType]: availableDishes.map(dish => dish._id)
-      }
-    }))
-  }
-
-  // Clear all dishes for a meal type
-  const clearAllDishes = (mealType: "morning" | "noon" | "evening") => {
-    setDailyMenuForm(prev => ({
-      ...prev,
-      meals: {
-        ...prev.meals,
-        [mealType]: []
-      }
-    }))
-  }
-
-  // Handle meal type change in dish form
-  const handleMealTypeChange = (newMealType: string) => {
-    if (selectedDailyMenuId) {
-      const dailyMenu = currentMenu?.dailyMenus.find(dm => dm.id === selectedDailyMenuId)
-      const meal = dailyMenu?.meals.find(m => m.type === newMealType)
-      if (meal) {
-        setSelectedMealId(meal.id)
-      }
-    }
-    setDishForm({...dishForm, mealType: newMealType})
-  }
+  // Convert dishes to options for MultiSelect
+  const dishOptions: Option[] = availableDishes.map(dish => ({
+    value: dish._id,
+    label: dish.name + (dish.mainLTTP ? ` (${dish.mainLTTP.lttpName})` : ''),
+    dish: dish // Store dish object for tooltip
+  }))
 
   // Handle export menu to Excel
   const handleExportMenuToExcel = () => {
@@ -1567,108 +1534,51 @@ export function MenuReportContent() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <h4 className="font-medium text-orange-600">🌅 Buổi sáng</h4>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => selectAllDishes("morning")}>
-                        Chọn tất cả
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => clearAllDishes("morning")}>
-                        Bỏ chọn
-                      </Button>
+                    <div className="text-xs text-gray-500">
+                      Đã chọn: {dailyMenuForm.meals.morning.length} món
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-md p-3">
-                    {availableDishes.map((dish) => (
-                      <div key={`morning-${dish._id}`} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`morning-${dish._id}`}
-                          checked={isDishSelected("morning", dish._id)}
-                          onChange={(e) => handleDishSelection("morning", dish._id, e.target.checked)}
-                          className="rounded"
-                        />
-                        <DishTooltip dish={dish}>
-                          <Label htmlFor={`morning-${dish._id}`} className="text-sm cursor-pointer hover:text-blue-600">
-                            {dish.name}
-                          </Label>
-                        </DishTooltip>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Đã chọn: {dailyMenuForm.meals.morning.length} món
-                  </div>
+                  <MultiSelect
+                    options={dishOptions}
+                    selected={dailyMenuForm.meals.morning}
+                    onChange={(selected) => handleMealDishesChange("morning", selected)}
+                    placeholder="Chọn món ăn cho buổi sáng..."
+                    className="max-w-full"
+                  />
                 </div>
 
                 {/* Noon Meal */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <h4 className="font-medium text-yellow-600">☀️ Buổi trưa</h4>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => selectAllDishes("noon")}>
-                        Chọn tất cả
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => clearAllDishes("noon")}>
-                        Bỏ chọn
-                      </Button>
+                    <div className="text-xs text-gray-500">
+                      Đã chọn: {dailyMenuForm.meals.noon.length} món
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-md p-3">
-                    {availableDishes.map((dish) => (
-                      <div key={`noon-${dish._id}`} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`noon-${dish._id}`}
-                          checked={isDishSelected("noon", dish._id)}
-                          onChange={(e) => handleDishSelection("noon", dish._id, e.target.checked)}
-                          className="rounded"
-                        />
-                        <DishTooltip dish={dish}>
-                          <Label htmlFor={`noon-${dish._id}`} className="text-sm cursor-pointer hover:text-blue-600">
-                            {dish.name}
-                          </Label>
-                        </DishTooltip>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Đã chọn: {dailyMenuForm.meals.noon.length} món
-                  </div>
+                  <MultiSelect
+                    options={dishOptions}
+                    selected={dailyMenuForm.meals.noon}
+                    onChange={(selected) => handleMealDishesChange("noon", selected)}
+                    placeholder="Chọn món ăn cho buổi trưa..."
+                    className="max-w-full"
+                  />
                 </div>
 
                 {/* Evening Meal */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <h4 className="font-medium text-blue-600">🌙 Buổi chiều</h4>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => selectAllDishes("evening")}>
-                        Chọn tất cả
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => clearAllDishes("evening")}>
-                        Bỏ chọn
-                      </Button>
+                    <div className="text-xs text-gray-500">
+                      Đã chọn: {dailyMenuForm.meals.evening.length} món
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-md p-3">
-                    {availableDishes.map((dish) => (
-                      <div key={`evening-${dish._id}`} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`evening-${dish._id}`}
-                          checked={isDishSelected("evening", dish._id)}
-                          onChange={(e) => handleDishSelection("evening", dish._id, e.target.checked)}
-                          className="rounded"
-                        />
-                        <DishTooltip dish={dish}>
-                          <Label htmlFor={`evening-${dish._id}`} className="text-sm cursor-pointer hover:text-blue-600">
-                            {dish.name}
-                          </Label>
-                        </DishTooltip>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Đã chọn: {dailyMenuForm.meals.evening.length} món
-                  </div>
+                  <MultiSelect
+                    options={dishOptions}
+                    selected={dailyMenuForm.meals.evening}
+                    onChange={(selected) => handleMealDishesChange("evening", selected)}
+                    placeholder="Chọn món ăn cho buổi chiều..."
+                    className="max-w-full"
+                  />
                 </div>
               </div>
 
