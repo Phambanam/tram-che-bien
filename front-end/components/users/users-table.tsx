@@ -39,8 +39,14 @@ export function UsersTable() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const data = await usersApi.getUsers()
-        setUsers(data)
+        const response = await usersApi.getUsers()
+        console.log("Users API response:", response)
+        
+        // Handle different response formats
+        const data = Array.isArray(response) ? response : (response as any).data || []
+        console.log("Processed users data:", data)
+        
+        setUsers(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error("Error fetching users:", error)
         toast({
@@ -48,6 +54,7 @@ export function UsersTable() {
           title: "Lỗi",
           description: "Không thể tải danh sách người dùng",
         })
+        setUsers([]) // Set empty array on error
       } finally {
         setLoading(false)
       }
@@ -72,7 +79,7 @@ export function UsersTable() {
         description: `Đã phê duyệt tài khoản của ${selectedUser.fullName}`,
       })
       // Cập nhật danh sách người dùng
-      setUsers(users.map((user) => (user.id === selectedUser.id ? { ...user, status: "active" } : user)))
+      setUsers(Array.isArray(users) ? users.map((user) => (user.id === selectedUser.id ? { ...user, status: "active" } : user)) : [])
     } catch (error) {
       console.error("Error approving user:", error)
       toast({
@@ -101,7 +108,7 @@ export function UsersTable() {
         description: `Đã từ chối tài khoản của ${selectedUser.fullName}`,
       })
       // Cập nhật danh sách người dùng
-      setUsers(users.map((user) => (user.id === selectedUser.id ? { ...user, status: "rejected" } : user)))
+      setUsers(Array.isArray(users) ? users.map((user) => (user.id === selectedUser.id ? { ...user, status: "rejected" } : user)) : [])
     } catch (error) {
       console.error("Error rejecting user:", error)
       toast({
@@ -131,7 +138,7 @@ export function UsersTable() {
         description: `Đã thay đổi vai trò của ${selectedUser.fullName} thành ${getRoleName(selectedRole)}`,
       })
       // Cập nhật danh sách người dùng
-      setUsers(users.map((user) => (user.id === selectedUser.id ? { ...user, role: selectedRole } : user)))
+      setUsers(Array.isArray(users) ? users.map((user) => (user.id === selectedUser.id ? { ...user, role: selectedRole } : user)) : [])
     } catch (error) {
       console.error("Error changing role:", error)
       toast({
@@ -195,7 +202,7 @@ export function UsersTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user, index) => (
+          {Array.isArray(users) && users.length > 0 ? users.map((user, index) => (
             <TableRow key={user.id}>
               <TableCell>{index + 1}</TableCell>
               <TableCell>{user.fullName}</TableCell>
@@ -246,7 +253,13 @@ export function UsersTable() {
                 </DropdownMenu>
               </TableCell>
             </TableRow>
-          ))}
+          )) : (
+            <TableRow>
+              <TableCell colSpan={9} className="text-center py-4 text-gray-500">
+                {Array.isArray(users) ? "Không có người dùng nào" : "Đang tải dữ liệu..."}
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
 
