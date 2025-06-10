@@ -200,7 +200,7 @@ export function DataLibraryContent() {
 
       // Fetch dishes
       try {
-        const dishesResponse = await dishesApi.getDishes()
+        const dishesResponse = await dishesApi.getDishes({ limit: 1000 })
         const dishesData = Array.isArray(dishesResponse) ? dishesResponse : (dishesResponse as any).data || []
         setDishes(dishesData)
       } catch (error) {
