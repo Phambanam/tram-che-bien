@@ -59,45 +59,59 @@ export const getUserNotifications = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching user notifications:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông báo người dùng", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông báo người dùng"
+    })
   }
 }
 
 // @desc    Mark notification as read
 // @route   PATCH /api/notifications/:id/read
 // @access  Private
-export const markNotificationAsRead = async (req: Request, res: Response) => {
+export const markAsRead = async (req: Request, res: Response) => {
   try {
     const notificationId = req.params.id
+    const userId = req.user!.userId
 
     // Validate ObjectId
     if (!ObjectId.isValid(notificationId)) {
-      throw new AppError("ID thông báo không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID thông báo không hợp lệ"
+      })
     }
 
     const db = await getDb()
 
-    // Get notification to ensure it belongs to the user
-    const notification = await db.collection("notifications").findOne({
-      _id: new ObjectId(notificationId),
-    })
-
+    // Check if notification exists and belongs to user
+    const notification = await db.collection("notifications").findOne({ _id: new ObjectId(notificationId) })
+    
     if (!notification) {
-      throw new AppError("Không tìm thấy thông báo", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thông báo"
+      })
     }
 
-    // Check if notification belongs to the user
-    if (notification.recipient.toString() !== req.user!.id) {
-      throw new AppError("Bạn không có quyền truy cập thông báo này", 403)
+    if (notification.recipientId.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền truy cập thông báo này"
+      })
     }
 
-    // Update notification to mark as read
-    const result = await db
-      .collection("notifications")
-      .updateOne({ _id: new ObjectId(notificationId) }, { $set: { read: true, updatedAt: new Date() } })
+    // Update notification status
+    const result = await db.collection("notifications").updateOne(
+      { _id: new ObjectId(notificationId) },
+      { $set: { isRead: true, readAt: new Date() } }
+    )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy thông báo", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thông báo"
+      })
     }
 
     res.status(200).json({
@@ -105,11 +119,11 @@ export const markNotificationAsRead = async (req: Request, res: Response) => {
       message: "Đánh dấu thông báo đã đọc thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error marking notification as read:", error)
-    throw new AppError("Đã xảy ra lỗi khi đánh dấu thông báo đã đọc", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi đánh dấu thông báo đã đọc"
+    })
   }
 }
 
@@ -135,7 +149,10 @@ export const markAllNotificationsAsRead = async (req: Request, res: Response) =>
     })
   } catch (error) {
     console.error("Error marking all notifications as read:", error)
-    throw new AppError("Đã xảy ra lỗi khi đánh dấu tất cả thông báo đã đọc", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi đánh dấu tất cả thông báo đã đọc"
+    })
   }
 }
 
@@ -185,12 +202,18 @@ export const sendNotification = async (req: Request, res: Response) => {
 
     // Validate input
     if (!recipientId || !title || !message) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin người nhận, tiêu đề và nội dung thông báo", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin người nhận, tiêu đề và nội dung thông báo"
+      })
     }
 
     // Validate recipient ID
     if (!ObjectId.isValid(recipientId)) {
-      throw new AppError("ID người nhận không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID người nhận không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -198,14 +221,20 @@ export const sendNotification = async (req: Request, res: Response) => {
     // Check if recipient exists
     const recipient = await db.collection("users").findOne({ _id: new ObjectId(recipientId) })
     if (!recipient) {
-      throw new AppError("Không tìm thấy người dùng nhận thông báo", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng nhận thông báo"
+      })
     }
 
     // Create notification
     const notificationId = await createNotification(db, recipientId, type || "manual", title, message, data || {})
 
     if (!notificationId) {
-      throw new AppError("Đã xảy ra lỗi khi tạo thông báo", 500)
+      return res.status(500).json({
+        success: false,
+        message: "Đã xảy ra lỗi khi tạo thông báo"
+      })
     }
 
     res.status(201).json({
@@ -214,11 +243,11 @@ export const sendNotification = async (req: Request, res: Response) => {
       notificationId: notificationId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error sending notification:", error)
-    throw new AppError("Đã xảy ra lỗi khi gửi thông báo", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi gửi thông báo"
+    })
   }
 }
 
@@ -263,12 +292,15 @@ export const getNotificationPreferences = async (req: Request, res: Response) =>
     })
   } catch (error) {
     console.error("Error fetching notification preferences:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy tùy chọn thông báo", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy tùy chọn thông báo"
+    })
   }
 }
 
 // @desc    Update notification preferences
-// @route   PATCH /api/notifications/preferences
+// @route   PUT /api/notifications/preferences
 // @access  Private
 export const updateNotificationPreferences = async (req: Request, res: Response) => {
   try {
@@ -299,7 +331,10 @@ export const updateNotificationPreferences = async (req: Request, res: Response)
     })
   } catch (error) {
     console.error("Error updating notification preferences:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật tùy chọn thông báo", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật tùy chọn thông báo"
+    })
   }
 }
 

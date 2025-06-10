@@ -80,7 +80,10 @@ export const getDailyRations = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching daily rations:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách định lượng ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách định lượng ăn"
+    })
   }
 }
 
@@ -89,24 +92,22 @@ export const getDailyRations = async (req: Request, res: Response) => {
 // @access  Private (Admin, Brigade Assistant)
 export const createDailyRation = async (req: Request, res: Response) => {
   try {
-    const { 
-      name, 
-      categoryId,
-      categoryName,
-      quantityPerPerson,
-      unit, 
-      pricePerUnit, 
-      notes 
-    } = req.body
+    const { name, categoryId, categoryName, quantityPerPerson, unit, pricePerUnit, notes } = req.body
 
     // Validate input
     if (!name || !categoryId || !quantityPerPerson || !unit || !pricePerUnit) {
-      throw new AppError("Các trường bắt buộc không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Các trường bắt buộc không được để trống"
+      })
     }
 
-    // Validate quantityPerPerson is a positive number
-    if (isNaN(quantityPerPerson) || quantityPerPerson <= 0) {
-      throw new AppError("Số lượng/người phải là số dương", 400)
+    // Validate quantityPerPerson and pricePerUnit are positive numbers
+    if (parseFloat(quantityPerPerson) <= 0 || parseFloat(pricePerUnit) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Số lượng/người phải là số dương"
+      })
     }
 
     const db = await getDb()
@@ -114,15 +115,19 @@ export const createDailyRation = async (req: Request, res: Response) => {
     // Check if daily ration already exists
     const existingRation = await db.collection("dailyRations").findOne({ name })
     if (existingRation) {
-      throw new AppError("Định lượng ăn đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Định lượng ăn đã tồn tại"
+      })
     }
 
-    // Verify category exists if ObjectId is provided
-    if (ObjectId.isValid(categoryId)) {
-      const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
-      if (!categoryExists) {
-        throw new AppError("Phân loại không tồn tại", 400)
-      }
+    // Validate category exists
+    const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
+    if (!categoryExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Phân loại không tồn tại"
+      })
     }
 
     // Create new daily ration with actual quantity per person
@@ -145,11 +150,11 @@ export const createDailyRation = async (req: Request, res: Response) => {
       rationId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating daily ration:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm định lượng ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm định lượng ăn"
+    })
   }
 }
 
@@ -162,7 +167,10 @@ export const getDailyRationById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(rationId)) {
-      throw new AppError("ID định lượng ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID định lượng ăn không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -170,7 +178,10 @@ export const getDailyRationById = async (req: Request, res: Response) => {
     const ration = await db.collection("dailyRations").findOne({ _id: new ObjectId(rationId) })
 
     if (!ration) {
-      throw new AppError("Không tìm thấy định lượng ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy định lượng ăn"
+      })
     }
 
     // Transform data for response
@@ -193,11 +204,11 @@ export const getDailyRationById = async (req: Request, res: Response) => {
       data: transformedRation,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching daily ration:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin định lượng ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin định lượng ăn"
+    })
   }
 }
 
@@ -207,29 +218,30 @@ export const getDailyRationById = async (req: Request, res: Response) => {
 export const updateDailyRation = async (req: Request, res: Response) => {
   try {
     const rationId = req.params.id
-    const { 
-      name, 
-      categoryId,
-      categoryName,
-      quantityPerPerson,
-      unit, 
-      pricePerUnit, 
-      notes 
-    } = req.body
+    const { name, categoryId, categoryName, quantityPerPerson, unit, pricePerUnit, notes } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(rationId)) {
-      throw new AppError("ID định lượng ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID định lượng ăn không hợp lệ"
+      })
     }
 
     // Validate input
     if (!name || !categoryId || !quantityPerPerson || !unit || !pricePerUnit) {
-      throw new AppError("Các trường bắt buộc không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Các trường bắt buộc không được để trống"
+      })
     }
 
-    // Validate quantityPerPerson is a positive number
-    if (isNaN(quantityPerPerson) || quantityPerPerson <= 0) {
-      throw new AppError("Số lượng/người phải là số dương", 400)
+    // Validate quantityPerPerson and pricePerUnit are positive numbers
+    if (parseFloat(quantityPerPerson) <= 0 || parseFloat(pricePerUnit) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Số lượng/người phải là số dương"
+      })
     }
 
     const db = await getDb()
@@ -241,15 +253,19 @@ export const updateDailyRation = async (req: Request, res: Response) => {
     })
 
     if (existingRation) {
-      throw new AppError("Định lượng ăn với tên này đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Định lượng ăn với tên này đã tồn tại"
+      })
     }
 
-    // Verify category exists if ObjectId is provided
-    if (ObjectId.isValid(categoryId)) {
-      const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
-      if (!categoryExists) {
-        throw new AppError("Phân loại không tồn tại", 400)
-      }
+    // Validate category exists if categoryId is provided
+    const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
+    if (!categoryExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Phân loại không tồn tại"
+      })
     }
 
     const result = await db.collection("dailyRations").updateOne(
@@ -270,7 +286,10 @@ export const updateDailyRation = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy định lượng ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy định lượng ăn"
+      })
     }
 
     res.status(200).json({
@@ -278,11 +297,11 @@ export const updateDailyRation = async (req: Request, res: Response) => {
       message: "Cập nhật định lượng ăn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating daily ration:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật định lượng ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật định lượng ăn"
+    })
   }
 }
 
@@ -295,7 +314,10 @@ export const deleteDailyRation = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(rationId)) {
-      throw new AppError("ID định lượng ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID định lượng ăn không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -303,7 +325,10 @@ export const deleteDailyRation = async (req: Request, res: Response) => {
     const result = await db.collection("dailyRations").deleteOne({ _id: new ObjectId(rationId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy định lượng ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy định lượng ăn"
+      })
     }
 
     res.status(200).json({
@@ -311,11 +336,11 @@ export const deleteDailyRation = async (req: Request, res: Response) => {
       message: "Xóa định lượng ăn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting daily ration:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa định lượng ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa định lượng ăn"
+    })
   }
 }
 
@@ -354,7 +379,10 @@ export const getDailyRationsByCategory = async (req: Request, res: Response) => 
     })
   } catch (error) {
     console.error("Error fetching daily rations by category:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách định lượng ăn theo phân loại", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách định lượng ăn theo phân loại"
+    })
   }
 }
 
@@ -392,6 +420,9 @@ export const getTotalDailyCost = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error calculating total daily cost:", error)
-    throw new AppError("Đã xảy ra lỗi khi tính tổng chi phí hàng ngày", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi tính tổng chi phí hàng ngày"
+    })
   }
 } 

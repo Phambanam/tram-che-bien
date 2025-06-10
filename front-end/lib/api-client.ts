@@ -94,10 +94,22 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 // Auth API
 export const authApi = {
   login: async (phoneNumber: string, password: string) => {
-    return apiRequest<{ token: string; user: any }>("/auth/login", {
+    console.log('🚀 API client login called')
+    const response = await apiRequest<{ success: boolean; data: { token: string; user: any } }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ phoneNumber: phoneNumber, password }),
     })
+    
+    console.log('🔍 API client raw response:', response)
+    
+    // Extract data from response to match expected format
+    if (response.success && response.data) {
+      console.log('✅ API client extracting data:', response.data)
+      return response.data
+    } else {
+      console.log('❌ API client invalid response format:', response)
+      throw new Error("Invalid login response format")
+    }
   },
 
   register: async (userData: any) => {
@@ -108,7 +120,14 @@ export const authApi = {
   },
 
   getProfile: async () => {
-    return apiRequest<any>("/auth/me")
+    const response = await apiRequest<{ success: boolean; data: any }>("/auth/me")
+    
+    // Extract data from response
+    if (response.success && response.data) {
+      return { data: response.data }
+    } else {
+      throw new Error("Invalid profile response format")
+    }
   },
 }
 

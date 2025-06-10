@@ -153,7 +153,10 @@ export const printSupplies = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error generating printable supply list:", error)
-    throw new AppError("Đã xảy ra lỗi khi tạo danh sách nguồn nhập để in", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi tạo danh sách nguồn nhập để in"
+    })
   }
 }
 
@@ -269,8 +272,11 @@ export const printUnitReport = async (req: Request, res: Response) => {
       },
     })
   } catch (error) {
-    console.error("Error generating printable unit report:", error)
-    throw new AppError("Đã xảy ra lỗi khi tạo báo cáo theo đơn vị để in", 500)
+    console.error("Error generating unit report:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi tạo báo cáo theo đơn vị"
+    })
   }
 }
 
@@ -388,8 +394,11 @@ export const printCategoryReport = async (req: Request, res: Response) => {
       },
     })
   } catch (error) {
-    console.error("Error generating printable category report:", error)
-    throw new AppError("Đã xảy ra lỗi khi tạo báo cáo theo phân loại để in", 500)
+    console.error("Error generating category report:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi tạo báo cáo theo phân loại"
+    })
   }
 }
 

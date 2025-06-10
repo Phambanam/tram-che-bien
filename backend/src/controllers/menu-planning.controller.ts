@@ -67,7 +67,10 @@ export const getMenuSuggestions = async (req: Request, res: Response) => {
     const db = await getDb()
     
     if (!db) {
-      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
     }
     
     // Get all dishes with ingredients
@@ -200,7 +203,10 @@ export const getMenuSuggestions = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error getting menu suggestions:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy gợi ý thực đơn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Không thể kết nối cơ sở dữ liệu"
+    })
   }
 }
 
@@ -212,7 +218,10 @@ export const getInventoryAlerts = async (req: Request, res: Response) => {
     const db = await getDb()
 
     if (!db) {
-      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
     }
 
     const inventory = await db
@@ -291,7 +300,10 @@ export const getInventoryAlerts = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error getting inventory alerts:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy cảnh báo tồn kho", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Không thể kết nối cơ sở dữ liệu"
+    })
   }
 }
 
@@ -303,13 +315,19 @@ export const generateDailyMenuPlan = async (req: Request, res: Response) => {
     const { date } = req.body
 
     if (!date) {
-      throw new AppError("Ngày lập thực đơn là bắt buộc", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Ngày lập thực đơn là bắt buộc"
+      })
     }
 
     const db = await getDb()
 
     if (!db) {
-      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
     }
 
     // Get menu suggestions
@@ -356,7 +374,10 @@ export const generateDailyMenuPlan = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error generating daily menu plan:", error)
-    throw new AppError("Đã xảy ra lỗi khi tạo kế hoạch thực đơn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Không thể kết nối cơ sở dữ liệu"
+    })
   }
 }
 
@@ -368,7 +389,10 @@ export const getMenuPlanningOverview = async (req: Request, res: Response) => {
     const db = await getDb()
 
     if (!db) {
-      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
     }
 
     // Get all data in parallel
@@ -407,7 +431,10 @@ export const getMenuPlanningOverview = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error getting menu planning overview:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy tổng quan lập thực đơn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Không thể kết nối cơ sở dữ liệu"
+    })
   }
 }
 
@@ -420,7 +447,10 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
     const db = await getDb()
 
     if (!db) {
-      throw new AppError("Không thể kết nối cơ sở dữ liệu", 500)
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
     }
 
     let matchCriteria: any = {}
@@ -565,7 +595,10 @@ export const getDailyIngredientSummaries = async (req: Request, res: Response) =
     })
   } catch (error) {
     console.error("Error getting daily ingredient summaries:", error)
-    throw new AppError("Đã xảy ra lỗi khi tính toán tổng hợp nguyên liệu", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Không thể kết nối cơ sở dữ liệu"
+    })
   }
 }
 

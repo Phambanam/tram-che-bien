@@ -82,7 +82,11 @@ export const getDishes = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching dishes:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách món ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách món ăn",
+
+    })
   }
 }
 
@@ -95,7 +99,11 @@ export const getDishById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(dishId)) {
-      throw new AppError("ID món ăn không hợp lệ", 400)
+      return res.status(404).json({
+        success: false,
+        message: "ID món ăn không hợp lệ",
+
+      })
     }
 
     const db = await getDb()
@@ -103,7 +111,11 @@ export const getDishById = async (req: Request, res: Response) => {
     const dish = await db.collection("dishes").findOne({ _id: new ObjectId(dishId) })
 
     if (!dish) {
-      throw new AppError("Không tìm thấy món ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy món ăn",
+
+      })
     }
 
     // Transform data for response
@@ -126,11 +138,13 @@ export const getDishById = async (req: Request, res: Response) => {
       data: transformedDish,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
+   
     console.error("Error fetching dish:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin món ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin món ăn",
+
+    })
   }
 }
 
@@ -152,11 +166,19 @@ export const createDish = async (req: Request, res: Response) => {
 
     // Validate input
     if (!name) {
-      throw new AppError("Tên món ăn không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tên món ăn không được để trống",
+
+      })
     }
 
     if (!mainLTTP || !mainLTTP.lttpId || !mainLTTP.lttpName) {
-      throw new AppError("LTTP chính không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "LTTP chính không được để trống",
+
+      })
     }
 
     const db = await getDb()
@@ -164,15 +186,23 @@ export const createDish = async (req: Request, res: Response) => {
     // Check if dish already exists
     const existingDish = await db.collection("dishes").findOne({ name })
     if (existingDish) {
-      throw new AppError("Món ăn đã tồn tại", 400)
+     return res.status(400).json({
+        success: false,
+        message: "Món ăn đã tồn tại trong hệ thống",
+      
+      })
     }
 
     // Validate ingredients if provided
     if (ingredients && Array.isArray(ingredients)) {
       for (const ingredient of ingredients) {
         if (!ingredient.lttpId || !ingredient.lttpName || !ingredient.quantity || !ingredient.unit) {
-          throw new AppError("Thông tin nguyên liệu không đầy đủ", 400)
-        }
+          return res.status(400).json({
+            success: false,
+            message: "Thông tin nguyên liệu không đầy đủ",
+
+          })
+}
       }
     }
 
@@ -204,7 +234,11 @@ export const createDish = async (req: Request, res: Response) => {
       throw error
     }
     console.error("Error creating dish:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm món ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm món ăn",
+
+    })
   }
 }
 
@@ -227,16 +261,25 @@ export const updateDish = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(dishId)) {
-      throw new AppError("ID món ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID món ăn không hợp lệ"
+      })
     }
 
     // Validate input
     if (!name) {
-      throw new AppError("Tên món ăn không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tên món ăn không được để trống"
+      })
     }
 
     if (!mainLTTP || !mainLTTP.lttpId || !mainLTTP.lttpName) {
-      throw new AppError("LTTP chính không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "LTTP chính không được để trống"
+      })
     }
 
     const db = await getDb()
@@ -248,14 +291,20 @@ export const updateDish = async (req: Request, res: Response) => {
     })
 
     if (existingDish) {
-      throw new AppError("Món ăn với tên này đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Món ăn với tên này đã tồn tại"
+      })
     }
 
     // Validate ingredients if provided
     if (ingredients && Array.isArray(ingredients)) {
       for (const ingredient of ingredients) {
         if (!ingredient.lttpId || !ingredient.lttpName || !ingredient.quantity || !ingredient.unit) {
-          throw new AppError("Thông tin nguyên liệu không đầy đủ", 400)
+          return res.status(400).json({
+            success: false,
+            message: "Thông tin nguyên liệu không đầy đủ"
+          })
         }
       }
     }
@@ -282,7 +331,11 @@ export const updateDish = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy món ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy món ăn",
+
+      })
     }
 
     res.status(200).json({
@@ -290,11 +343,11 @@ export const updateDish = async (req: Request, res: Response) => {
       message: "Cập nhật món ăn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating dish:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật món ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật món ăn"
+    })
   }
 }
 
@@ -307,7 +360,11 @@ export const deleteDish = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(dishId)) {
-      throw new AppError("ID món ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID món ăn không hợp lệ",
+
+      })
     }
 
     const db = await getDb()
@@ -315,7 +372,11 @@ export const deleteDish = async (req: Request, res: Response) => {
     const result = await db.collection("dishes").deleteOne({ _id: new ObjectId(dishId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy món ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy món ăn",
+
+      })
     }
 
     res.status(200).json({
@@ -323,11 +384,13 @@ export const deleteDish = async (req: Request, res: Response) => {
       message: "Xóa món ăn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
+   
     console.error("Error deleting dish:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa món ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa món ăn",
+
+    })
   }
 }
 
@@ -366,7 +429,11 @@ export const getDishesByMainLTTP = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching dishes by main LTTP:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách món ăn theo LTTP chính", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách món ăn theo LTTP chính",
+
+    })
   }
 }
 
@@ -405,6 +472,10 @@ export const getDishesByIngredient = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching dishes by ingredient:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách món ăn theo nguyên liệu", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách món ăn theo nguyên liệu",
+
+    })
   }
 }

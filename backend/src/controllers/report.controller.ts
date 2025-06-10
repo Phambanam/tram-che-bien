@@ -103,8 +103,11 @@ export const getReportByUnit = async (req: Request, res: Response) => {
       },
     })
   } catch (error) {
-    console.error("Error generating unit report:", error)
-    throw new AppError("Đã xảy ra lỗi khi tạo báo cáo theo đơn vị", 500)
+    console.error("Error generating report:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi tạo báo cáo theo đơn vị"
+    })
   }
 }
 
@@ -212,8 +215,11 @@ export const getReportByCategory = async (req: Request, res: Response) => {
       },
     })
   } catch (error) {
-    console.error("Error generating category report:", error)
-    throw new AppError("Đã xảy ra lỗi khi tạo báo cáo theo phân loại", 500)
+    console.error("Error generating report:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi tạo báo cáo theo phân loại"
+    })
   }
 }
 
@@ -352,7 +358,10 @@ export const getDetailedReport = async (req: Request, res: Response) => {
       },
     })
   } catch (error) {
-    console.error("Error generating detailed report:", error)
-    throw new AppError("Đã xảy ra lỗi khi tạo báo cáo chi tiết", 500)
+    console.error("Error generating report:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi tạo báo cáo chi tiết"
+    })
   }
 }
