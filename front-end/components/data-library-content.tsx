@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Pagination } from "@/components/ui/pagination"
-import { Search, Plus, Edit, Trash2, FileDown, FileUp, Users, Tag, Package, Utensils, Calculator, Info, UserCheck } from "lucide-react"
+import { Search, Plus, Edit, Trash2, FileDown, FileUp, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/components/ui/use-toast"
 import { unitsApi, categoriesApi, productsApi, dishesApi, dailyRationsApi, lttpApi } from "@/lib/api-client"
@@ -505,12 +505,12 @@ export function DataLibraryContent() {
   }
 
   const tabs = [
-    { id: "units", name: "Đơn vị", icon: Users, color: "bg-blue-100 text-blue-800" },
-    { id: "categories", name: "Phân loại", icon: Tag, color: "bg-green-100 text-green-800" },
-    { id: "lttp", name: "Tên LTTP - Chất đốt", icon: Package, color: "bg-orange-100 text-orange-800" },
-    { id: "dishes", name: "Món ăn", icon: Utensils, color: "bg-purple-100 text-purple-800" },
-    { id: "rations", name: "Định lượng ăn", icon: Calculator, color: "bg-red-100 text-red-800" },
-    { id: "users", name: "Quản lý người dùng", icon: UserCheck, color: "bg-indigo-100 text-indigo-800" },
+    { id: "units", name: "Đơn vị" },
+    { id: "categories", name: "Phân loại" },
+    { id: "lttp", name: "Tên LTTP - Chất đốt" },
+    { id: "dishes", name: "Món ăn" },
+    { id: "rations", name: "Định lượng ăn" },
+    { id: "users", name: "Quản lý người dùng" },
   ]
 
   // Handle ingredient management
@@ -670,22 +670,23 @@ export function DataLibraryContent() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="p-6 border-b bg-gray-50">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="border-b bg-gray-50">
+          <div className="flex overflow-x-auto">
             {tabs.map((tab) => {
-              const Icon = tab.icon
               const isActive = activeTab === tab.id
 
               return (
-                <Button
+                <button
                   key={tab.id}
-                  variant={isActive ? "default" : "outline"}
-                  className="h-20 flex flex-col items-center justify-center gap-2"
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                    isActive
+                      ? 'border-blue-600 text-blue-600 bg-white'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
                   onClick={() => setActiveTab(tab.id)}
                 >
-                  <Icon className="h-6 w-6" />
-                  <span className="text-xs text-center">{tab.name}</span>
-                </Button>
+                  {tab.name}
+                </button>
               )
             })}
           </div>
