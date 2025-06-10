@@ -86,7 +86,10 @@ export const getProcessingStationItems = async (req: Request, res: Response) => 
     })
   } catch (error) {
     console.error("Error fetching processing station items:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách trạm chế biến", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách trạm chế biến"
+    })
   }
 }
 
@@ -99,7 +102,10 @@ export const getProcessingStationItemById = async (req: Request, res: Response) 
 
     // Validate ObjectId
     if (!ObjectId.isValid(itemId)) {
-      throw new AppError("ID không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -161,7 +167,10 @@ export const getProcessingStationItemById = async (req: Request, res: Response) 
       .toArray()
 
     if (!item || item.length === 0) {
-      throw new AppError("Không tìm thấy thông tin", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thông tin"
+      })
     }
 
     res.status(200).json({
@@ -169,11 +178,11 @@ export const getProcessingStationItemById = async (req: Request, res: Response) 
       data: item[0],
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching processing station item:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin trạm chế biến", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin trạm chế biến"
+    })
   }
 }
 
@@ -186,18 +195,27 @@ export const createProcessingStationItem = async (req: Request, res: Response) =
 
     // Validate input
     if (!type || !productId || !processingDate || !useDate || !expiryDate || !quantity) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     // Validate type
     const validTypes = ["tofu", "sausage", "sprouts", "pickled", "slaughter", "food"]
     if (!validTypes.includes(type)) {
-      throw new AppError("Loại không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Loại không hợp lệ"
+      })
     }
 
     // Validate ObjectId
     if (!ObjectId.isValid(productId)) {
-      throw new AppError("ID sản phẩm không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID sản phẩm không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -205,7 +223,10 @@ export const createProcessingStationItem = async (req: Request, res: Response) =
     // Check if product exists
     const product = await db.collection("products").findOne({ _id: new ObjectId(productId) })
     if (!product) {
-      throw new AppError("Không tìm thấy sản phẩm", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy sản phẩm"
+      })
     }
 
     // Calculate non-expired and expired quantities
@@ -236,11 +257,11 @@ export const createProcessingStationItem = async (req: Request, res: Response) =
       itemId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating processing station item:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm thông tin trạm chế biến", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm thông tin trạm chế biến"
+    })
   }
 }
 
@@ -254,23 +275,35 @@ export const updateProcessingStationItem = async (req: Request, res: Response) =
 
     // Validate ObjectId
     if (!ObjectId.isValid(itemId)) {
-      throw new AppError("ID không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID không hợp lệ"
+      })
     }
 
     // Validate input
     if (!type || !productId || !processingDate || !useDate || !expiryDate || !quantity) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     // Validate type
     const validTypes = ["tofu", "sausage", "sprouts", "pickled", "slaughter", "food"]
     if (!validTypes.includes(type)) {
-      throw new AppError("Loại không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Loại không hợp lệ"
+      })
     }
 
     // Validate ObjectId
     if (!ObjectId.isValid(productId)) {
-      throw new AppError("ID sản phẩm không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID sản phẩm không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -278,7 +311,10 @@ export const updateProcessingStationItem = async (req: Request, res: Response) =
     // Check if product exists
     const product = await db.collection("products").findOneOne({ _id: new ObjectId(productId) })
     if (!product) {
-      throw new AppError("Không tìm thấy sản phẩm", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy sản phẩm"
+      })
     }
 
     // Calculate non-expired and expired quantities
@@ -308,7 +344,10 @@ export const updateProcessingStationItem = async (req: Request, res: Response) =
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy thông tin", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thông tin"
+      })
     }
 
     res.status(200).json({
@@ -316,11 +355,11 @@ export const updateProcessingStationItem = async (req: Request, res: Response) =
       message: "Cập nhật thông tin trạm chế biến thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating processing station item:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật thông tin trạm chế biến", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật thông tin trạm chế biến"
+    })
   }
 }
 
@@ -333,7 +372,10 @@ export const deleteProcessingStationItem = async (req: Request, res: Response) =
 
     // Validate ObjectId
     if (!ObjectId.isValid(itemId)) {
-      throw new AppError("ID không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -342,7 +384,10 @@ export const deleteProcessingStationItem = async (req: Request, res: Response) =
     const result = await db.collection("processingStation").deleteOne({ _id: new ObjectId(itemId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy thông tin", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thông tin"
+      })
     }
 
     res.status(200).json({
@@ -350,11 +395,11 @@ export const deleteProcessingStationItem = async (req: Request, res: Response) =
       message: "Xóa thông tin trạm chế biến thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting processing station item:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa thông tin trạm chế biến", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa thông tin trạm chế biến"
+    })
   }
 }
 
@@ -450,7 +495,10 @@ export const getFoodInventory = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching food inventory:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách tồn kho thực phẩm", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách tồn kho thực phẩm"
+    })
   }
 }
 
@@ -485,6 +533,9 @@ export const updateExpiryStatus = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error updating expiry status:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật trạng thái hạn sử dụng", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật trạng thái hạn sử dụng"
+    })
   }
 }

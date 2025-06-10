@@ -225,7 +225,10 @@ export const getSupplies = async (req: Request, res: Response) => {
     res.status(200).json(formattedSupplies)
   } catch (error) {
     console.error("Error fetching supplies:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách nguồn nhập", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách nguồn nhập"
+    })
   }
 }
 

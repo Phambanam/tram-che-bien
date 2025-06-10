@@ -82,7 +82,10 @@ export const getRoles = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching roles:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách vai trò", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách vai trò"
+    })
   }
 }
 
@@ -96,7 +99,10 @@ export const getUsersByRole = async (req: Request, res: Response) => {
     // Validate role ID
     const validRoles = ["admin", "brigadeAssistant", "unitAssistant", "commander", "stationManager"]
     if (!validRoles.includes(roleId)) {
-      throw new AppError("Vai trò không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vai trò không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -122,11 +128,11 @@ export const getUsersByRole = async (req: Request, res: Response) => {
       data: transformedUsers,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching users by role:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách người dùng theo vai trò", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách người dùng theo vai trò"
+    })
   }
 }
 
@@ -140,13 +146,19 @@ export const updateUserRole = async (req: Request, res: Response) => {
 
     // Validate user ID
     if (!ObjectId.isValid(userId)) {
-      throw new AppError("ID người dùng không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID người dùng không hợp lệ"
+      })
     }
 
     // Validate role
     const validRoles = ["admin", "brigadeAssistant", "unitAssistant", "commander", "stationManager"]
     if (!validRoles.includes(role)) {
-      throw new AppError("Vai trò không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vai trò không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -154,20 +166,29 @@ export const updateUserRole = async (req: Request, res: Response) => {
     // Get current user data
     const currentUser = await db.collection("users").findOne({ _id: new ObjectId(userId) })
     if (!currentUser) {
-      throw new AppError("Không tìm thấy người dùng", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng"
+      })
     }
 
     // Validate unit for unit assistant
     let unitId = null
     if (role === "unitAssistant") {
       if (!unit || !ObjectId.isValid(unit)) {
-        throw new AppError("Vui lòng chọn đơn vị cho trợ lý đơn vị", 400)
+        return res.status(400).json({
+          success: false,
+          message: "Vui lòng chọn đơn vị cho trợ lý đơn vị"
+        })
       }
 
       // Check if unit exists
       const unitExists = await db.collection("units").findOne({ _id: new ObjectId(unit) })
       if (!unitExists) {
-        throw new AppError("Đơn vị không tồn tại", 400)
+        return res.status(400).json({
+          success: false,
+          message: "Đơn vị không tồn tại"
+        })
       }
 
       unitId = new ObjectId(unit)
@@ -203,11 +224,11 @@ export const updateUserRole = async (req: Request, res: Response) => {
       message: "Cập nhật vai trò người dùng thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating user role:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật vai trò người dùng", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật vai trò người dùng"
+    })
   }
 }
 

@@ -32,7 +32,10 @@ export const getUnits = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching units:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách đơn vị", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách đơn vị"
+    })
   }
 }
 
@@ -45,7 +48,10 @@ export const createUnit = async (req: Request, res: Response) => {
 
     // Validate input
     if (!name) {
-      throw new AppError("Tên đơn vị không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tên đơn vị không được để trống"
+      })
     }
 
     const db = await getDb()
@@ -58,7 +64,10 @@ export const createUnit = async (req: Request, res: Response) => {
       ]
     })
     if (existingUnit) {
-      throw new AppError("Đơn vị đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Đơn vị đã tồn tại"
+      })
     }
 
     // Create new unit
@@ -79,11 +88,11 @@ export const createUnit = async (req: Request, res: Response) => {
       unitId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating unit:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm đơn vị", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm đơn vị"
+    })
   }
 }
 
@@ -96,7 +105,10 @@ export const getUnitById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(unitId)) {
-      throw new AppError("ID đơn vị không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -104,7 +116,10 @@ export const getUnitById = async (req: Request, res: Response) => {
     const unit = await db.collection("units").findOne({ _id: new ObjectId(unitId) })
 
     if (!unit) {
-      throw new AppError("Không tìm thấy đơn vị", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
     }
 
     // Transform data for response
@@ -125,11 +140,11 @@ export const getUnitById = async (req: Request, res: Response) => {
       data: transformedUnit,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching unit:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin đơn vị", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin đơn vị"
+    })
   }
 }
 
@@ -143,12 +158,18 @@ export const updateUnit = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(unitId)) {
-      throw new AppError("ID đơn vị không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị không hợp lệ"
+      })
     }
 
     // Validate input
     if (!name) {
-      throw new AppError("Tên đơn vị không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tên đơn vị không được để trống"
+      })
     }
 
     const db = await getDb()
@@ -163,7 +184,10 @@ export const updateUnit = async (req: Request, res: Response) => {
     })
 
     if (existingUnit) {
-      throw new AppError("Đơn vị với tên hoặc mã này đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Đơn vị với tên hoặc mã này đã tồn tại"
+      })
     }
 
     const result = await db.collection("units").updateOne(
@@ -182,7 +206,10 @@ export const updateUnit = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy đơn vị", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
     }
 
     res.status(200).json({
@@ -190,24 +217,27 @@ export const updateUnit = async (req: Request, res: Response) => {
       message: "Cập nhật đơn vị thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating unit:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật đơn vị", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật đơn vị"
+    })
   }
 }
 
 // @desc    Delete unit
 // @route   DELETE /api/units/:id
-// @access  Private (Admin)
+// @access  Private (Admin, Brigade Assistant)
 export const deleteUnit = async (req: Request, res: Response) => {
   try {
     const unitId = req.params.id
 
     // Validate ObjectId
     if (!ObjectId.isValid(unitId)) {
-      throw new AppError("ID đơn vị không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -215,19 +245,28 @@ export const deleteUnit = async (req: Request, res: Response) => {
     // Check if unit is being used by any user
     const userWithUnit = await db.collection("users").findOne({ unit: new ObjectId(unitId) })
     if (userWithUnit) {
-      throw new AppError("Không thể xóa đơn vị đang được sử dụng bởi người dùng", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Không thể xóa đơn vị đang được sử dụng bởi người dùng"
+      })
     }
 
     // Check if unit is being used by any supply
     const supplyWithUnit = await db.collection("supplies").findOne({ unit: new ObjectId(unitId) })
     if (supplyWithUnit) {
-      throw new AppError("Không thể xóa đơn vị đang được sử dụng trong nguồn nhập", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Không thể xóa đơn vị đang được sử dụng trong nguồn nhập"
+      })
     }
 
     const result = await db.collection("units").deleteOne({ _id: new ObjectId(unitId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy đơn vị", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
     }
 
     res.status(200).json({
@@ -235,11 +274,11 @@ export const deleteUnit = async (req: Request, res: Response) => {
       message: "Xóa đơn vị thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting unit:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa đơn vị", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa đơn vị"
+    })
   }
 }
 
