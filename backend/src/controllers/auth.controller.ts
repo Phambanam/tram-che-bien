@@ -13,13 +13,19 @@ export const register = async (req: Request, res: Response) => {
 
     // Validate input
     if (!fullName || !phoneNumber || !password || !rank || !position || !unit || !role) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     // Validate phone number format (Vietnam phone number)
     const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/
     if (!phoneRegex.test(phoneNumber)) {
-      throw new AppError("Số điện thoại không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -27,17 +33,26 @@ export const register = async (req: Request, res: Response) => {
     // Check if phone number already exists
     const existingUser = await db.collection("users").findOne({ phoneNumber })
     if (existingUser) {
-      throw new AppError("Số điện thoại đã được đăng ký", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại đã được đăng ký"
+      })
     }
 
     // Validate unit exists
     if (!ObjectId.isValid(unit)) {
-      throw new AppError("Đơn vị không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Đơn vị không hợp lệ"
+      })
     }
 
     const unitExists = await db.collection("units").findOne({ _id: new ObjectId(unit) })
     if (!unitExists) {
-      throw new AppError("Đơn vị không tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Đơn vị không tồn tại"
+      })
     }
 
     // Hash password
@@ -63,11 +78,11 @@ export const register = async (req: Request, res: Response) => {
       userId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Registration error:", error)
-    throw new AppError("Đã xảy ra lỗi khi đăng ký", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi đăng ký"
+    })
   }
 }
 
@@ -81,13 +96,19 @@ export const login = async (req: Request, res: Response) => {
     console.log(phoneNumber, password)
     // Validate input
     if (!phoneNumber || !password) {
-      throw new AppError("Vui lòng nhập số điện thoại và mật khẩu", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập số điện thoại và mật khẩu"
+      })
     }
 
     // Validate phone number format
     const phoneRegex = /^(0[3|5|7|8|9])+([0-9]{8})$/
     if (!phoneRegex.test(phoneNumber)) {
-      throw new AppError("Số điện thoại không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -96,14 +117,17 @@ export const login = async (req: Request, res: Response) => {
     const user = await db.collection("users").findOne({ phoneNumber })
 
     if (!user) {
-      throw new AppError("Số điện thoại hoặc mật khẩu không chính xác", 401)
+      return res.status(401).json({
+        success: false,
+        message: "Số điện thoại hoặc mật khẩu không chính xác"
+      })
     }
 
     // Check if user is active
     if (user.status !== "active") {
       return res.status(401).json({
         success: false,
-        message: "Tài khoản chưa được kích hoạt",
+        message: "Tài khoản chưa được kích hoạt"
       })
     }
 
@@ -113,7 +137,7 @@ export const login = async (req: Request, res: Response) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: "Số điện thoại hoặc mật khẩu không chính xác",
+        message: "Số điện thoại hoặc mật khẩu không chính xác"
       })
     }
 
@@ -123,26 +147,31 @@ export const login = async (req: Request, res: Response) => {
     // Get unit info
     const unitInfo = await db.collection("units").findOne({ _id: user.unit })
 
+    const userData = {
+      id: user._id.toString(),
+      fullName: user.fullName,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      unit: {
+        id: user.unit.toString(),
+        name: unitInfo ? unitInfo.name : "Unknown",
+      },
+    }
+
     res.status(200).json({
       success: true,
-      token,
-      user: {
-        id: user._id.toString(),
-        fullName: user.fullName,
-        phoneNumber: user.phoneNumber,
-        role: user.role,
-        unit: {
-          id: user.unit.toString(),
-          name: unitInfo ? unitInfo.name : "Unknown",
-        },
-      },
+      message: "Đăng nhập thành công",
+      data: {
+        token,
+        user: userData
+      }
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Login error:", error)
-    throw new AppError("Đã xảy ra lỗi khi đăng nhập", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi đăng nhập"
+    })
   }
 }
 
@@ -154,7 +183,10 @@ export const getMe = async (req: Request, res: Response) => {
     const userId = req.user?.id
 
     if (!userId) {
-      throw new AppError("User not authenticated", 401)
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated"
+      })
     }
 
     const db = await getDb()
@@ -163,7 +195,10 @@ export const getMe = async (req: Request, res: Response) => {
     const user = await db.collection("users").findOne({ _id: new ObjectId(userId) })
 
     if (!user) {
-      throw new AppError("User not found", 404)
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      })
     }
 
     // Get unit data if user has a unit
@@ -202,10 +237,10 @@ export const getMe = async (req: Request, res: Response) => {
       data: userData,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
-    console.error("Error fetching user profile:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin người dùng", 500)
+    console.error("Get profile error:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin người dùng"
+    })
   }
 }
