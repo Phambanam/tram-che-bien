@@ -474,11 +474,27 @@ export function DataLibraryContent() {
     const currentPage = currentPages[activeTab as keyof typeof currentPages]
     const startIndex = (currentPage - 1) * itemsPerPage
     const endIndex = startIndex + itemsPerPage
-    return {
+    const result = {
       data: filtered.slice(startIndex, endIndex),
       totalPages: Math.ceil(filtered.length / itemsPerPage),
       totalItems: filtered.length
     }
+    
+    // Debug for dishes tab
+    if (activeTab === "dishes") {
+      console.log("🍽️ Dishes pagination debug:", {
+        totalDishes: data.length,
+        filteredDishes: filtered.length,
+        currentPage,
+        itemsPerPage,
+        totalPages: result.totalPages,
+        displayedItems: result.data.length,
+        startIndex,
+        endIndex
+      })
+    }
+    
+    return result
   }
 
   const handlePageChange = (page: number) => {
@@ -854,6 +870,9 @@ export function DataLibraryContent() {
             <Card>
               <CardHeader>
                 <CardTitle>Danh sách món ăn</CardTitle>
+                <div className="text-sm text-gray-500">
+                  Tổng: {dishes.length} món ăn
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -871,48 +890,58 @@ export function DataLibraryContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginateData(dishes).data.map((dish, index) => (
-                      <TableRow key={dish._id}>
-                        <TableCell>{(currentPages.dishes - 1) * itemsPerPage + index + 1}</TableCell>
-                        <TableCell className="font-medium">{dish.name}</TableCell>
-                        <TableCell>
-                          {dish.mainLTTP ? (
-                            <Badge variant="outline" className="bg-blue-50">
-                              {dish.mainLTTP.lttpName}
+                    {(() => {
+                      const paginatedDishes = paginateData(dishes)
+                      console.log("🍽️ Dishes debug:", {
+                        totalDishes: dishes.length,
+                        currentPage: currentPages.dishes,
+                        totalPages: paginatedDishes.totalPages,
+                        showingItems: paginatedDishes.data.length
+                      })
+                      
+                      return paginatedDishes.data.map((dish, index) => (
+                        <TableRow key={dish._id}>
+                          <TableCell>{(currentPages.dishes - 1) * itemsPerPage + index + 1}</TableCell>
+                          <TableCell className="font-medium">{dish.name}</TableCell>
+                          <TableCell>
+                            {dish.mainLTTP ? (
+                              <Badge variant="outline" className="bg-blue-50">
+                                {dish.mainLTTP.lttpName}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400">Chưa chọn</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {dish.ingredients?.length || 0} nguyên liệu
                             </Badge>
-                          ) : (
-                            <span className="text-gray-400">Chưa chọn</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {dish.ingredients?.length || 0} nguyên liệu
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{dish.servings}</TableCell>
-                        <TableCell>{dish.preparationTime} phút</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            dish.difficulty === "easy" ? "default" : 
-                            dish.difficulty === "medium" ? "secondary" : "destructive"
-                          }>
-                            {dish.difficulty === "easy" ? "Dễ" : 
-                             dish.difficulty === "medium" ? "Trung bình" : "Khó"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{dish.category}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(dish, "dishes")}>
-                              Sửa
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleDelete(dish._id, "dishes")}>
-                              Xóa
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>{dish.servings}</TableCell>
+                          <TableCell>{dish.preparationTime} phút</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              dish.difficulty === "easy" ? "default" : 
+                              dish.difficulty === "medium" ? "secondary" : "destructive"
+                            }>
+                              {dish.difficulty === "easy" ? "Dễ" : 
+                               dish.difficulty === "medium" ? "Trung bình" : "Khó"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{dish.category}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => handleEdit(dish, "dishes")}>
+                                Sửa
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handleDelete(dish._id, "dishes")}>
+                                Xóa
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    })()}
                   </TableBody>
                 </Table>
                 <Pagination
