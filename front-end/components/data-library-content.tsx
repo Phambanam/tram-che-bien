@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Pagination } from "@/components/ui/pagination"
-import { Search, Plus, Edit, Trash2, FileDown, FileUp, Users, Tag, Package, Utensils, Calculator, Info } from "lucide-react"
+import { Search, Plus, Edit, Trash2, FileDown, FileUp, Users, Tag, Package, Utensils, Calculator, Info, UserCheck } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/components/ui/use-toast"
 import { unitsApi, categoriesApi, productsApi, dishesApi, dailyRationsApi, lttpApi } from "@/lib/api-client"
+import { UsersTable } from "@/components/users/users-table"
 
 interface Unit {
   _id: string
@@ -479,6 +480,7 @@ export function DataLibraryContent() {
     { id: "lttp", name: "Tên LTTP - Chất đốt", icon: Package, color: "bg-orange-100 text-orange-800" },
     { id: "dishes", name: "Món ăn", icon: Utensils, color: "bg-purple-100 text-purple-800" },
     { id: "rations", name: "Định lượng ăn", icon: Calculator, color: "bg-red-100 text-red-800" },
+    { id: "users", name: "Quản lý người dùng", icon: UserCheck, color: "bg-indigo-100 text-indigo-800" },
   ]
 
   // Handle ingredient management
@@ -683,10 +685,12 @@ export function DataLibraryContent() {
                 <FileUp className="h-4 w-4" />
                 Nhập Excel
               </Button>
-              <Button className="flex items-center gap-2" onClick={() => handleAdd(activeTab)}>
-                <Plus className="h-4 w-4" />
-                Thêm mới
-              </Button>
+              {activeTab !== "users" && (
+                <Button className="flex items-center gap-2" onClick={() => handleAdd(activeTab)}>
+                  <Plus className="h-4 w-4" />
+                  Thêm mới
+                </Button>
+              )}
             </div>
             </div>
 
@@ -958,6 +962,17 @@ export function DataLibraryContent() {
                   totalPages={paginateData(dailyRations).totalPages}
                   onPageChange={handlePageChange}
                 />
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "users" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Quản lý người dùng</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <UsersTable />
               </CardContent>
             </Card>
           )}
