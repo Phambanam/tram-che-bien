@@ -1,7 +1,7 @@
 import express from "express"
 import {
   getUserNotifications,
-  markNotificationAsRead,
+  markAsRead,
   markAllNotificationsAsRead,
   sendNotification,
   getNotificationPreferences,
@@ -16,7 +16,7 @@ router.use(protect)
 
 // Routes for all authenticated users
 router.get("/", getUserNotifications)
-router.patch("/:id/read", markNotificationAsRead)
+router.patch("/:id/read", markAsRead)
 router.patch("/mark-all-read", markAllNotificationsAsRead)
 router.get("/preferences", getNotificationPreferences)
 router.patch("/preferences", updateNotificationPreferences)
