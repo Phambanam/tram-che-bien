@@ -36,6 +36,20 @@ export function UsersTable() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [selectedRole, setSelectedRole] = useState("")
 
+  // Debug current user info
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token")
+      const user = localStorage.getItem("user")
+      console.log("Current user debug info:", {
+        hasToken: !!token,
+        tokenLength: token?.length || 0,
+        user: user ? JSON.parse(user) : null,
+        userRole: user ? JSON.parse(user).role : null
+      })
+    }
+  }, [])
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
