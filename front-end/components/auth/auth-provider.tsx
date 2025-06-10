@@ -47,8 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
   }, [])
 
-  const login = async (phoneNumber: string, password: string):
-    Promise<{ token: string; user: User }> => {
+  const login = async (phoneNumber: string, password: string): Promise<void> => {
     console.log('Auth provider login called with:', { phoneNumber, password })
     
     try {
@@ -72,8 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         console.log('Auth data stored, ready for redirect')
         
-        // Return the response to allow login-form.tsx to handle the redirect
-        return response
+        // Login successful - no need to return anything as interface expects Promise<void>
       } else {
         throw new Error("Invalid login response format")
       }
