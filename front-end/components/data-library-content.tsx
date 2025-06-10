@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Pagination } from "@/components/ui/pagination"
-import { Search, Plus, Edit, Trash2, FileDown, FileUp, Users, Tag, Package, Utensils, Calculator, Info } from "lucide-react"
+import { Search, Plus, Edit, Trash2, FileDown, FileUp, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/components/ui/use-toast"
 import { unitsApi, categoriesApi, productsApi, dishesApi, dailyRationsApi, lttpApi } from "@/lib/api-client"
+import { UsersTable } from "@/components/users/users-table"
 
 interface Unit {
   _id: string
@@ -87,8 +88,15 @@ export function DataLibraryContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
 
-  // Pagination states
-  const [currentPage, setCurrentPage] = useState(1)
+  // Pagination states for each tab
+  const [currentPages, setCurrentPages] = useState({
+    units: 1,
+    categories: 1,
+    lttp: 1,
+    dishes: 1,
+    rations: 1,
+    users: 1
+  })
   const [itemsPerPage] = useState(10)
 
   // Data states
@@ -117,10 +125,13 @@ export function DataLibraryContent() {
   // Category ingredients cache for tooltip
   const [categoryIngredients, setCategoryIngredients] = useState<{ [categoryId: string]: LTTPItem[] }>({})
 
-  // Reset pagination when tab changes or search term changes
+  // Reset pagination when search term changes
   useEffect(() => {
-    setCurrentPage(1)
-  }, [activeTab, searchTerm])
+    setCurrentPages(prev => ({
+      ...prev,
+      [activeTab]: 1
+    }))
+  }, [searchTerm])
 
   // Fetch data
   const fetchData = async () => {
@@ -189,7 +200,7 @@ export function DataLibraryContent() {
 
       // Fetch dishes
       try {
-        const dishesResponse = await dishesApi.getDishes()
+        const dishesResponse = await dishesApi.getDishes({ limit: 1000 })
         const dishesData = Array.isArray(dishesResponse) ? dishesResponse : (dishesResponse as any).data || []
         setDishes(dishesData)
       } catch (error) {
@@ -460,25 +471,46 @@ export function DataLibraryContent() {
   // Pagination logic
   const paginateData = (data: any[]) => {
     const filtered = filteredData(data)
+    const currentPage = currentPages[activeTab as keyof typeof currentPages]
     const startIndex = (currentPage - 1) * itemsPerPage
     const endIndex = startIndex + itemsPerPage
-    return {
+    const result = {
       data: filtered.slice(startIndex, endIndex),
       totalPages: Math.ceil(filtered.length / itemsPerPage),
       totalItems: filtered.length
     }
+    
+    // Debug for dishes tab
+    if (activeTab === "dishes") {
+      console.log("🍽️ Dishes pagination debug:", {
+        totalDishes: data.length,
+        filteredDishes: filtered.length,
+        currentPage,
+        itemsPerPage,
+        totalPages: result.totalPages,
+        displayedItems: result.data.length,
+        startIndex,
+        endIndex
+      })
+    }
+    
+    return result
   }
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page)
+    setCurrentPages(prev => ({
+      ...prev,
+      [activeTab]: page
+    }))
   }
 
   const tabs = [
-    { id: "units", name: "Đơn vị", icon: Users, color: "bg-blue-100 text-blue-800" },
-    { id: "categories", name: "Phân loại", icon: Tag, color: "bg-green-100 text-green-800" },
-    { id: "lttp", name: "Tên LTTP - Chất đốt", icon: Package, color: "bg-orange-100 text-orange-800" },
-    { id: "dishes", name: "Món ăn", icon: Utensils, color: "bg-purple-100 text-purple-800" },
-    { id: "rations", name: "Định lượng ăn", icon: Calculator, color: "bg-red-100 text-red-800" },
+    { id: "units", name: "Đơn vị" },
+    { id: "categories", name: "Phân loại" },
+    { id: "lttp", name: "Tên LTTP - Chất đốt" },
+    { id: "dishes", name: "Món ăn" },
+    { id: "rations", name: "Định lượng ăn" },
+    { id: "users", name: "Quản lý người dùng" },
   ]
 
   // Handle ingredient management
@@ -638,22 +670,23 @@ export function DataLibraryContent() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="p-6 border-b bg-gray-50">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="border-b bg-gray-50">
+          <div className="flex overflow-x-auto">
             {tabs.map((tab) => {
-              const Icon = tab.icon
               const isActive = activeTab === tab.id
 
               return (
-                <Button
+                <button
                   key={tab.id}
-                  variant={isActive ? "default" : "outline"}
-                  className="h-20 flex flex-col items-center justify-center gap-2"
+                  className={`px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                    isActive
+                      ? 'border-blue-600 text-blue-600 bg-white'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
                   onClick={() => setActiveTab(tab.id)}
                 >
-                  <Icon className="h-6 w-6" />
-                  <span className="text-xs text-center">{tab.name}</span>
-                </Button>
+                  {tab.name}
+                </button>
               )
             })}
           </div>
@@ -683,10 +716,12 @@ export function DataLibraryContent() {
                 <FileUp className="h-4 w-4" />
                 Nhập Excel
               </Button>
-              <Button className="flex items-center gap-2" onClick={() => handleAdd(activeTab)}>
-                <Plus className="h-4 w-4" />
-                Thêm mới
-              </Button>
+              {activeTab !== "users" && (
+                <Button className="flex items-center gap-2" onClick={() => handleAdd(activeTab)}>
+                  <Plus className="h-4 w-4" />
+                  Thêm mới
+                </Button>
+              )}
             </div>
             </div>
 
@@ -712,7 +747,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(units).data.map((unit, index) => (
                       <TableRow key={unit._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.units - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{unit.code}</TableCell>
                         <TableCell className="font-medium">{unit.name}</TableCell>
                         <TableCell>{unit.personnel}</TableCell>
@@ -733,7 +768,7 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.units}
                   totalPages={paginateData(units).totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -759,7 +794,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(categories).data.map((category, index) => (
                       <TableRow key={category._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.categories - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{category.name}</TableCell>
                         <TableCell>{category.description}</TableCell>
                         <TableCell>
@@ -778,7 +813,7 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.categories}
                   totalPages={paginateData(categories).totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -805,7 +840,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(lttpItems).data.map((item, index) => (
                       <TableRow key={item._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.lttp - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell>{item.categoryName}</TableCell>
                         <TableCell>{item.unit}</TableCell>
@@ -824,7 +859,7 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.lttp}
                   totalPages={paginateData(lttpItems).totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -836,6 +871,9 @@ export function DataLibraryContent() {
             <Card>
               <CardHeader>
                 <CardTitle>Danh sách món ăn</CardTitle>
+                <div className="text-sm text-gray-500">
+                  Tổng: {dishes.length} món ăn
+                </div>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -853,52 +891,62 @@ export function DataLibraryContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginateData(dishes).data.map((dish, index) => (
-                      <TableRow key={dish._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                        <TableCell className="font-medium">{dish.name}</TableCell>
-                        <TableCell>
-                          {dish.mainLTTP ? (
-                            <Badge variant="outline" className="bg-blue-50">
-                              {dish.mainLTTP.lttpName}
+                    {(() => {
+                      const paginatedDishes = paginateData(dishes)
+                      console.log("🍽️ Dishes debug:", {
+                        totalDishes: dishes.length,
+                        currentPage: currentPages.dishes,
+                        totalPages: paginatedDishes.totalPages,
+                        showingItems: paginatedDishes.data.length
+                      })
+                      
+                      return paginatedDishes.data.map((dish, index) => (
+                        <TableRow key={dish._id}>
+                          <TableCell>{(currentPages.dishes - 1) * itemsPerPage + index + 1}</TableCell>
+                          <TableCell className="font-medium">{dish.name}</TableCell>
+                          <TableCell>
+                            {dish.mainLTTP ? (
+                              <Badge variant="outline" className="bg-blue-50">
+                                {dish.mainLTTP.lttpName}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400">Chưa chọn</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {dish.ingredients?.length || 0} nguyên liệu
                             </Badge>
-                          ) : (
-                            <span className="text-gray-400">Chưa chọn</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {dish.ingredients?.length || 0} nguyên liệu
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{dish.servings}</TableCell>
-                        <TableCell>{dish.preparationTime} phút</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            dish.difficulty === "easy" ? "default" : 
-                            dish.difficulty === "medium" ? "secondary" : "destructive"
-                          }>
-                            {dish.difficulty === "easy" ? "Dễ" : 
-                             dish.difficulty === "medium" ? "Trung bình" : "Khó"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{dish.category}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleEdit(dish, "dishes")}>
-                              Sửa
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleDelete(dish._id, "dishes")}>
-                              Xóa
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>{dish.servings}</TableCell>
+                          <TableCell>{dish.preparationTime} phút</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              dish.difficulty === "easy" ? "default" : 
+                              dish.difficulty === "medium" ? "secondary" : "destructive"
+                            }>
+                              {dish.difficulty === "easy" ? "Dễ" : 
+                               dish.difficulty === "medium" ? "Trung bình" : "Khó"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{dish.category}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => handleEdit(dish, "dishes")}>
+                                Sửa
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handleDelete(dish._id, "dishes")}>
+                                Xóa
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    })()}
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.dishes}
                   totalPages={paginateData(dishes).totalPages}
                   onPageChange={handlePageChange}
                 />
@@ -928,7 +976,7 @@ export function DataLibraryContent() {
                   <TableBody>
                     {paginateData(dailyRations).data.map((ration, index) => (
                       <TableRow key={ration._id}>
-                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{(currentPages.rations - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell className="font-medium">{ration.name}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{ration.categoryName}</Badge>
@@ -954,10 +1002,21 @@ export function DataLibraryContent() {
                   </TableBody>
                 </Table>
                 <Pagination
-                  currentPage={currentPage}
+                  currentPage={currentPages.rations}
                   totalPages={paginateData(dailyRations).totalPages}
                   onPageChange={handlePageChange}
                 />
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "users" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Quản lý người dùng</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <UsersTable />
               </CardContent>
             </Card>
           )}
