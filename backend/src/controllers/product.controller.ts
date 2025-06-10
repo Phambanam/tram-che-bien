@@ -233,29 +233,41 @@ export const getProductById = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const productId = req.params.id
-    const { name, category, description, unit, nutritionalValue, storageCondition } = req.body
+    const { name, categoryId, description, unit, nutritionalValue, storageCondition } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(productId)) {
-      throw new AppError("ID sản phẩm không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID sản phẩm không hợp lệ"
+      })
     }
 
     // Validate input
-    if (!name || !category) {
-      throw new AppError("Tên sản phẩm và phân loại không được để trống", 400)
+    if (!name || !categoryId) {
+      return res.status(400).json({
+        success: false,
+        message: "Tên sản phẩm và phân loại không được để trống"
+      })
     }
 
-    // Validate category ObjectId
-    if (!ObjectId.isValid(category)) {
-      throw new AppError("ID phân loại không hợp lệ", 400)
+    // Validate ObjectId
+    if (!ObjectId.isValid(categoryId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID phân loại không hợp lệ"
+      })
     }
 
     const db = await getDb()
 
     // Check if category exists
-    const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(category) })
+    const categoryExists = await db.collection("categories").findOne({ _id: new ObjectId(categoryId) })
     if (!categoryExists) {
-      throw new AppError("Phân loại không tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Phân loại không tồn tại"
+      })
     }
 
     const result = await db.collection("products").updateOne(
@@ -263,7 +275,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       {
         $set: {
           name,
-          category: new ObjectId(category),
+          category: new ObjectId(categoryId),
           description: description || "",
           unit: unit || "kg",
           nutritionalValue: nutritionalValue || "",
@@ -274,7 +286,10 @@ export const updateProduct = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy sản phẩm", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy sản phẩm"
+      })
     }
 
     res.status(200).json({
@@ -282,24 +297,27 @@ export const updateProduct = async (req: Request, res: Response) => {
       message: "Cập nhật sản phẩm thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating product:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật sản phẩm", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật sản phẩm"
+    })
   }
 }
 
 // @desc    Delete product
 // @route   DELETE /api/products/:id
-// @access  Private (Admin)
+// @access  Private (Admin, Brigade Assistant)
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const productId = req.params.id
 
     // Validate ObjectId
     if (!ObjectId.isValid(productId)) {
-      throw new AppError("ID sản phẩm không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID sản phẩm không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -307,13 +325,19 @@ export const deleteProduct = async (req: Request, res: Response) => {
     // Check if product is being used by any supply
     const supplyWithProduct = await db.collection("supplies").findOne({ product: new ObjectId(productId) })
     if (supplyWithProduct) {
-      throw new AppError("Không thể xóa sản phẩm đang được sử dụng trong nguồn nhập", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Không thể xóa sản phẩm đang được sử dụng trong nguồn nhập"
+      })
     }
 
     const result = await db.collection("products").deleteOne({ _id: new ObjectId(productId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy sản phẩm", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy sản phẩm"
+      })
     }
 
     res.status(200).json({
@@ -321,10 +345,10 @@ export const deleteProduct = async (req: Request, res: Response) => {
       message: "Xóa sản phẩm thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting product:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa sản phẩm", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa sản phẩm"
+    })
   }
 }

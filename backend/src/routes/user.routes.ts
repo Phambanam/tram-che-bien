@@ -124,7 +124,7 @@ router.get("/:id", authorize("admin", "brigadeAssistant"), getUserById)
  *       404:
  *         description: User not found
  */
-router.patch("/:id", authorize("admin"), updateUser)
+router.patch("/:id", authorize("admin","brigadeAssistant"), updateUser)
 
 /**
  * @swagger
@@ -153,6 +153,6 @@ router.patch("/:id", authorize("admin"), updateUser)
  *       404:
  *         description: User not found
  */
-router.delete("/:id", authorize("admin"), deleteUser)
+router.delete("/:id", authorize("admin","brigadeAssistant"), deleteUser)
 
 export default router

@@ -211,8 +211,8 @@ export function IntroductionContent() {
                   <li><strong>Rèn luyện bộ đội tinh nhuệ</strong>, sẵn sàng chiến đấu</li>
                   <li><strong>Đổi mới phương pháp huấn luyện</strong> phù hợp với yêu cầu mới</li>
                   <li><strong>Sẵn sàng hoàn thành mọi nhiệm vụ</strong> được Đảng và Nhà nước giao</li>
-                </ul>
-              </div>
+          </ul>
+        </div>
 
               <blockquote className="border-l-4 border-blue-500 pl-6 my-6 bg-blue-50 p-4 rounded-r-lg">
                 <p className="italic text-blue-800 text-lg font-semibold leading-relaxed">

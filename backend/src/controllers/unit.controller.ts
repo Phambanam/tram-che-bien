@@ -292,12 +292,18 @@ export const updateUnitPersonnel = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(unitId)) {
-      throw new AppError("ID đơn vị không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị không hợp lệ"
+      })
     }
 
     // Validate personnel
     if (personnel === undefined || personnel === null || personnel < 0) {
-      throw new AppError("Số người ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Số người ăn không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -305,14 +311,20 @@ export const updateUnitPersonnel = async (req: Request, res: Response) => {
     // Check if unit exists
     const unit = await db.collection("units").findOne({ _id: new ObjectId(unitId) })
     if (!unit) {
-      throw new AppError("Không tìm thấy đơn vị", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
     }
 
     // Check authorization for unit assistant
     if (req.user?.role === "unitAssistant") {
       // Unit assistant can only update their own unit
       if (req.user.unit !== unitId) {
-        throw new AppError("Bạn chỉ có thể cập nhật số người ăn của đơn vị mình", 403)
+        return res.status(403).json({
+          success: false,
+          message: "Bạn chỉ có thể cập nhật số người ăn của đơn vị mình"
+        })
       }
     }
 
@@ -327,7 +339,10 @@ export const updateUnitPersonnel = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy đơn vị", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
     }
 
     res.status(200).json({
@@ -339,11 +354,11 @@ export const updateUnitPersonnel = async (req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating unit personnel:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật số người ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật số người ăn"
+    })
   }
 }
 
@@ -356,14 +371,20 @@ export const updateTotalPersonnel = async (req: Request, res: Response) => {
 
     // Validate input
     if (!date || totalPersonnel === undefined || totalPersonnel === null || totalPersonnel < 0) {
-      throw new AppError("Ngày và tổng số người ăn là bắt buộc", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Ngày và tổng số người ăn là bắt buộc"
+      })
     }
 
     const db = await getDb()
 
     // Check authorization
     if (!['admin', 'brigadeAssistant', 'unitAssistant'].includes(req.user?.role || '')) {
-      throw new AppError("Bạn không có quyền cập nhật tổng số người ăn", 403)
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền cập nhật tổng số người ăn"
+      })
     }
 
     // Update or create total personnel record
@@ -392,11 +413,11 @@ export const updateTotalPersonnel = async (req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating total personnel:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật tổng số người ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật tổng số người ăn"
+    })
   }
 }
 
@@ -408,7 +429,10 @@ export const getTotalPersonnel = async (req: Request, res: Response) => {
     const { date } = req.params
 
     if (!date) {
-      throw new AppError("Ngày là bắt buộc", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Ngày là bắt buộc"
+      })
     }
 
     const db = await getDb()
@@ -424,11 +448,11 @@ export const getTotalPersonnel = async (req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error getting total personnel:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy tổng số người ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy tổng số người ăn"
+    })
   }
 }
 
@@ -441,7 +465,10 @@ export const updateDailyDining = async (req: Request, res: Response) => {
 
     // Validate input
     if (!unitId || !date || diningCount === undefined || diningCount === null || diningCount < 0) {
-      throw new AppError("ID đơn vị, ngày và số người ăn cơm là bắt buộc", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị, ngày và số người ăn cơm là bắt buộc"
+      })
     }
 
     const db = await getDb()
@@ -449,14 +476,20 @@ export const updateDailyDining = async (req: Request, res: Response) => {
     // Check if unit exists
     const unit = await db.collection("units").findOne({ _id: new ObjectId(unitId) })
     if (!unit) {
-      throw new AppError("Không tìm thấy đơn vị", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
     }
 
     // Check authorization for unit assistant
     if (req.user?.role === "unitAssistant") {
       // Unit assistant can only update their own unit
       if (req.user.unit !== unitId) {
-        throw new AppError("Bạn chỉ có thể cập nhật số người ăn cơm của đơn vị mình", 403)
+        return res.status(403).json({
+          success: false,
+          message: "Bạn chỉ có thể cập nhật số người ăn cơm của đơn vị mình"
+        })
       }
     }
 
@@ -487,11 +520,11 @@ export const updateDailyDining = async (req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating daily dining:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật số người ăn cơm", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật số người ăn cơm"
+    })
   }
 }
 
@@ -503,7 +536,10 @@ export const getDailyDining = async (req: Request, res: Response) => {
     const { date } = req.params
 
     if (!date) {
-      throw new AppError("Ngày là bắt buộc", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Ngày là bắt buộc"
+      })
     }
 
     const db = await getDb()
@@ -525,10 +561,293 @@ export const getDailyDining = async (req: Request, res: Response) => {
       }
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error getting daily dining:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy dữ liệu số người ăn cơm", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu số người ăn cơm"
+    })
+  }
+}
+
+// @desc    Update unit dining personnel count
+// @route   PATCH /api/units/:id/dining-personnel
+// @access  Private (Unit Assistant for own unit, Admin/Brigade Assistant for all)
+export const updateDiningPersonnel = async (req: Request, res: Response) => {
+  try {
+    const unitId = req.params.id
+    const { diningPersonnel } = req.body
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(unitId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị không hợp lệ"
+      })
+    }
+
+    // Validate diningPersonnel
+    if (typeof diningPersonnel !== 'number' || diningPersonnel < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Số người ăn không hợp lệ"
+      })
+    }
+
+    const db = await getDb()
+
+    // Check if unit exists
+    const unit = await db.collection("units").findOne({ _id: new ObjectId(unitId) })
+    if (!unit) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
+    }
+
+    // Check permission: unit assistants can only update their own unit
+    if (req.user!.role === "unitAssistant" && req.user!.unit.toString() !== unitId) {
+      return res.status(403).json({
+        success: false,
+        message: "Bạn chỉ có thể cập nhật số người ăn của đơn vị mình"
+      })
+    }
+
+    const result = await db.collection("units").updateOne(
+      { _id: new ObjectId(unitId) },
+      {
+        $set: {
+          diningPersonnel: Number(diningPersonnel),
+          updatedAt: new Date(),
+        },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật số người ăn thành công",
+      data: {
+        unitId,
+        diningPersonnel: Number(diningPersonnel)
+      }
+    })
+  } catch (error) {
+    console.error("Error updating dining personnel:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật số người ăn"
+    })
+  }
+}
+
+// @desc    Update total dining personnel for all units on a specific date
+// @route   PATCH /api/units/total-dining-personnel
+// @access  Private (Admin, Brigade Assistant)
+export const updateTotalDiningPersonnel = async (req: Request, res: Response) => {
+  try {
+    const { date, totalDiningPersonnel } = req.body
+
+    // Validate input
+    if (!date || typeof totalDiningPersonnel !== 'number') {
+      return res.status(400).json({
+        success: false,
+        message: "Ngày và tổng số người ăn là bắt buộc"
+      })
+    }
+
+    // Check permission
+    if (!["admin", "brigadeAssistant"].includes(req.user!.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền cập nhật tổng số người ăn"
+      })
+    }
+
+    const db = await getDb()
+
+    // Update or create total dining personnel record
+    const result = await db.collection("totalDiningPersonnel").updateOne(
+      { date: date },
+      {
+        $set: {
+          totalDiningPersonnel: Number(totalDiningPersonnel),
+          updatedAt: new Date(),
+          updatedBy: req.user?.id || 'unknown'
+        },
+        $setOnInsert: {
+          createdAt: new Date()
+        }
+      },
+      { upsert: true }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật tổng số người ăn thành công",
+      data: {
+        date,
+        totalDiningPersonnel: Number(totalDiningPersonnel),
+        isNew: result.upsertedCount > 0
+      }
+    })
+  } catch (error) {
+    console.error("Error updating total dining personnel:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật tổng số người ăn"
+    })
+  }
+}
+
+// @desc    Get total dining personnel for a specific date
+// @route   GET /api/units/total-dining-personnel
+// @access  Private
+export const getTotalDiningPersonnel = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query
+
+    // Validate input
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "Ngày là bắt buộc"
+      })
+    }
+
+    const db = await getDb()
+
+    const record = await db.collection("totalDiningPersonnel").findOne({ date })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        date,
+        totalDiningPersonnel: record?.totalDiningPersonnel || 0,
+        exists: !!record
+      }
+    })
+  } catch (error) {
+    console.error("Error fetching total dining personnel:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy tổng số người ăn"
+    })
+  }
+}
+
+// @desc    Update rice eating personnel count for a unit on a specific date
+// @route   POST /api/units/rice-eating-personnel
+// @access  Private (Unit Assistant for own unit, Admin/Brigade Assistant for all)
+export const updateRiceEatingPersonnel = async (req: Request, res: Response) => {
+  try {
+    const { unitId, date, riceEatingPersonnel } = req.body
+
+    // Validate input
+    if (!unitId || !date || typeof riceEatingPersonnel !== 'number') {
+      return res.status(400).json({
+        success: false,
+        message: "ID đơn vị, ngày và số người ăn cơm là bắt buộc"
+      })
+    }
+
+    const db = await getDb()
+
+    // Check if unit exists
+    const unit = await db.collection("units").findOne({ _id: new ObjectId(unitId) })
+    if (!unit) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn vị"
+      })
+    }
+
+    // Check permission: unit assistants can only update their own unit
+    if (req.user!.role === "unitAssistant" && req.user!.unit.toString() !== unitId) {
+      return res.status(403).json({
+        success: false,
+        message: "Bạn chỉ có thể cập nhật số người ăn cơm của đơn vị mình"
+      })
+    }
+
+    // Update or create rice eating personnel record
+    const result = await db.collection("riceEatingPersonnel").updateOne(
+      { unitId: new ObjectId(unitId), date: date },
+      {
+        $set: {
+          riceEatingPersonnel: Number(riceEatingPersonnel),
+          updatedAt: new Date(),
+          updatedBy: req.user?.id || 'unknown'
+        },
+        $setOnInsert: {
+          createdAt: new Date()
+        }
+      },
+      { upsert: true }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật số người ăn cơm thành công",
+      data: {
+        unitId,
+        date,
+        riceEatingPersonnel: Number(riceEatingPersonnel),
+        isNew: result.upsertedCount > 0
+      }
+    })
+  } catch (error) {
+    console.error("Error updating rice eating personnel:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật số người ăn cơm"
+    })
+  }
+}
+
+// @desc    Get rice eating personnel data for all units on a specific date
+// @route   GET /api/units/rice-eating-personnel
+// @access  Private
+export const getRiceEatingPersonnelData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query
+
+    // Validate input
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "Ngày là bắt buộc"
+      })
+    }
+
+    const db = await getDb()
+
+    // Get all rice eating personnel records for this date
+    const records = await db.collection("riceEatingPersonnel").find({ date }).toArray()
+
+    // Transform to unitId -> riceEatingPersonnel mapping
+    const riceEatingData: { [unitId: string]: number } = {}
+    records.forEach(record => {
+      riceEatingData[record.unitId.toString()] = record.riceEatingPersonnel || 0
+    })
+
+    res.status(200).json({
+      success: true,
+      data: {
+        date,
+        riceEatingData
+      }
+    })
+  } catch (error) {
+    console.error("Error fetching rice eating personnel data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu số người ăn cơm"
+    })
   }
 }

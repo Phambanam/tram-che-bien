@@ -133,7 +133,10 @@ export const getAllSupplyOutputs = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching supply outputs:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách nguồn xuất", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách nguồn xuất"
+    })
   }
 }
 
@@ -146,7 +149,10 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(outputId)) {
-      throw new AppError("ID nguồn xuất không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID nguồn xuất không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -243,6 +249,8 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
       .toArray()
 
     if (!supplyOutput || supplyOutput.length === 0) {
+      return res.status(404).json({
+        success: false,
       throw new AppError("Không tìm thấy nguồn xuất", 404)
     }
 

@@ -50,7 +50,10 @@ export const getCategories = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching categories:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách phân loại", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách phân loại"
+    })
   }
 }
 
