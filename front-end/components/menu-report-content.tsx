@@ -192,7 +192,10 @@ export function MenuReportContent() {
     try {
       // Request all dishes by setting a high limit or without pagination
       const response = await dishesApi.getDishes({ limit: 1000, page: 1 })
-      console.log("Available dishes loaded:", response)
+      console.log("Available dishes API response:", response)
+      console.log("Total dishes count:", response.data?.length || 0)
+      console.log("Response totalCount:", response.totalCount)
+      console.log("All dishes data:", response.data)
       setAvailableDishes(response.data || [])
     } catch (error) {
       console.error("Error loading dishes:", error)
@@ -592,6 +595,11 @@ export function MenuReportContent() {
     label: dish.name + (dish.mainLTTP ? ` (${dish.mainLTTP.lttpName})` : ''),
     dish: dish // Store dish object for tooltip
   }))
+  
+  // Debug log for dish options
+  console.log("Available dishes for MultiSelect:", availableDishes.length)
+  console.log("Dish options created:", dishOptions.length)
+  console.log("Dish options:", dishOptions)
 
   // Handle export menu to Excel
   const handleExportMenuToExcel = () => {

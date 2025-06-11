@@ -575,6 +575,9 @@ export const dishesApi = {
       })
     }
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    console.log("getDishes API call with filters:", filters)
+    console.log("Generated query string:", query)
+    console.log("Full URL:", `/dishes${query}`)
     return apiRequest<any>(`/dishes${query}`)
   },
 
