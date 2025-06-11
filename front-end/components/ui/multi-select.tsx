@@ -124,14 +124,14 @@ export function MultiSelect({
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+      <PopoverContent className="w-full max-h-[80vh] p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)' }}>
         <Command filter={(value, search) => {
           const option = options.find(opt => opt.label === value)
           if (!option) return 0
           return option.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
         }}>
           <CommandInput placeholder="Tìm kiếm..." />
-          <CommandList className="max-h-[300px] overflow-y-auto">
+          <CommandList className="max-h-[200px] overflow-y-auto">
             <CommandEmpty>Không tìm thấy.</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
