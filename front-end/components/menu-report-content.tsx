@@ -190,7 +190,8 @@ export function MenuReportContent() {
 
   const loadAvailableDishes = async () => {
     try {
-      const response = await dishesApi.getDishes()
+      // Request all dishes by setting a high limit or without pagination
+      const response = await dishesApi.getDishes({ limit: 1000, page: 1 })
       console.log("Available dishes loaded:", response)
       setAvailableDishes(response.data || [])
     } catch (error) {

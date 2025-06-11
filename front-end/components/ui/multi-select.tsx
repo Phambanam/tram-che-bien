@@ -118,10 +118,10 @@ export function MultiSelect({
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-full p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)' }}>
         <Command>
           <CommandInput placeholder="Tìm kiếm..." />
-          <CommandList>
+          <CommandList className="max-h-[300px] overflow-y-auto">
             <CommandEmpty>Không tìm thấy.</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
