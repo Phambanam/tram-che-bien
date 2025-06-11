@@ -190,29 +190,29 @@ export function MenuReportContent() {
 
   const loadAvailableDishes = async () => {
     try {
-      // Try multiple approaches to get all dishes
       console.log("Attempting to load all dishes...")
       
-      // First try with high limit
-      let response = await dishesApi.getDishes({ limit: 1000, page: 1 })
-      console.log("Available dishes API response (limit 1000):", response)
-      console.log("Total dishes count from response:", response.data?.length || 0)
-      console.log("Response totalCount:", response.totalCount)
+      // Try without any parameters first (this should use backend defaults)
+      // Add cache busting timestamp
+      let response = await dishesApi.getDishes({ t: Date.now() })
+      console.log("No params response:", response)
       
-      // If we get fewer dishes than totalCount, try to get all
-      if (response.totalCount && response.data && response.data.length < response.totalCount) {
-        console.log("Need to get more dishes. Trying with higher limit...")
-        response = await dishesApi.getDishes({ limit: response.totalCount, page: 1 })
-        console.log("Second attempt response:", response)
+      // If that doesn't work, try with explicit large limit
+      if (!response.data || response.data.length < 14) {
+        console.log("Trying with limit 100...")
+        response = await dishesApi.getDishes({ limit: 100 })
+        console.log("Limit 100 response:", response)
       }
       
-      // Also try without any filters to see if that helps
-      if (!response.data || response.data.length === 0) {
-        console.log("Trying without any parameters...")
-        response = await dishesApi.getDishes()
-        console.log("No filter response:", response)
+      // If still not enough, try with even larger limit  
+      if (!response.data || response.data.length < 14) {
+        console.log("Trying with limit 500...")
+        response = await dishesApi.getDishes({ limit: 500 })
+        console.log("Limit 500 response:", response)
       }
       
+      console.log("Final response totalCount:", response.totalCount)
+      console.log("Final response data length:", response.data?.length || 0)
       console.log("Final dishes data:", response.data)
       setAvailableDishes(response.data || [])
     } catch (error) {
