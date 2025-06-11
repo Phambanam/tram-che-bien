@@ -1267,7 +1267,7 @@ export function MenuReportContent() {
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Chọn món ăn từ thư viện" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[200px] overflow-y-auto">
                     {availableDishes.map((dish) => (
                       <SelectItem key={dish._id} value={dish._id}>
                         {dish.name} {dish.mainLTTP && `(${dish.mainLTTP.lttpName})`}
