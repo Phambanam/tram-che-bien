@@ -95,38 +95,67 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 export const authApi = {
   login: async (phoneNumber: string, password: string) => {
     console.log('🚀 API client login called')
-    const response = await apiRequest<{ success: boolean; data: { token: string; user: any } }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ phoneNumber: phoneNumber, password }),
-    })
     
-    console.log('🔍 API client raw response:', response)
-    
-    // Extract data from response to match expected format
-    if (response.success && response.data) {
-      console.log('✅ API client extracting data:', response.data)
-      return response.data
-    } else {
-      console.log('❌ API client invalid response format:', response)
-      throw new Error("Invalid login response format")
+    try {
+      const response = await apiRequest<{ success: boolean; data: { token: string; user: any } }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ phoneNumber: phoneNumber, password }),
+      })
+      
+      console.log('🔍 API client raw response:', response)
+      
+      // Extract data from response to match expected format
+      if (response.success && response.data) {
+        console.log('✅ API client extracting data:', response.data)
+        return response.data
+      } else {
+        console.log('❌ API client invalid response format:', response)
+        return {
+          success: false,
+          message: "Định dạng phản hồi đăng nhập không hợp lệ"
+        }
+      }
+    } catch (error: any) {
+      console.log('🔥 API client error:', error)
+      return {
+        success: false,
+        message: error.message || "Đã xảy ra lỗi khi đăng nhập"
+      }
     }
   },
 
   register: async (userData: any) => {
-    return apiRequest<{ success: boolean; message: string }>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(userData),
-    })
+    try {
+      return await apiRequest<{ success: boolean; message: string }>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(userData),
+      })
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "Đã xảy ra lỗi khi đăng ký"
+      }
+    }
   },
 
   getProfile: async () => {
-    const response = await apiRequest<{ success: boolean; data: any }>("/auth/me")
-    
-    // Extract data from response
-    if (response.success && response.data) {
-      return { data: response.data }
-    } else {
-      throw new Error("Invalid profile response format")
+    try {
+      const response = await apiRequest<{ success: boolean; data: any }>("/auth/me")
+      
+      // Extract data from response
+      if (response.success && response.data) {
+        return { data: response.data }
+      } else {
+        return {
+          success: false,
+          message: "Định dạng phản hồi profile không hợp lệ"
+        }
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "Đã xảy ra lỗi khi lấy thông tin profile"
+      }
     }
   },
 }
@@ -417,17 +446,30 @@ export const contentApi = {
   getContentById: async (id: string) => {
     // Validate ID before making request
     if (!id || id === 'undefined' || id === 'null') {
-      throw new Error('ID nội dung không được để trống')
+      return {
+        success: false,
+        message: 'ID nội dung không được để trống'
+      }
     }
     
     // Basic ID format validation (check if it looks like a valid ObjectId)
     if (id.length !== 24 || !/^[a-fA-F0-9]{24}$/.test(id)) {
-      throw new Error(`ID nội dung không hợp lệ: ${id}`)
+      return {
+        success: false,
+        message: `ID nội dung không hợp lệ: ${id}`
+      }
     }
     
-    console.log('Getting content by ID:', id)
-    const response = await apiRequest<{ success: boolean; data: any }>(`/content/${id}`)
-    return response.data
+    try {
+      console.log('Getting content by ID:', id)
+      const response = await apiRequest<{ success: boolean; data: any }>(`/content/${id}`)
+      return response.data
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || "Đã xảy ra lỗi khi lấy nội dung"
+      }
+    }
   },
 
   createContent: async (data: any) => {
