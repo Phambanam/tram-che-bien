@@ -43,7 +43,8 @@ export function MultiSelect({
   disabled = false,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
-
+  const [searchValue, setSearchValue] = React.useState("")
+  console.log("options", options)
   const handleSelect = (value: string) => {
     if (selected.includes(value)) {
       onChange(selected.filter((item) => item !== value))
@@ -62,8 +63,27 @@ export function MultiSelect({
 
   const selectedOptions = options.filter((option) => selected.includes(option.value))
 
+  // Filter options based on search
+  const filteredOptions = React.useMemo(() => {
+    return options.filter((option) => 
+      option.label.toLowerCase().includes(searchValue.toLowerCase())
+    )
+  }, [options, searchValue])
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log("MultiSelect options count:", options.length)
+    console.log("MultiSelect filtered options count:", filteredOptions.length)
+    console.log("Search value:", searchValue)
+  }, [options, filteredOptions, searchValue])
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen)
+      if (!newOpen) {
+        setSearchValue("") // Reset search when closing
+      }
+    }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -118,17 +138,22 @@ export function MultiSelect({
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Tìm kiếm..." />
-          <CommandList>
+      <PopoverContent className="w-full p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)', maxHeight: '300px' }}>
+        <Command shouldFilter={false}>
+          <CommandInput 
+            placeholder="Tìm kiếm..." 
+            value={searchValue}
+            onValueChange={setSearchValue}
+          />
+          <CommandList className="max-h-[180px] overflow-y-auto">
             <CommandEmpty>Không tìm thấy.</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
                   onSelect={() => handleSelect(option.value)}
+                  className="cursor-pointer"
                 >
                   <Check
                     className={cn(

@@ -190,8 +190,30 @@ export function MenuReportContent() {
 
   const loadAvailableDishes = async () => {
     try {
-      const response = await dishesApi.getDishes()
-      console.log("Available dishes loaded:", response)
+      console.log("Attempting to load all dishes...")
+      
+      // Try without any parameters first (this should use backend defaults)
+      // Add cache busting timestamp
+      let response = await dishesApi.getDishes({ t: Date.now() })
+      console.log("No params response:", response)
+      
+      // If that doesn't work, try with explicit large limit
+      if (!response.data || response.data.length < 14) {
+        console.log("Trying with limit 100...")
+        response = await dishesApi.getDishes({ limit: 100 })
+        console.log("Limit 100 response:", response)
+      }
+      
+      // If still not enough, try with even larger limit  
+      if (!response.data || response.data.length < 14) {
+        console.log("Trying with limit 500...")
+        response = await dishesApi.getDishes({ limit: 500 })
+        console.log("Limit 500 response:", response)
+      }
+      
+      console.log("Final response totalCount:", response.totalCount)
+      console.log("Final response data length:", response.data?.length || 0)
+      console.log("Final dishes data:", response.data)
       setAvailableDishes(response.data || [])
     } catch (error) {
       console.error("Error loading dishes:", error)
@@ -591,6 +613,11 @@ export function MenuReportContent() {
     label: dish.name + (dish.mainLTTP ? ` (${dish.mainLTTP.lttpName})` : ''),
     dish: dish // Store dish object for tooltip
   }))
+  
+  // Debug log for dish options
+  console.log("Available dishes for MultiSelect:", availableDishes.length)
+  console.log("Dish options created:", dishOptions.length)
+  console.log("Dish options:", dishOptions)
 
   // Handle export menu to Excel
   const handleExportMenuToExcel = () => {
@@ -1546,13 +1573,14 @@ export function MenuReportContent() {
                 <h3 className="text-lg font-semibold">Chọn món ăn cho từng buổi</h3>
                 
                 {/* Morning Meal */}
-                <div className="space-y-3">
+                {/* <div className="space-y-3 max-h-[200px] overflow-y-auto">
                   <div className="flex justify-between items-center">
                     <h4 className="font-medium text-orange-600">🌅 Buổi sáng</h4>
                     <div className="text-xs text-gray-500">
                       Đã chọn: {dailyMenuForm.meals.morning.length} món
                     </div>
                   </div>
+                  
                   <MultiSelect
                     options={dishOptions}
                     selected={dailyMenuForm.meals.morning}
@@ -1560,6 +1588,24 @@ export function MenuReportContent() {
                     placeholder="Chọn món ăn cho buổi sáng..."
                     className="max-w-full"
                   />
+                </div> */}
+                {/* Morning Meal */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium text-orange-600">🌅 Buổi sáng</h4>
+                    <div className="text-xs text-gray-500">
+                      Đã chọn: {dailyMenuForm.meals.morning.length} món
+                    </div>
+                  </div>
+                  <div className="max-h-[100px] overflow-y-auto">
+                    <MultiSelect
+                      options={dishOptions}
+                      selected={dailyMenuForm.meals.morning}
+                      onChange={(selected) => handleMealDishesChange("morning", selected)}
+                      placeholder="Chọn món ăn cho buổi sáng..."
+                      className="max-w-full max-h-[100px]"
+                    />
+                  </div>
                 </div>
 
                 {/* Noon Meal */}

@@ -10,7 +10,9 @@
     "lint": "eslint . --ext .ts",
     "test": "jest",
     "seed": "ts-node --project tsconfig.json scripts/seed.ts",
-    "seed-content": "ts-node --project tsconfig.json scripts/seed-content.ts"
+    "seed-content": "ts-node --project tsconfig.json scripts/seed-content.ts",
+    "generate-dishes": "node scripts/generate-dishes.js",
+    "clear-dishes": "node scripts/clear-dishes.js"
   },
   "dependencies": {
     "@types/multer": "^1.4.13",
