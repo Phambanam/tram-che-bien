@@ -47,17 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
   }, [])
 
-  const login = async (phoneNumber: string, password: string):
-    Promise<{ token: string; user: User }> => {
+  const login = async (phoneNumber: string, password: string): Promise<void> => {
     console.log('Auth provider login called with:', { phoneNumber, password })
     
     try {
-      // Make login request and get raw response
+      // Make login request and get response
       const response = await authApi.login(phoneNumber, password)
       console.log('Auth provider received response:', response)
       
-      // If login was successful, store data and redirect
-      if (response && response.token && response.user) {
+      // Check if response has error format
+      if ('success' in response && response.success === false) {
+        // API returned error message
+        throw new Error(response.message || "Đăng nhập thất bại")
+      }
+      
+      // Check if response has successful login format
+      if ('token' in response && 'user' in response && response.token && response.user) {
         console.log('Login successful, storing token and user data')
         
         // Store token in localStorage for persistence
@@ -72,10 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         console.log('Auth data stored, ready for redirect')
         
-        // Return the response to allow login-form.tsx to handle the redirect
-        return response
+        // Login successful - no need to return anything as interface expects Promise<void>
       } else {
-        throw new Error("Invalid login response format")
+        throw new Error("Dữ liệu đăng nhập không hợp lệ")
       }
     } catch (error) {
       console.error('Error in auth provider login:', error)

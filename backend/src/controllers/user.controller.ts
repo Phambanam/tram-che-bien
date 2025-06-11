@@ -74,7 +74,10 @@ export const getUsers = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching users:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách người dùng", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách người dùng"
+    })
   }
 }
 
@@ -87,7 +90,10 @@ export const getUserById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(userId)) {
-      throw new AppError("ID người dùng không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID người dùng không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -119,7 +125,10 @@ export const getUserById = async (req: Request, res: Response) => {
       .toArray()
 
     if (!user || user.length === 0) {
-      throw new AppError("Không tìm thấy người dùng", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng"
+      })
     }
 
     // Transform data for response
@@ -144,11 +153,11 @@ export const getUserById = async (req: Request, res: Response) => {
       data: transformedUser,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching user:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin người dùng", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin người dùng"
+    })
   }
 }
 
@@ -162,7 +171,10 @@ export const updateUser = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(userId)) {
-      throw new AppError("ID người dùng không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID người dùng không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -182,7 +194,10 @@ export const updateUser = async (req: Request, res: Response) => {
     const result = await db.collection("users").updateOne({ _id: new ObjectId(userId) }, { $set: updateData })
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy người dùng", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng"
+      })
     }
 
     res.status(200).json({
@@ -190,11 +205,11 @@ export const updateUser = async (req: Request, res: Response) => {
       message: "Cập nhật thông tin người dùng thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating user:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật thông tin người dùng", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật thông tin người dùng"
+    })
   }
 }
 
@@ -207,7 +222,10 @@ export const deleteUser = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(userId)) {
-      throw new AppError("ID người dùng không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID người dùng không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -224,7 +242,10 @@ export const deleteUser = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy người dùng", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng"
+      })
     }
 
     res.status(200).json({
@@ -232,10 +253,10 @@ export const deleteUser = async (req: Request, res: Response) => {
       message: "Xóa người dùng thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting user:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa người dùng", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa người dùng"
+    })
   }
 }

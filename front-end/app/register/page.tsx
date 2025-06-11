@@ -17,10 +17,10 @@ export default function RegisterPage() {
                       <Image 
               src="/images/logo.png" 
               alt="Logo Lữ đoàn 279" 
-              width={40} 
-              height={40} 
+              width={80} 
+              height={80} 
               className="mr-2"
-              style={{ width: 40, height: 40 }} 
+              style={{ width: 80, height: 80 }} 
             />
           PHẦN MỀM QUẢN LÝ TRẠM CHẾ BIẾN
         </div>

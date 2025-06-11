@@ -12,26 +12,23 @@ const navItems = [
   {
     title: "GIỚI THIỆU",
     href: "/dashboard/gioi-thieu",
+  }, {
+    title: "THỰC ĐƠN TUẦN",
+    href: "/dashboard/bao-cao-thuc-don",
   },
   {
     title: "QUẢN LÝ NGUỒN NHẬP",
     href: "/dashboard/quan-ly-nguon-nhap",
   },
+  
   {
-    title: "TRẠM CHẾ BIẾN",
+    title: "HOẠT ĐỘNG TRẠM CHẾ BIẾN",
     href: "/dashboard/tram-che-bien",
   },
-  {
-    title: "BÁO CÁO THỰC ĐƠN",
-    href: "/dashboard/bao-cao-thuc-don",
-  },
+ 
   {
     title: "QUẢN LÝ NGUỒN XUẤT",
     href: "/dashboard/quan-ly-nguon-xuat",
-  },
-  {
-    title: "HỖ TRỢ LẬP THỰC ĐƠN",
-    href: "/dashboard/ho-tro-lap-thuc-don",
   },
   {
     title: "THƯ VIỆN DỮ LIỆU",

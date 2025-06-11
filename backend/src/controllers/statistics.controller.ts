@@ -66,7 +66,10 @@ export const getStatisticsOverview = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching statistics overview:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy tổng quan thống kê", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy tổng quan thống kê"
+    })
   }
 }
 
@@ -203,7 +206,10 @@ export const getSupplyTrends = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching supply trends:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy xu hướng nguồn nhập", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy xu hướng nguồn nhập"
+    })
   }
 }
 
@@ -314,7 +320,10 @@ export const getCategoryDistribution = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching category distribution:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy phân phối theo loại", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy phân bố theo phân loại"
+    })
   }
 }
 
@@ -415,6 +424,9 @@ export const getUnitPerformance = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching unit performance:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy hiệu suất đơn vị", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy hiệu quả đơn vị"
+    })
   }
 }

@@ -322,7 +322,7 @@ export function DashboardContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="mb-4">
-                Lữ đoàn 279 là một đơn vị quân đội tinh nhuệ thuộc Quân khu 7, được thành lập vào năm 1975. Với truyền
+                Lữ đoàn 279 là một đơn vị quân đội tinh nhuệ thuộc Binh Chủng Công Binh, được thành lập vào ngày 12/08/1972. Với truyền
                 thống vẻ vang và nhiều thành tích xuất sắc trong công tác huấn luyện, sẵn sàng chiến đấu và xây dựng đơn
                 vị vững mạnh toàn diện.
               </p>

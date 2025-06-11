@@ -79,6 +79,11 @@ export function ProcessingStationContent() {
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [livestockData, setLivestockData] = useState<any[]>([])
+  const [isLoadingLivestock, setIsLoadingLivestock] = useState(false)
+  const [soybeanData, setSoybeanData] = useState<any[]>([])
+  const [isLoadingSoybean, setIsLoadingSoybean] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -178,6 +183,161 @@ export function ProcessingStationContent() {
     }]
   }
 
+  // Fetch livestock data from supplies API
+  const fetchLivestockData = async (date: Date) => {
+    try {
+      setIsLoadingLivestock(true)
+      
+      // Format date for API filter
+      const dateStr = format(date, "yyyy-MM-dd")
+      
+      // Get supplies data filtered for meat/livestock and date
+      const filters = {
+        stationEntryFromDate: dateStr,
+        stationEntryToDate: dateStr,
+        category: "thịt", // Filter for meat category
+        status: "approved" // Only approved supplies
+      }
+      
+      const suppliesResponse = await suppliesApi.getSupplies(filters)
+      const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
+      
+      // Filter for pork/livestock specifically
+      const porkSupplies = supplies.filter((supply: any) => 
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("lợn") ||
+          supply.product.name.toLowerCase().includes("heo") ||
+          supply.product.name.toLowerCase().includes("thịt")
+        )
+      )
+      
+      setLivestockData(porkSupplies)
+      
+      console.log("Livestock data loaded:", porkSupplies)
+      
+    } catch (error) {
+      console.error("Error fetching livestock data:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu thịt lợn",
+        variant: "destructive",
+      })
+      setLivestockData([])
+    } finally {
+      setIsLoadingLivestock(false)
+    }
+  }
+
+  // Fetch soybean data from supplies API for tofu processing
+  const fetchSoybeanDataForWeek = async (startDate: Date, endDate: Date) => {
+    try {
+      setIsLoadingSoybean(true)
+      
+      // Format dates for API filter
+      const startDateStr = format(startDate, "yyyy-MM-dd")
+      const endDateStr = format(endDate, "yyyy-MM-dd")
+      
+      // Get supplies data filtered for soybean and date range
+      const filters = {
+        stationEntryFromDate: startDateStr,
+        stationEntryToDate: endDateStr,
+        status: "approved" // Only approved supplies
+      }
+      
+      const suppliesResponse = await suppliesApi.getSupplies(filters)
+      const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
+      
+      // Filter for soybean specifically
+      const soybeanSupplies = supplies.filter((supply: any) => 
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("đậu nành") ||
+          supply.product.name.toLowerCase().includes("đậu hạt") ||
+          supply.product.name.toLowerCase().includes("soybean")
+        )
+      )
+      console.log("Soybean data loaded:", soybeanSupplies)
+      
+      setSoybeanData(soybeanSupplies)
+      
+      // Generate weekly data with real soybean input (will be triggered by useEffect)
+      // const weeklyData = generateWeeklyDataWithRealSoybean()
+      // setWeeklyTofuData(weeklyData)
+      
+      console.log("Soybean data loaded:", soybeanSupplies)
+      
+    } catch (error) {
+      console.error("Error fetching soybean data:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu đậu nành",
+        variant: "destructive",
+      })
+      // Don't reset soybeanData to empty array - keep existing data
+      // setSoybeanData([])
+      
+      // Fallback to sample data only if no existing weekly data
+      if (weeklyTofuData.length === 0) {
+        const weeklyData = generateSampleWeeklyData()
+        setWeeklyTofuData(weeklyData)
+      }
+    } finally {
+      setIsLoadingSoybean(false)
+    }
+  }
+
+  // Generate weekly data using real soybean input data
+  const generateWeeklyDataWithRealSoybean = (): WeeklyTofuData[] => {
+    const weekDates = getCurrentWeekDates()
+    const startDate = weekDates[0]
+    const endDate = weekDates[6]
+    
+    const dailyData: DailyTofuData[] = weekDates.map((date, index) => {
+      // Get real soybean input for this date
+      const realSoybeanInput = getSoybeanInputByDate(date)
+      
+      return {
+        date: format(date, "yyyy-MM-dd"),
+        dayOfWeek: getDayName(date.getDay()),
+        soybeanInput: realSoybeanInput, // Real data from API
+        soybeanOutput: realSoybeanInput > 0 ? Math.floor(realSoybeanInput * 0.8) : 0, // 80% processing rate
+        soybeanRemaining: 0, // Will be calculated
+        tofuOutputToUnits: realSoybeanInput > 0 && index < 5 ? [
+          { unitId: "unit1", unitName: "Tiểu đoàn 1", quantity: Math.floor(realSoybeanInput * 0.3) },
+          { unitId: "unit2", unitName: "Tiểu đoàn 2", quantity: Math.floor(realSoybeanInput * 0.25) }
+        ] : [],
+        tofuOutputToOthers: realSoybeanInput > 0 && index < 5 ? `Đơn vị khác: ${Math.floor(realSoybeanInput * 0.1)}kg` : "",
+        tofuRemaining: 0, // Will be calculated
+        note: realSoybeanInput > 0 ? `Đậu nành nhập: ${realSoybeanInput}kg` : ""
+      }
+    })
+
+    // Calculate remaining quantities
+    dailyData.forEach(day => {
+      day.soybeanRemaining = day.soybeanInput - day.soybeanOutput
+      const totalTofuToUnits = day.tofuOutputToUnits.reduce((sum, unit) => sum + unit.quantity, 0)
+      day.tofuRemaining = day.soybeanOutput - totalTofuToUnits // Assuming 1:1 conversion
+    })
+
+    const weeklyTotal: TofuSummary = {
+      totalSoybeanInput: dailyData.reduce((sum, day) => sum + day.soybeanInput, 0),
+      totalSoybeanOutput: dailyData.reduce((sum, day) => sum + day.soybeanOutput, 0),
+      totalSoybeanRemaining: dailyData.reduce((sum, day) => sum + day.soybeanRemaining, 0),
+      totalTofuOutputToUnits: dailyData.reduce((sum, day) => 
+        sum + day.tofuOutputToUnits.reduce((unitSum, unit) => unitSum + unit.quantity, 0), 0),
+      totalTofuOutputToOthers: "Tổng các đơn vị khác trong tuần",
+      totalTofuRemaining: dailyData.reduce((sum, day) => sum + day.tofuRemaining, 0)
+    }
+
+    return [{
+      id: "week-current",
+      week: format(startDate, "yyyy-'W'ww"),
+      startDate: format(startDate, "yyyy-MM-dd"),
+      endDate: format(endDate, "yyyy-MM-dd"),
+      dailyData,
+      weeklyTotal
+    }]
+  }
+
   // Fetch data for tofu processing
   const fetchTofuData = async () => {
     try {
@@ -198,15 +358,33 @@ export function ProcessingStationContent() {
         ])
       }
 
-      // Get soybean input data from supplies
-      const suppliesResponse = await suppliesApi.getSupplies()
+      // Get current week dates for soybean data filtering
+      const weekDates = getCurrentWeekDates()
+      const startDateStr = format(weekDates[0], "yyyy-MM-dd")
+      const endDateStr = format(weekDates[6], "yyyy-MM-dd")
+      
+      // Get soybean input data from supplies with date filter
+      const suppliesFilters = {
+        stationEntryFromDate: startDateStr,
+        stationEntryToDate: endDateStr,
+        status: "approved"
+      }
+      
+      const suppliesResponse = await suppliesApi.getSupplies(suppliesFilters)
       const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
       
       // Filter for soybean (đậu nành) supplies that are approved
       const soybeanSupplies = supplies.filter((supply: any) => 
-        supply.status === "approved" && 
-        supply.product?.name?.toLowerCase().includes("đậu nành")
+        supply.product && supply.product.name && (
+          supply.product.name.toLowerCase().includes("đậu nành") ||
+          supply.product.name.toLowerCase().includes("đậu hạt") ||
+          supply.product.name.toLowerCase().includes("soybean")
+        )
       )
+      
+      // Don't set soybean data here - it will be handled by fetchSoybeanDataForWeek
+      // Only use soybean data for inventory calculation
+      console.log("Fetched soybean supplies for inventory calculation:", soybeanSupplies)
 
       // Get output data
       let tofuOutputs: any[] = []
@@ -228,9 +406,8 @@ export function ProcessingStationContent() {
       const totalOutput = tofuOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
       const remaining = totalInput - totalOutput
 
-      // Generate weekly data (sample for now)
-      const weeklyData = generateSampleWeeklyData()
-      setWeeklyTofuData(weeklyData)
+      // Weekly data will be generated by useEffect when soybeanData changes
+      // Don't generate here to avoid conflicts
 
       // Set inventory data
       if (soybeanSupplies.length === 0) {
@@ -283,12 +460,86 @@ export function ProcessingStationContent() {
     fetchTofuData()
   }, [])
 
+  // Initialize soybean data when component mounts or tofu section is active
+  useEffect(() => {
+    if (activeSection === "tofu") {
+      const weekDates = getCurrentWeekDates()
+      fetchSoybeanDataForWeek(weekDates[0], weekDates[6])
+    }
+  }, [activeSection])
+
+  useEffect(() => {
+    if (activeSection === "livestock") {
+      fetchLivestockData(selectedDate)
+    }
+  }, [selectedDate, activeSection])
+
+
+
+  // Generate weekly data when soybeanData changes
+  useEffect(() => {
+    if (soybeanData.length > 0 && activeSection === "tofu") {
+      console.log("Regenerating weekly data with soybeanData:", soybeanData.length, "items")
+      const weeklyData = generateWeeklyDataWithRealSoybean()
+      setWeeklyTofuData(weeklyData)
+      console.log("Generated weekly data with real soybean:", weeklyData)
+    }
+  }, [soybeanData, activeSection])
+
+  // Calculate input quantities by unit from livestock data
+  const getInputQuantityByUnit = (unitName: string, productName: string) => {
+    const unitSupplies = livestockData.filter((supply: any) => 
+      supply.unitName && supply.unitName.includes(unitName) &&
+      supply.product && supply.product.name && supply.product.name.toLowerCase().includes(productName.toLowerCase())
+    )
+    
+    return unitSupplies.reduce((total: number, supply: any) => {
+      return total + (supply.actualQuantity || supply.requestedQuantity || 0)
+    }, 0)
+  }
+
+  // Calculate total input quantity for a product
+  const getTotalInputQuantity = (productName: string) => {
+    const productSupplies = livestockData.filter((supply: any) =>
+      supply.product && supply.product.name && supply.product.name.toLowerCase().includes(productName.toLowerCase())
+    )
+    
+    return productSupplies.reduce((total: number, supply: any) => {
+      return total + (supply.actualQuantity || supply.requestedQuantity || 0)
+    }, 0)
+  }
+
+  // Calculate soybean input quantity for specific date
+  const getSoybeanInputByDate = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd")
+    
+    console.log(`Checking soybean input for ${dateStr}, total soybeanData:`, soybeanData.length)
+    
+    const daySupplies = soybeanData.filter((supply: any) => {
+      const supplyDate = supply.stationEntryDate || supply.createdAt
+      const supplyDateStr = supplyDate ? format(new Date(supplyDate), "yyyy-MM-dd") : null
+      
+      console.log(`Supply ${supply.id}: date=${supplyDateStr}, matching=${supplyDateStr === dateStr}`)
+      
+      return supplyDate && supplyDateStr === dateStr
+    })
+    
+    const totalQuantity = daySupplies.reduce((total: number, supply: any) => {
+      return total + (supply.actualQuantity || supply.requestedQuantity || 0)
+    }, 0)
+    
+    // Debug log for specific date
+    console.log(`Soybean input for ${dateStr}:`, totalQuantity, "from", daySupplies.length, "supplies:", daySupplies)
+    
+    return totalQuantity
+  }
+
   const sections = [
     { id: "tofu", name: "Chế biến đậu phụ", icon: Package, color: "bg-green-100 text-green-800" },
     { id: "sausage", name: "Làm giò chả", icon: Utensils, color: "bg-orange-100 text-orange-800" },
     { id: "sprouts", name: "Giá đỗ", icon: Wheat, color: "bg-yellow-100 text-yellow-800" },
     { id: "salt", name: "Muối nén", icon: Droplets, color: "bg-blue-100 text-blue-800" },
-    { id: "livestock", name: "Giết mổ gia súc", icon: Beef, color: "bg-red-100 text-red-800" },
+    { id: "livestock", name: "Giết mổ lợn", icon: Beef, color: "bg-red-100 text-red-800" },
     { id: "seafood", name: "Gia cầm, hải sản", icon: Fish, color: "bg-purple-100 text-purple-800" },
     { id: "lttp", name: "Quản lý LTTP", icon: Package, color: "bg-indigo-100 text-indigo-800" },
   ]
@@ -404,7 +655,7 @@ export function ProcessingStationContent() {
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6 border-b">
           <h1 className="text-3xl font-bold text-center text-[#b45f06] mb-2">
-            TRẠM CHỂ BIẾN
+            TRẠM CHẾ BIẾN
           </h1>
           <p className="text-center text-gray-600">
             Quản lý chế biến và sản xuất thực phẩm
@@ -627,18 +878,258 @@ export function ProcessingStationContent() {
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-4">
                 <Beef className="h-6 w-6 text-red-600" />
-                <h2 className="text-2xl font-bold text-red-800">Giết mổ gia súc</h2>
+                <h2 className="text-2xl font-bold text-red-800">Giết mổ lợn</h2>
                 <Badge className="bg-red-100 text-red-800">
-                  Đang phát triển
+                  Quản lý phân phối thịt lợn
                 </Badge>
               </div>
+
+              {/* Date Filter */}
+              <Card className="mb-6">
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-gray-500" />
+                        <label htmlFor="livestock-date" className="font-medium text-sm">
+                          Chọn ngày:
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const newDate = new Date(selectedDate)
+                            newDate.setDate(newDate.getDate() - 1)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã chuyển sang hôm qua",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        >
+                          ← Hôm qua
+                        </Button>
+                        <Input
+                          id="livestock-date"
+                          type="date"
+                          value={format(selectedDate, "yyyy-MM-dd")}
+                          className="w-40"
+                          onChange={(e) => {
+                            const newDate = new Date(e.target.value)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã thay đổi ngày",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const newDate = new Date(selectedDate)
+                            newDate.setDate(newDate.getDate() + 1)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã chuyển sang ngày mai",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        >
+                          Ngày mai →
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedDate(new Date())
+                          toast({
+                            title: "Đã chuyển về hôm nay",
+                            description: `Xem dữ liệu ngày ${format(new Date(), "dd/MM/yyyy", { locale: vi })}`,
+                          })
+                        }}
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-1" />
+                        Hôm nay
+                      </Button>
+                      <Badge variant="outline" className="text-sm">
+                        {format(selectedDate, "EEEE, dd/MM/yyyy", { locale: vi })}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               
               <Card>
-                <CardContent className="py-12">
-                  <div className="text-center text-gray-500">
-                    <Beef className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium mb-2">Chức năng đang được phát triển</h3>
-                    <p>Phần giết mổ gia súc sẽ được hoàn thiện trong phiên bản tiếp theo</p>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Bảng tổng hợp ngày trước chuyển qua và nhập trong ngày</span>
+                    <Badge variant="secondary" className="text-sm">
+                      {format(selectedDate, "dd/MM/yyyy", { locale: vi })}
+                    </Badge>
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Theo dõi nhập - xuất - tồn thịt và sản phẩm gia súc cho các đơn vị • Ngày được chọn: {format(selectedDate, "EEEE, dd/MM/yyyy", { locale: vi })}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead rowSpan={2} className="text-center border-r w-8">TT</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-24">Tên LTP</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-12">Đvt</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-20">Đơn giá</TableHead>
+                          <TableHead colSpan={2} className="text-center border-r bg-gray-50">Ngày trước chuyển qua</TableHead>
+                          <TableHead colSpan={8} className="text-center border-r bg-blue-50">Nhập trong ngày</TableHead>
+                          <TableHead colSpan={8} className="text-center border-r bg-yellow-50">Xuất trong ngày</TableHead>
+                          <TableHead colSpan={2} className="text-center bg-purple-50">Tồn cuối ngày</TableHead>
+                        </TableRow>
+                        <TableRow>
+                          <TableHead className="text-center w-16 border-r">Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 1<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 2<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 3<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16 border-r">Lữ đoàn bộ<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 1<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 2<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 3<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16 border-r">Lữ đoàn bộ<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          { id: 1, name: "Thịt xá", price: "65,000" },
+                          { id: 2, name: "Thịt nạc", price: "80,000" },
+                          { id: 3, name: "Xương", price: "15,000" },
+                          { id: 4, name: "Sườn", price: "70,000" },
+                          { id: 5, name: "Lòng", price: "45,000" },
+                          { id: 6, name: "Sụn", price: "35,000" },
+                          { id: 7, name: "Da con", price: "25,000" },
+                          { id: 8, name: "Mỡ", price: "30,000" }
+                        ].map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="text-center font-medium border-r">{item.id}</TableCell>
+                            <TableCell className="font-medium border-r">{item.name}</TableCell>
+                            <TableCell className="text-center border-r">kg</TableCell>
+                            <TableCell className="text-center border-r">{item.price}</TableCell>
+                            {/* Ngày trước chuyển qua */}
+                            <TableCell className="text-center bg-gray-50">
+                              <span className="text-xs font-semibold">
+                                {isLoadingLivestock ? "..." : getTotalInputQuantity(item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-gray-50 border-r">
+                              <span className="text-xs">
+                                {((getTotalInputQuantity(item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            {/* Nhập trong ngày - 4 đơn vị */}
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 1", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 1", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 2", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 2", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 3", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 3", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Lữ đoàn", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50 border-r">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Lữ đoàn", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            {/* Xuất trong ngày - 4 đơn vị */}
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50 border-r"><span className="text-xs">0</span></TableCell>
+                            {/* Tồn cuối ngày */}
+                            <TableCell className="text-center bg-purple-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-purple-50"><span className="text-xs">0</span></TableCell>
+                          </TableRow>
+                        ))}
+
+
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  <div className="mt-6 flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
+                      <p><span className="inline-block w-4 h-4 bg-green-50 border border-green-200 mr-2"></span>Phân phối cho đơn vị</p>
+                      <p><span className="inline-block w-4 h-4 bg-blue-50 border border-blue-200 mr-2"></span>Nhập trong ngày</p>
+                      <p><span className="inline-block w-4 h-4 bg-yellow-50 border border-yellow-200 mr-2"></span>Xuất trong ngày</p>
+                      <p><span className="inline-block w-4 h-4 bg-purple-50 border border-purple-200 mr-2"></span>Tồn kho cuối ngày</p>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button variant="outline">
+                        Nhập từ Excel
+                      </Button>
+                      <Button variant="outline">
+                        Xuất báo cáo
+                      </Button>
+                      <Button>
+                        Lưu dữ liệu
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

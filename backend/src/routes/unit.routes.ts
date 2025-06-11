@@ -130,7 +130,7 @@ router.get("/daily-dining/:date", getDailyDining)
  *       403:
  *         description: Not authorized
  */
-router.post("/", authorize("admin", "brigadeAssistant"), createUnit)
+router.post("/", authorize("admin", "brigadeAssistant", "stationManager"), createUnit)
 
 /**
  * @swagger
@@ -172,7 +172,7 @@ router.post("/", authorize("admin", "brigadeAssistant"), createUnit)
  *       404:
  *         description: Unit not found
  */
-router.patch("/:id", authorize("admin", "brigadeAssistant"), updateUnit)
+router.patch("/:id", authorize("admin", "brigadeAssistant", "stationManager"), updateUnit)
 
 /**
  * @swagger

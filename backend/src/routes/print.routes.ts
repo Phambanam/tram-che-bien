@@ -10,8 +10,8 @@ router.use(protect)
 // Route for all authenticated users (tailored based on user role)
 router.get("/supplies", printSupplies)
 
-// Routes for admin, brigade assistant, and commander
-router.get("/reports/by-unit", authorize("admin", "brigadeAssistant", "commander"), printUnitReport)
-router.get("/reports/by-category", authorize("admin", "brigadeAssistant", "commander"), printCategoryReport)
+// Routes for admin, brigade assistant, station manager, and commander
+router.get("/reports/by-unit", authorize("admin", "brigadeAssistant", "stationManager", "commander"), printUnitReport)
+router.get("/reports/by-category", authorize("admin", "brigadeAssistant", "stationManager", "commander"), printCategoryReport)
 
 export default router

@@ -19,6 +19,7 @@ import { suppliesApi, unitsApi, categoriesApi, productsApi } from "@/lib/api-cli
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { SupplySource, Unit, ProductCategory, SupplyFormData, Product } from "@/types"
+import { SuppliesFilter } from "@/components/supplies/supplies-filter"
 
 export function SupplyManagementContent() {
   const [date, setDate] = useState<Date>()
@@ -32,6 +33,18 @@ export function SupplyManagementContent() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState("list")
+  const [filters, setFilters] = useState<{
+    unit?: string
+    category?: string
+    status?: string
+    product?: string
+    fromDate?: string
+    toDate?: string
+    stationEntryFromDate?: string
+    stationEntryToDate?: string
+    createdFromDate?: string
+    createdToDate?: string
+  }>({})
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -84,11 +97,11 @@ export function SupplyManagementContent() {
 
     const fetchSupplies = async () => {
       try {
-      console.log("Fetching supplies...")
+      console.log("Fetching supplies with filters:", filters)
       setIsLoading(true)
         setError(null)
 
-      const response = await suppliesApi.getSupplies()
+      const response = await suppliesApi.getSupplies(filters)
       console.log("Raw API Response:", response) // Debug log
         
         // Handle different response formats
@@ -211,6 +224,13 @@ export function SupplyManagementContent() {
     }
     fetchCategories()
   }, [user])
+
+  // Refetch supplies when filters change
+  useEffect(() => {
+    if (user) {
+      fetchSupplies()
+    }
+  }, [filters, user])
 
   // Fetch products when category changes
   useEffect(() => {
@@ -485,6 +505,10 @@ export function SupplyManagementContent() {
     setActiveTab("list")
   }
 
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setFilters(newFilters)
+  }
+
   const handleInputChange = (field: keyof SupplyFormData, value: string | number | boolean) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value }
@@ -579,6 +603,9 @@ export function SupplyManagementContent() {
           </TabsList>
 
           <TabsContent value="list" className="space-y-4">
+            {/* Filter Component */}
+            <SuppliesFilter onFilterChange={handleFilterChange} />
+            
             <div className="flex justify-between items-center">
               <div className="flex gap-2 items-center">
                 <Input 

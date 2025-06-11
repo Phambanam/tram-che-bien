@@ -7,7 +7,7 @@ export interface IUserAttributes {
   phoneNumber?: string;
   password: string;
   fullName: string;
-  role: 'admin' | 'commander' | 'brigadeAssistant' | 'unitAssistant';
+  role: 'admin' | 'commander' | 'brigadeAssistant' | 'unitAssistant' | 'stationManager';
   unit: mongoose.Types.ObjectId;
   rank: string;
   position: string;
@@ -50,7 +50,7 @@ const UserSchema: Schema = new Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'commander', 'brigadeAssistant', 'unitAssistant'],
+    enum: ['admin', 'commander', 'brigadeAssistant', 'unitAssistant', 'stationManager'],
     required: true
   },
   unit: {

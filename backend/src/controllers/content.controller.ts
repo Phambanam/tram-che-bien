@@ -38,7 +38,10 @@ export const getAllContent = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching content:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy nội dung", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy nội dung"
+    })
   }
 }
 
@@ -54,11 +57,17 @@ export const getContentById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!contentId || contentId === 'undefined' || contentId === 'null') {
-      throw new AppError("ID nội dung không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID nội dung không được để trống"
+      })
     }
 
     if (!ObjectId.isValid(contentId)) {
-      throw new AppError(`ID nội dung không hợp lệ: ${contentId}`, 400)
+      return res.status(400).json({
+        success: false,
+        message: `ID nội dung không hợp lệ: ${contentId}`
+      })
     }
 
     const db = await getDb()
@@ -66,7 +75,10 @@ export const getContentById = async (req: Request, res: Response) => {
     const content = await db.collection("content").findOne({ _id: new ObjectId(contentId) })
 
     if (!content) {
-      throw new AppError("Không tìm thấy nội dung", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nội dung"
+      })
     }
 
     // Transform data for response
@@ -86,11 +98,11 @@ export const getContentById = async (req: Request, res: Response) => {
       data: transformedContent,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching content:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy nội dung", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy nội dung"
+    })
   }
 }
 
@@ -103,25 +115,40 @@ export const createContent = async (req: Request, res: Response) => {
 
     // Validate input
     if (!title || !type) {
-      throw new AppError("Tiêu đề và loại nội dung không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tiêu đề và loại nội dung không được để trống"
+      })
     }
 
     // Validate content type
     if (!["article", "image", "video"].includes(type)) {
-      throw new AppError("Loại nội dung không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Loại nội dung không hợp lệ"
+      })
     }
 
     // Validate content based on type
     if (type === "article" && !content) {
-      throw new AppError("Nội dung không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Nội dung không được để trống"
+      })
     }
 
     if (type === "image" && !imageUrl) {
-      throw new AppError("URL hình ảnh không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "URL hình ảnh không được để trống"
+      })
     }
 
     if (type === "video" && !videoUrl) {
-      throw new AppError("URL video không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "URL video không được để trống"
+      })
     }
 
     const db = await getDb()
@@ -143,11 +170,11 @@ export const createContent = async (req: Request, res: Response) => {
       contentId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating content:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm nội dung", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm nội dung"
+    })
   }
 }
 
@@ -161,22 +188,30 @@ export const updateContent = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(contentId)) {
-      throw new AppError("ID nội dung không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID nội dung không hợp lệ"
+      })
     }
 
     // Validate input
     if (!title || !type) {
-      throw new AppError("Tiêu đề và loại nội dung không được để trống", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Tiêu đề và loại nội dung không được để trống"
+      })
     }
 
     // Validate content type
     if (!["article", "image", "video"].includes(type)) {
-      throw new AppError("Loại nội dung không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Loại nội dung không hợp lệ"
+      })
     }
 
     const db = await getDb()
 
-    // Update content
     const result = await db.collection("content").updateOne(
       { _id: new ObjectId(contentId) },
       {
@@ -192,7 +227,10 @@ export const updateContent = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy nội dung", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nội dung"
+      })
     }
 
     res.status(200).json({
@@ -200,11 +238,11 @@ export const updateContent = async (req: Request, res: Response) => {
       message: "Cập nhật nội dung thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating content:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật nội dung", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật nội dung"
+    })
   }
 }
 
@@ -217,16 +255,21 @@ export const deleteContent = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(contentId)) {
-      throw new AppError("ID nội dung không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID nội dung không hợp lệ"
+      })
     }
 
     const db = await getDb()
 
-    // Delete content
     const result = await db.collection("content").deleteOne({ _id: new ObjectId(contentId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy nội dung", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nội dung"
+      })
     }
 
     res.status(200).json({
@@ -234,10 +277,10 @@ export const deleteContent = async (req: Request, res: Response) => {
       message: "Xóa nội dung thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting content:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa nội dung", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa nội dung"
+    })
   }
 }

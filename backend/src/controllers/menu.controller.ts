@@ -39,7 +39,10 @@ export const getAllMenus = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error("Error fetching menus:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy danh sách thực đơn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy danh sách thực đơn"
+    })
   }
 }
 
@@ -52,7 +55,10 @@ export const getMenuById = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(menuId)) {
-      throw new AppError("ID thực đơn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -60,7 +66,10 @@ export const getMenuById = async (req: Request, res: Response) => {
     const menu = await db.collection("menus").findOne({ _id: new ObjectId(menuId) })
 
     if (!menu) {
-      throw new AppError("Không tìm thấy thực đơn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn"
+      })
     }
 
     // Get daily menus
@@ -125,11 +134,11 @@ export const getMenuById = async (req: Request, res: Response) => {
       data: transformedMenu,
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error fetching menu:", error)
-    throw new AppError("Đã xảy ra lỗi khi lấy thông tin thực đơn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin thực đơn"
+    })
   }
 }
 
@@ -142,7 +151,10 @@ export const createMenu = async (req: Request, res: Response) => {
 
     // Validate input
     if (!week || !year || !startDate || !endDate) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     const db = await getDb()
@@ -150,7 +162,10 @@ export const createMenu = async (req: Request, res: Response) => {
     // Check if menu already exists
     const existingMenu = await db.collection("menus").findOne({ week, year })
     if (existingMenu) {
-      throw new AppError("Thực đơn tuần này đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Thực đơn tuần này đã tồn tại"
+      })
     }
 
     // Create new menu
@@ -170,11 +185,11 @@ export const createMenu = async (req: Request, res: Response) => {
       menuId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating menu:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm thực đơn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm thực đơn"
+    })
   }
 }
 
@@ -188,12 +203,18 @@ export const updateMenu = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(menuId)) {
-      throw new AppError("ID thực đơn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn không hợp lệ"
+      })
     }
 
     // Validate input
     if (!week || !year || !startDate || !endDate) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     const db = await getDb()
@@ -206,7 +227,10 @@ export const updateMenu = async (req: Request, res: Response) => {
     })
 
     if (existingMenu) {
-      throw new AppError("Thực đơn tuần này đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Thực đơn tuần này đã tồn tại"
+      })
     }
 
     // Update menu
@@ -225,7 +249,10 @@ export const updateMenu = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy thực đơn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn"
+      })
     }
 
     res.status(200).json({
@@ -233,11 +260,11 @@ export const updateMenu = async (req: Request, res: Response) => {
       message: "Cập nhật thực đơn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating menu:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật thực đơn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật thực đơn"
+    })
   }
 }
 
@@ -250,7 +277,10 @@ export const deleteMenu = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(menuId)) {
-      throw new AppError("ID thực đơn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -273,7 +303,10 @@ export const deleteMenu = async (req: Request, res: Response) => {
     const result = await db.collection("menus").deleteOne({ _id: new ObjectId(menuId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy thực đơn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn"
+      })
     }
 
     res.status(200).json({
@@ -281,11 +314,11 @@ export const deleteMenu = async (req: Request, res: Response) => {
       message: "Xóa thực đơn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting menu:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa thực đơn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa thực đơn"
+    })
   }
 }
 
@@ -299,12 +332,18 @@ export const createDailyMenu = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(menuId)) {
-      throw new AppError("ID thực đơn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn không hợp lệ"
+      })
     }
 
     // Validate input
     if (!date || !mealCount) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     const db = await getDb()
@@ -312,7 +351,10 @@ export const createDailyMenu = async (req: Request, res: Response) => {
     // Check if menu exists
     const menu = await db.collection("menus").findOne({ _id: new ObjectId(menuId) })
     if (!menu) {
-      throw new AppError("Không tìm thấy thực đơn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn"
+      })
     }
 
     // Check if daily menu already exists
@@ -322,7 +364,10 @@ export const createDailyMenu = async (req: Request, res: Response) => {
     })
 
     if (existingDailyMenu) {
-      throw new AppError("Thực đơn ngày này đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Thực đơn ngày này đã tồn tại"
+      })
     }
 
     // Create new daily menu
@@ -353,11 +398,11 @@ export const createDailyMenu = async (req: Request, res: Response) => {
       dailyMenuId: result.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error creating daily menu:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm thực đơn ngày", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm thực đơn ngày"
+    })
   }
 }
 
@@ -371,12 +416,18 @@ export const updateDailyMenu = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(dailyMenuId)) {
-      throw new AppError("ID thực đơn ngày không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn ngày không hợp lệ"
+      })
     }
 
     // Validate input
     if (!date || !mealCount) {
-      throw new AppError("Vui lòng điền đầy đủ thông tin", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin"
+      })
     }
 
     const db = await getDb()
@@ -384,7 +435,10 @@ export const updateDailyMenu = async (req: Request, res: Response) => {
     // Get current daily menu
     const currentDailyMenu = await db.collection("dailyMenus").findOne({ _id: new ObjectId(dailyMenuId) })
     if (!currentDailyMenu) {
-      throw new AppError("Không tìm thấy thực đơn ngày", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
     }
 
     // Check if daily menu with the same date already exists (excluding current daily menu)
@@ -395,7 +449,10 @@ export const updateDailyMenu = async (req: Request, res: Response) => {
     })
 
     if (existingDailyMenu) {
-      throw new AppError("Thực đơn ngày này đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Thực đơn ngày này đã tồn tại"
+      })
     }
 
     // Update daily menu
@@ -412,7 +469,10 @@ export const updateDailyMenu = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy thực đơn ngày", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
     }
 
     res.status(200).json({
@@ -420,11 +480,11 @@ export const updateDailyMenu = async (req: Request, res: Response) => {
       message: "Cập nhật thực đơn ngày thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating daily menu:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật thực đơn ngày", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật thực đơn ngày"
+    })
   }
 }
 
@@ -437,7 +497,10 @@ export const deleteDailyMenu = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(dailyMenuId)) {
-      throw new AppError("ID thực đơn ngày không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn ngày không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -449,7 +512,10 @@ export const deleteDailyMenu = async (req: Request, res: Response) => {
     const result = await db.collection("dailyMenus").deleteOne({ _id: new ObjectId(dailyMenuId) })
 
     if (result.deletedCount === 0) {
-      throw new AppError("Không tìm thấy thực đơn ngày", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
     }
 
     res.status(200).json({
@@ -457,11 +523,11 @@ export const deleteDailyMenu = async (req: Request, res: Response) => {
       message: "Xóa thực đơn ngày thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error deleting daily menu:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa thực đơn ngày", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa thực đơn ngày"
+    })
   }
 }
 
@@ -475,12 +541,18 @@ export const updateMealDishes = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(mealId)) {
-      throw new AppError("ID bữa ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID bữa ăn không hợp lệ"
+      })
     }
 
     // Validate input
     if (!dishes || !Array.isArray(dishes)) {
-      throw new AppError("Danh sách món ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Danh sách món ăn không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -488,12 +560,18 @@ export const updateMealDishes = async (req: Request, res: Response) => {
     // Validate dishes
     for (const dishId of dishes) {
       if (!ObjectId.isValid(dishId)) {
-        throw new AppError("ID món ăn không hợp lệ", 400)
+        return res.status(400).json({
+          success: false,
+          message: "ID món ăn không hợp lệ"
+        })
       }
 
       const dish = await db.collection("dishes").findOne({ _id: new ObjectId(dishId) })
       if (!dish) {
-        throw new AppError(`Không tìm thấy món ăn với ID: ${dishId}`, 404)
+        return res.status(404).json({
+          success: false,
+          message: `Không tìm thấy món ăn với ID: ${dishId}`
+        })
       }
     }
 
@@ -509,7 +587,10 @@ export const updateMealDishes = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy bữa ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy bữa ăn"
+      })
     }
 
     res.status(200).json({
@@ -517,11 +598,11 @@ export const updateMealDishes = async (req: Request, res: Response) => {
       message: "Cập nhật món ăn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error updating meal dishes:", error)
-    throw new AppError("Đã xảy ra lỗi khi cập nhật món ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật món ăn"
+    })
   }
 }
 
@@ -535,11 +616,17 @@ export const addDishToMeal = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(mealId)) {
-      throw new AppError("ID bữa ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID bữa ăn không hợp lệ"
+      })
     }
 
     if (!ObjectId.isValid(dishId)) {
-      throw new AppError("ID món ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID món ăn không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -547,13 +634,19 @@ export const addDishToMeal = async (req: Request, res: Response) => {
     // Check if dish exists
     const dish = await db.collection("dishes").findOne({ _id: new ObjectId(dishId) })
     if (!dish) {
-      throw new AppError("Không tìm thấy món ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy món ăn"
+      })
     }
 
     // Check if meal exists
     const meal = await db.collection("meals").findOne({ _id: new ObjectId(mealId) })
     if (!meal) {
-      throw new AppError("Không tìm thấy bữa ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy bữa ăn"
+      })
     }
 
     // Check if dish already exists in meal - fix the comparison logic
@@ -581,7 +674,10 @@ export const addDishToMeal = async (req: Request, res: Response) => {
     console.log("Debug - Dish exists check:", dishExists)
     
     if (dishExists) {
-      throw new AppError("Món ăn đã tồn tại trong bữa ăn này", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Món ăn đã tồn tại trong bữa ăn này"
+      })
     }
 
     // Add dish to meal
@@ -594,7 +690,10 @@ export const addDishToMeal = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy bữa ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy bữa ăn"
+      })
     }
 
     res.status(200).json({
@@ -602,11 +701,11 @@ export const addDishToMeal = async (req: Request, res: Response) => {
       message: "Thêm món ăn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error adding dish to meal:", error)
-    throw new AppError("Đã xảy ra lỗi khi thêm món ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi thêm món ăn"
+    })
   }
 }
 
@@ -620,11 +719,17 @@ export const removeDishFromMeal = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(mealId)) {
-      throw new AppError("ID bữa ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID bữa ăn không hợp lệ"
+      })
     }
 
     if (!ObjectId.isValid(dishId)) {
-      throw new AppError("ID món ăn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID món ăn không hợp lệ"
+      })
     }
 
     const db = await getDb()
@@ -639,7 +744,10 @@ export const removeDishFromMeal = async (req: Request, res: Response) => {
     )
 
     if (result.matchedCount === 0) {
-      throw new AppError("Không tìm thấy bữa ăn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy bữa ăn"
+      })
     }
 
     res.status(200).json({
@@ -647,11 +755,11 @@ export const removeDishFromMeal = async (req: Request, res: Response) => {
       message: "Xóa món ăn thành công",
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error removing dish from meal:", error)
-    throw new AppError("Đã xảy ra lỗi khi xóa món ăn", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xóa món ăn"
+    })
   }
 }
 
@@ -665,12 +773,18 @@ export const copyDailyMenu = async (req: Request, res: Response) => {
 
     // Validate ObjectId
     if (!ObjectId.isValid(sourceDailyMenuId)) {
-      throw new AppError("ID thực đơn ngày nguồn không hợp lệ", 400)
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn ngày nguồn không hợp lệ"
+      })
     }
 
     // Validate input
     if (!targetDate) {
-      throw new AppError("Vui lòng chọn ngày đích", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng chọn ngày đích"
+      })
     }
 
     const db = await getDb()
@@ -678,7 +792,10 @@ export const copyDailyMenu = async (req: Request, res: Response) => {
     // Get source daily menu
     const sourceDailyMenu = await db.collection("dailyMenus").findOne({ _id: new ObjectId(sourceDailyMenuId) })
     if (!sourceDailyMenu) {
-      throw new AppError("Không tìm thấy thực đơn ngày nguồn", 404)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày nguồn"
+      })
     }
 
     // Check if target daily menu already exists
@@ -688,7 +805,10 @@ export const copyDailyMenu = async (req: Request, res: Response) => {
     })
 
     if (existingTargetDailyMenu) {
-      throw new AppError("Thực đơn ngày đích đã tồn tại", 400)
+      return res.status(400).json({
+        success: false,
+        message: "Thực đơn ngày đích đã tồn tại"
+      })
     }
 
     // Create target daily menu
@@ -724,10 +844,10 @@ export const copyDailyMenu = async (req: Request, res: Response) => {
       dailyMenuId: targetDailyMenuResult.insertedId.toString(),
     })
   } catch (error) {
-    if (error instanceof AppError) {
-      throw error
-    }
     console.error("Error copying daily menu:", error)
-    throw new AppError("Đã xảy ra lỗi khi sao chép thực đơn ngày", 500)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi sao chép thực đơn ngày"
+    })
   }
 }

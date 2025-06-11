@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { CalendarIcon, Search, FileDown, FileUp, Users, Calculator, Edit, Plus, Bot, Sparkles } from "lucide-react"
-import { format, startOfWeek, addDays, isSameDay, getWeek, getYear } from "date-fns"
+import { format, startOfWeek, addDays, isSameDay, getWeek, getYear, isValid } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
 import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
@@ -621,7 +621,7 @@ export function OutputManagementContent() {
         const dayTotalPersonnel = Object.values(dayPersonnelData).reduce((sum, p) => sum + p, 0) || item.totalPersonnel
         
         grouped[date] = {
-          dayName: item.dayName || getDayName(new Date(date)),
+          dayName: item.dayName || (date !== 'no-date' && isValid(new Date(date)) ? getDayName(new Date(date)) : 'Không xác định'),
           items: [],
           dayTotal: { cost: 0, personnel: dayTotalPersonnel }
         }
@@ -757,7 +757,7 @@ export function OutputManagementContent() {
                       {/* Day Header Row */}
                       <TableRow className="bg-blue-100 font-bold">
                         <TableCell colSpan={dataSource === "ingredients" ? 6 : 5} className="text-center text-blue-800">
-                          📅 {dayData.dayName} - {format(new Date(date), "dd/MM/yyyy")} ({dayData.items.length} nguyên liệu)
+                          📅 {dayData.dayName} - {date !== 'no-date' && isValid(new Date(date)) ? format(new Date(date), "dd/MM/yyyy") : "Không xác định"} ({dayData.items.length} nguyên liệu)
                         </TableCell>
                         {units.map((unit) => {
                           const dayPersonnelData = unitPersonnelByDay[date] || {}
@@ -803,7 +803,7 @@ export function OutputManagementContent() {
                         <TableRow key={item.id}>
                           <TableCell>{itemIndex + 1}</TableCell>
                           <TableCell className="font-medium">
-                            <span>{item.foodName.replace(` - ${dayData.dayName} (${format(new Date(date), "dd/MM")})`, '')}</span>
+                            <span>{item.foodName.replace(` - ${dayData.dayName} (${date !== 'no-date' && isValid(new Date(date)) ? format(new Date(date), "dd/MM") : ""})`, '')}</span>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className={
