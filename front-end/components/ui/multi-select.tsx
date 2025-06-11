@@ -62,6 +62,12 @@ export function MultiSelect({
 
   const selectedOptions = options.filter((option) => selected.includes(option.value))
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log("MultiSelect options count:", options.length)
+    console.log("MultiSelect options:", options)
+  }, [options])
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -119,7 +125,11 @@ export function MultiSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)' }}>
-        <Command>
+        <Command filter={(value, search) => {
+          const option = options.find(opt => opt.label === value)
+          if (!option) return 0
+          return option.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+        }}>
           <CommandInput placeholder="Tìm kiếm..." />
           <CommandList className="max-h-[300px] overflow-y-auto">
             <CommandEmpty>Không tìm thấy.</CommandEmpty>
@@ -127,7 +137,7 @@ export function MultiSelect({
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
+                  value={option.label}
                   onSelect={() => handleSelect(option.value)}
                 >
                   <Check
