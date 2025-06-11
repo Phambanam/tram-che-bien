@@ -190,12 +190,30 @@ export function MenuReportContent() {
 
   const loadAvailableDishes = async () => {
     try {
-      // Request all dishes by setting a high limit or without pagination
-      const response = await dishesApi.getDishes({ limit: 1000, page: 1 })
-      console.log("Available dishes API response:", response)
-      console.log("Total dishes count:", response.data?.length || 0)
+      // Try multiple approaches to get all dishes
+      console.log("Attempting to load all dishes...")
+      
+      // First try with high limit
+      let response = await dishesApi.getDishes({ limit: 1000, page: 1 })
+      console.log("Available dishes API response (limit 1000):", response)
+      console.log("Total dishes count from response:", response.data?.length || 0)
       console.log("Response totalCount:", response.totalCount)
-      console.log("All dishes data:", response.data)
+      
+      // If we get fewer dishes than totalCount, try to get all
+      if (response.totalCount && response.data && response.data.length < response.totalCount) {
+        console.log("Need to get more dishes. Trying with higher limit...")
+        response = await dishesApi.getDishes({ limit: response.totalCount, page: 1 })
+        console.log("Second attempt response:", response)
+      }
+      
+      // Also try without any filters to see if that helps
+      if (!response.data || response.data.length === 0) {
+        console.log("Trying without any parameters...")
+        response = await dishesApi.getDishes()
+        console.log("No filter response:", response)
+      }
+      
+      console.log("Final dishes data:", response.data)
       setAvailableDishes(response.data || [])
     } catch (error) {
       console.error("Error loading dishes:", error)
