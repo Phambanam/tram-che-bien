@@ -4,14 +4,7 @@ import * as React from "react"
 import { Check, ChevronsUpDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
+import { Input } from "@/components/ui/input"
 import {
   Popover,
   PopoverContent,
@@ -138,22 +131,33 @@ export function MultiSelect({
           </div>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)', maxHeight: '300px' }}>
-        <Command shouldFilter={false}>
-          <CommandInput 
-            placeholder="Tìm kiếm..." 
-            value={searchValue}
-            onValueChange={setSearchValue}
-          />
-          <CommandList className="max-h-[180px] overflow-y-auto">
-            <CommandEmpty>Không tìm thấy.</CommandEmpty>
-            <CommandGroup>
-              {filteredOptions.map((option) => (
-                <CommandItem
+      <PopoverContent className="w-full p-0" align="start" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+        <div className="flex flex-col max-h-[300px]">
+          {/* Search Input */}
+          <div className="p-2 border-b">
+            <Input
+              placeholder="Tìm kiếm..."
+              value={searchValue}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchValue(e.target.value)}
+              className="h-8"
+            />
+          </div>
+          
+          {/* Options List */}
+          <div className="flex-1 overflow-y-auto max-h-[200px] min-h-[200px]" style={{ height: '200px', overflowY: 'scroll' }}>
+            {filteredOptions.length === 0 ? (
+              <div className="p-2 text-sm text-gray-500 text-center">
+                Không tìm thấy.
+              </div>
+            ) : (
+              filteredOptions.map((option) => (
+                <div
                   key={option.value}
-                  value={option.value}
-                  onSelect={() => handleSelect(option.value)}
-                  className="cursor-pointer"
+                  onClick={() => handleSelect(option.value)}
+                  className={cn(
+                    "flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-gray-100",
+                    selected.includes(option.value) && "bg-blue-50"
+                  )}
                 >
                   <Check
                     className={cn(
@@ -162,11 +166,11 @@ export function MultiSelect({
                     )}
                   />
                   {option.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </PopoverContent>
     </Popover>
   )
