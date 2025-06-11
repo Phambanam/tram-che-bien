@@ -570,6 +570,21 @@ export function MenuReportContent() {
     }))
   }
 
+  // Handle meal type change in add dish dialog
+  const handleMealTypeChange = (mealType: string) => {
+    // Update the meal type in the form
+    setDishForm({...dishForm, mealType})
+    
+    // Update the selected meal ID to match the new meal type
+    if (selectedDailyMenuId) {
+      const dailyMenu = currentMenu?.dailyMenus.find(dm => dm.id === selectedDailyMenuId)
+      const meal = dailyMenu?.meals.find(m => m.type === mealType)
+      if (meal) {
+        setSelectedMealId(meal.id)
+      }
+    }
+  }
+
   // Convert dishes to options for MultiSelect
   const dishOptions: Option[] = availableDishes.map(dish => ({
     value: dish._id,
