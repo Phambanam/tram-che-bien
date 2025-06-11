@@ -38,6 +38,48 @@ export function MultiSelect({
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
   console.log("options", options)
+  
+  // CSS for forcing scrollbar visibility on macOS
+  const scrollbarStyles = `
+    .scrollbar-always-visible {
+      -webkit-overflow-scrolling: touch;
+    }
+    .scrollbar-always-visible::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .scrollbar-always-visible::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .scrollbar-always-visible::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    .scrollbar-always-visible::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+  `
+  
+  React.useEffect(() => {
+    // Inject scrollbar styles
+    const styleId = "multiselect-scrollbar-styles"
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement
+    
+    if (!styleElement) {
+      styleElement = document.createElement("style")
+      styleElement.id = styleId
+      styleElement.textContent = scrollbarStyles
+      document.head.appendChild(styleElement)
+    }
+    
+    return () => {
+      // Only remove if it exists and this is the last component
+      if (styleElement && styleElement.parentNode) {
+        styleElement.parentNode.removeChild(styleElement)
+      }
+    }
+  }, [])
   const handleSelect = (value: string) => {
     if (selected.includes(value)) {
       onChange(selected.filter((item) => item !== value))
@@ -68,6 +110,8 @@ export function MultiSelect({
     console.log("MultiSelect options count:", options.length)
     console.log("MultiSelect filtered options count:", filteredOptions.length)
     console.log("Search value:", searchValue)
+    console.log("User agent:", navigator.userAgent)
+    console.log("Is macOS:", navigator.userAgent.includes('Mac'))
   }, [options, filteredOptions, searchValue])
 
   return (
@@ -144,30 +188,44 @@ export function MultiSelect({
           </div>
           
           {/* Options List */}
-          <div className="flex-1 overflow-y-auto max-h-[200px] min-h-[200px]" style={{ height: '200px', overflowY: 'scroll' }}>
+          <div 
+            className="flex-1 overflow-y-scroll max-h-[200px] min-h-[200px] scrollbar-always-visible" 
+            style={{ 
+              height: '200px', 
+              overflowY: 'scroll',
+              scrollbarWidth: 'thin', // Firefox
+              scrollbarGutter: 'stable' // Modern browsers
+            }}
+          >
             {filteredOptions.length === 0 ? (
               <div className="p-2 text-sm text-gray-500 text-center">
                 Không tìm thấy.
               </div>
             ) : (
-              filteredOptions.map((option) => (
-                <div
-                  key={option.value}
-                  onClick={() => handleSelect(option.value)}
-                  className={cn(
-                    "flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-gray-100",
-                    selected.includes(option.value) && "bg-blue-50"
-                  )}
-                >
-                  <Check
+              <>
+                {filteredOptions.map((option) => (
+                  <div
+                    key={option.value}
+                    onClick={() => handleSelect(option.value)}
                     className={cn(
-                      "mr-2 h-4 w-4",
-                      selected.includes(option.value) ? "opacity-100" : "opacity-0"
+                      "flex items-center px-2 py-2 text-sm cursor-pointer hover:bg-gray-100 min-h-[32px]",
+                      selected.includes(option.value) && "bg-blue-50"
                     )}
-                  />
-                  {option.label}
-                </div>
-              ))
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selected.includes(option.value) ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {option.label}
+                  </div>
+                ))}
+                {/* Force scroll by adding bottom padding when needed */}
+                {filteredOptions.length > 6 && (
+                  <div className="h-1" />
+                )}
+              </>
             )}
           </div>
         </div>
