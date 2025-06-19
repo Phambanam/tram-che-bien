@@ -200,7 +200,7 @@ export function MenuReportContent() {
       // If that doesn't work, try with explicit large limit
       if (!response.data || response.data.length < 14) {
         console.log("Trying with limit 100...")
-        response = await dishesApi.getDishes({ limit: 100 })
+        response = await dishesApi.getDishes({ limit: 300 })
         console.log("Limit 100 response:", response)
       }
       
