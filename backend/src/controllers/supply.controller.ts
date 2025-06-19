@@ -247,18 +247,15 @@ function getProductUnit(productId: string): string {
 
 // @desc    Create new supply
 // @route   POST /api/supplies
-// @access  Private (Battalion Assistant only)
+// @access  Private (Unit Assistant only)
 export const createSupply = async (req: Request, res: Response) => {
   try {
     const {
       category,
       product,
-      supplierInfo,
-      requestedQuantity,
-      unit,
-      notes,
-      requestLocation,
-      priority,
+      supplyQuantity,
+      expiryDate,
+      note,
     } = req.body
 
     // Check permission - now unit assistants create supplies
@@ -270,29 +267,14 @@ export const createSupply = async (req: Request, res: Response) => {
     }
 
     // Validate required fields
-    if (!category || !product || !requestedQuantity || !unit) {
+    if (!category || !product || !supplyQuantity) {
       return res.status(400).json({
         success: false,
         message: "Vui lòng điền đầy đủ thông tin bắt buộc"
       })
     }
 
-    // Validate ObjectIds
-    if (!ObjectId.isValid(category)) {
-      return res.status(400).json({
-        success: false,
-        message: "Phân loại không hợp lệ"
-      })
-    }
-
-    if (!ObjectId.isValid(product)) {
-      return res.status(400).json({
-        success: false,
-        message: "Sản phẩm không hợp lệ"
-      })
-    }
-
-    // Validate category and product
+    // Validate category and product are strings (not ObjectIds for predefined categories)
     if (!FOOD_CATEGORIES[category as keyof typeof FOOD_CATEGORIES]) {
       return res.status(400).json({
         success: false,
@@ -330,15 +312,15 @@ export const createSupply = async (req: Request, res: Response) => {
       unit: unitId,
       category,
       product,
-      supplyQuantity: Number(requestedQuantity),
+      supplyQuantity: Number(supplyQuantity),
       stationEntryDate: null, // Will be filled by brigade assistant during approval
-      requestedQuantity: Number(requestedQuantity),
+      requestedQuantity: null, // Will be filled by brigade assistant
       actualQuantity: null,
       unitPrice: null,
       totalPrice: null,
-      expiryDate: supplierInfo?.expiryDate ? new Date(supplierInfo.expiryDate) : null,
+      expiryDate: expiryDate ? new Date(expiryDate) : null,
       status: "pending", // Always starts as pending (CHỜ DUYỆT)
-      note: notes || "",
+      note: note || "",
       createdBy: {
         id: new mongoose.Types.ObjectId(req.user!.id),
         name: user?.fullName || 'Unknown'
