@@ -10,6 +10,7 @@ import {
   getFoodCategories,
   getFoodProducts,
   receiveSupply,
+  exportSuppliesExcel,
 } from "../controllers/supply.controller"
 import { protect, authorize } from "../middleware/auth.middleware"
 
@@ -17,6 +18,9 @@ const router = express.Router()
 
 // All routes are protected
 router.use(protect)
+
+// Export route (should be before /:id routes)
+router.get("/export", exportSuppliesExcel)
 
 // Routes for all authenticated users
 router.get("/", getSupplies)

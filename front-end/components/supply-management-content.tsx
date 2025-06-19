@@ -335,11 +335,6 @@ export function SupplyManagementContent() {
       note: supply.note || "",
     })
 
-    // Set date for calendar
-    if (supply.expectedHarvestDate) {
-      setDate(new Date(supply.expectedHarvestDate))
-    }
-
     // Switch to add tab (which will now be edit mode)
     setActiveTab("add")
   }
@@ -588,6 +583,30 @@ export function SupplyManagementContent() {
     setFilters(newFilters)
   }
 
+  const handleExportExcel = async () => {
+    try {
+      // Use current filters for export
+      const exportFilters = {
+        ...filters,
+        status: statusFilter !== "all" ? statusFilter : undefined
+      }
+      
+      await suppliesApi.exportSuppliesExcel(exportFilters)
+      
+      toast({
+        title: "Thành công",
+        description: "Đã xuất file Excel thành công!",
+      })
+    } catch (error) {
+      console.error("Error exporting Excel:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xuất file Excel. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleInputChange = (field: keyof SupplyFormData, value: string | number | boolean) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value }
@@ -603,9 +622,6 @@ export function SupplyManagementContent() {
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     setDate(selectedDate)
-    if (selectedDate) {
-      handleInputChange("expectedHarvestDate", format(selectedDate, "yyyy-MM-dd"))
-    }
     }
     
   const filteredSupplies = supplies.filter((supply) => {
@@ -717,7 +733,11 @@ export function SupplyManagementContent() {
                 </Select>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                  onClick={handleExportExcel}
+                >
                   <FileDown className="h-4 w-4" />
                   Xuất Excel
                 </Button>

@@ -372,6 +372,50 @@ export const suppliesApi = {
     })
   },
 
+  exportSuppliesExcel: async (filters?: any) => {
+    const queryParams = new URLSearchParams()
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== "all") {
+          queryParams.append(key, value as string)
+        }
+      })
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    
+    const token = getAuthToken()
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+    const url = `${baseUrl}/api/supplies/export${query}`
+    
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error("Failed to export Excel")
+      }
+      
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `phieu-nhap-${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+      
+      return { success: true }
+    } catch (error) {
+      console.error("Error exporting Excel:", error)
+      throw error
+    }
+  },
+
   getFoodCategories: async () => {
     return apiRequest<any[]>("/supplies/categories")
   },

@@ -5,6 +5,7 @@ import { AppError } from "../middleware/error.middleware"
 import mongoose from "mongoose"
 import { Supply, Unit, User } from "../models"
 import { connectToDatabase } from "../config/database"
+import { format } from 'date-fns'
 
 // Predefined categories and products
 const FOOD_CATEGORIES = {
@@ -1027,5 +1028,149 @@ export const receiveSupply = async (req: Request, res: Response) => {
       success: false,
       message: "Đã xảy ra lỗi khi nhận nguồn nhập"
     })
+  }
+}
+
+// @desc    Export supplies to Excel
+// @route   GET /api/supplies/export
+// @access  Private
+export const exportSuppliesExcel = async (req: Request, res: Response) => {
+  try {
+    const { 
+      unit, 
+      category, 
+      status, 
+      stationEntryFromDate, 
+      stationEntryToDate 
+    } = req.query
+
+    // Build query based on filters
+    const query: any = {}
+
+    // Filter by unit if specified
+    if (unit && unit !== "all" && mongoose.isValidObjectId(unit)) {
+      query.unit = new mongoose.Types.ObjectId(unit as string)
+    }
+
+    // Filter by category if specified
+    if (category && category !== "all") {
+      query.category = category
+    }
+
+    // Filter by status if specified
+    if (status && status !== 'all') {
+      query.status = status
+    }
+
+    // Filter by station entry date range if specified
+    if (stationEntryFromDate || stationEntryToDate) {
+      query.stationEntryDate = {}
+      if (stationEntryFromDate) {
+        query.stationEntryDate.$gte = new Date(stationEntryFromDate as string)
+      }
+      if (stationEntryToDate) {
+        query.stationEntryDate.$lte = new Date(stationEntryToDate as string)
+      }
+    }
+
+    // Get supplies with populated unit data
+    const supplies = await Supply.find(query)
+      .populate({
+        path: 'unit',
+        select: 'name'
+      })
+      .lean()
+      .exec()
+
+    // Create Excel workbook
+    const ExcelJS = require('exceljs')
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Phiếu nhập')
+
+    // Set column headers
+    worksheet.columns = [
+      { header: 'STT', key: 'stt', width: 10 },
+      { header: 'Đơn vị', key: 'unit', width: 20 },
+      { header: 'Phân loại', key: 'category', width: 20 },
+      { header: 'Tên hàng', key: 'product', width: 30 },
+      { header: 'SL dự kiến', key: 'supplyQuantity', width: 15 },
+      { header: 'SL phải nhập', key: 'requestedQuantity', width: 15 },
+      { header: 'SL thực nhập', key: 'actualQuantity', width: 15 },
+      { header: 'SL thực nhận', key: 'receivedQuantity', width: 15 },
+      { header: 'Đơn giá', key: 'unitPrice', width: 15 },
+      { header: 'Thành tiền', key: 'totalPrice', width: 20 },
+      { header: 'Ngày nhập trạm', key: 'stationEntryDate', width: 15 },
+      { header: 'Hạn sử dụng', key: 'expiryDate', width: 15 },
+      { header: 'Trạng thái', key: 'status', width: 15 },
+      { header: 'Ghi chú', key: 'note', width: 30 }
+    ]
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true }
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' }
+    worksheet.getRow(1).height = 25
+
+    // Add data rows
+    supplies.forEach((supply, index) => {
+      worksheet.addRow({
+        stt: index + 1,
+        unit: supply.unit?.name || '',
+        category: FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category,
+        product: getProductName(supply.product),
+        supplyQuantity: supply.supplyQuantity || 0,
+        requestedQuantity: supply.requestedQuantity || 0,
+        actualQuantity: supply.actualQuantity || 0,
+        receivedQuantity: supply.receivedQuantity || 0,
+        unitPrice: supply.unitPrice || 0,
+        totalPrice: supply.totalPrice || 0,
+        stationEntryDate: supply.stationEntryDate ? format(new Date(supply.stationEntryDate), 'dd/MM/yyyy') : '',
+        expiryDate: supply.expiryDate ? format(new Date(supply.expiryDate), 'dd/MM/yyyy') : '',
+        status: getStatusDisplay(supply.status),
+        note: supply.note || ''
+      })
+    })
+
+    // Auto-fit columns
+    worksheet.columns.forEach(column => {
+      column.alignment = { vertical: 'middle', horizontal: 'center' }
+    })
+
+    // Set response headers
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=phieu-nhap-${format(new Date(), 'dd-MM-yyyy')}.xlsx`
+    )
+
+    // Write to response
+    await workbook.xlsx.write(res)
+    res.end()
+  } catch (error) {
+    console.error("Error exporting supplies:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi xuất Excel"
+    })
+  }
+}
+
+// Helper function to get status display text
+function getStatusDisplay(status: string): string {
+  switch (status) {
+    case "pending":
+      return "Chờ duyệt"
+    case "approved":
+      return "Đã duyệt"
+    case "rejected":
+      return "Từ chối"
+    case "deleted":
+      return "Đã xóa"
+    case "received":
+      return "Đã nhận"
+    default:
+      return status
   }
 }
