@@ -359,6 +359,13 @@ export const suppliesApi = {
     })
   },
 
+  receiveSupply: async (id: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/supplies/${id}/receive`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
   deleteSupply: async (id: string) => {
     return apiRequest<{ success: boolean; message: string }>(`/supplies/${id}`, {
       method: "DELETE",

@@ -12,7 +12,6 @@ export interface ISupplyAttributes {
   category: string;
   product: string;
   supplyQuantity: number;
-  expectedHarvestDate: Date;
   stationEntryDate?: Date | null;
   requestedQuantity?: number | null;
   receivedQuantity?: number | null;
@@ -20,7 +19,7 @@ export interface ISupplyAttributes {
   unitPrice?: number | null;
   totalPrice?: number | null;
   expiryDate?: Date | null;
-  status: 'pending' | 'approved' | 'rejected' | 'deleted';
+  status: 'pending' | 'approved' | 'rejected' | 'deleted' | 'received';
   note?: string;
   createdBy?: IUserReference;
   approvedBy?: IUserReference | null;
@@ -58,10 +57,6 @@ const SupplySchema: Schema = new Schema({
     type: Number,
     required: true
   },
-  expectedHarvestDate: {
-    type: Date,
-    required: true
-  },
   stationEntryDate: {
     type: Date,
     default: null
@@ -92,7 +87,7 @@ const SupplySchema: Schema = new Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected', 'deleted'],
+    enum: ['pending', 'approved', 'rejected', 'deleted', 'received'],
     default: 'pending'
   },
   note: {

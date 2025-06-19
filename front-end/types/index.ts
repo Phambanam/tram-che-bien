@@ -62,7 +62,6 @@ export interface SupplySource {
     name: string
   }
   supplyQuantity: number
-  expectedHarvestDate: string
   stationEntryDate?: string
   receivedQuantity?: number
   requestedQuantity?: number
@@ -70,7 +69,7 @@ export interface SupplySource {
   unitPrice?: number
   totalPrice?: number
   expiryDate?: string
-  status: "pending" | "approved" | "rejected" | "deleted"
+  status: "pending" | "approved" | "rejected" | "deleted" | "received"
   note?: string
   createdBy?: {
     id: string
@@ -291,7 +290,6 @@ export interface SupplyFormData {
   category: string
   product: string
   supplyQuantity: number
-  expectedHarvestDate: string
   expiryDate?: string
   note?: string
 }

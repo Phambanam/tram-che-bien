@@ -256,14 +256,13 @@ export const createSupply = async (req: Request, res: Response) => {
       supplierInfo,
       requestedQuantity,
       unit,
-      requestDate,
       notes,
       requestLocation,
       priority,
     } = req.body
 
-    // Check permission
-    if (req.user!.role !== "battalionAssistant") {
+    // Check permission - now unit assistants create supplies
+    if (req.user!.role !== "unitAssistant") {
       return res.status(403).json({
         success: false,
         message: "Chỉ trợ lý tiểu đoàn mới có thể thêm nguồn nhập"
@@ -271,7 +270,7 @@ export const createSupply = async (req: Request, res: Response) => {
     }
 
     // Validate required fields
-    if (!category || !product || !requestedQuantity || !unit || !requestDate) {
+    if (!category || !product || !requestedQuantity || !unit) {
       return res.status(400).json({
         success: false,
         message: "Vui lòng điền đầy đủ thông tin bắt buộc"
@@ -323,9 +322,6 @@ export const createSupply = async (req: Request, res: Response) => {
       userId: req.user!.id
     })
 
-    // Calculate total price if both actualQuantity and unitPrice are provided
-    const totalPrice = (supplierInfo.actualQuantity && supplierInfo.unitPrice) ? Number(supplierInfo.actualQuantity) * Number(supplierInfo.unitPrice) : null
-
     // Get the user's full name for the createdBy field
     const user = await User.findById(req.user!.id).select('fullName').lean()
     
@@ -335,14 +331,13 @@ export const createSupply = async (req: Request, res: Response) => {
       category,
       product,
       supplyQuantity: Number(requestedQuantity),
-      expectedHarvestDate: new Date(requestDate),
       stationEntryDate: null, // Will be filled by brigade assistant during approval
       requestedQuantity: Number(requestedQuantity),
-      actualQuantity: supplierInfo.actualQuantity ? Number(supplierInfo.actualQuantity) : null,
-      unitPrice: supplierInfo.unitPrice ? Number(supplierInfo.unitPrice) : null,
-      totalPrice,
-      expiryDate: supplierInfo.expiryDate ? new Date(supplierInfo.expiryDate) : null,
-      status: "pending", // Always starts as pending
+      actualQuantity: null,
+      unitPrice: null,
+      totalPrice: null,
+      expiryDate: supplierInfo?.expiryDate ? new Date(supplierInfo.expiryDate) : null,
+      status: "pending", // Always starts as pending (CHỜ DUYỆT)
       note: notes || "",
       createdBy: {
         id: new mongoose.Types.ObjectId(req.user!.id),
@@ -366,7 +361,7 @@ export const createSupply = async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      message: "Thêm nguồn nhập thành công. Trạng thái: Chờ phê duyệt",
+      message: "Thêm nguồn nhập thành công. Trạng thái: Chờ duyệt",
       data: { supplyId: savedSupply._id.toString() },
     })
   } catch (error) {
@@ -659,18 +654,18 @@ export const updateSupply = async (req: Request, res: Response) => {
 
 // @desc    Approve supply
 // @route   PATCH /api/supplies/:id/approve
-// @access  Private (Admin, Brigade Assistant, Processing Station Chief)
+// @access  Private (Brigade Assistant only)
 export const approveSupply = async (req: Request, res: Response) => {
   try {
-    // Check permission
-    if (!["admin", "brigadeAssistant", "processingStationChief"].includes(req.user!.role)) {
-      return res.status(403).json({
-        success: false,
-        message: "Chỉ trợ lý lữ đoàn hoặc trạm trưởng trạm chế biến mới có thể phê duyệt nguồn nhập"
-      })
-    }
-
     const supplyId = req.params.id
+    const { 
+      stationEntryDate, 
+      requestedQuantity, 
+      actualQuantity, 
+      unitPrice, 
+      expiryDate, 
+      note 
+    } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(supplyId)) {
@@ -680,65 +675,72 @@ export const approveSupply = async (req: Request, res: Response) => {
       })
     }
 
-    const { stationEntryDate, requestedQuantity, actualQuantity, price, expiryDate } = req.body
-
-    // Validate input
-    if (!stationEntryDate || !requestedQuantity || !actualQuantity || !price || !expiryDate) {
-      return res.status(400).json({
+    // Check permission
+    if (req.user!.role !== "brigadeAssistant" && req.user!.role !== "admin") {
+      return res.status(403).json({
         success: false,
-        message: "Vui lòng điền đầy đủ thông tin: Ngày nhập trạm, Số lượng nhập yêu cầu, Số lượng nhập thực tế, Giá tiền, Hạn sử dụng"
+        message: "Chỉ trợ lý lữ đoàn mới có thể phê duyệt nguồn nhập"
       })
     }
 
-    const db = await getDb()
+    // Validate required fields for approval
+    if (!stationEntryDate || !requestedQuantity || !actualQuantity || !unitPrice) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập đầy đủ: Số lượng phải nhập, Đơn giá, Thành tiền, Ngày nhập trạm"
+      })
+    }
 
-    // Check if supply exists
-    const existingSupply = await db.collection("supplies").findOne({ _id: new ObjectId(supplyId) })
-    if (!existingSupply) {
+    // Ensure database connection
+    await connectToDatabase()
+
+    // Find supply
+    const supply = await Supply.findById(supplyId)
+    if (!supply) {
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy nguồn nhập"
       })
     }
 
-    if (existingSupply.status !== "pending") {
+    // Check if supply is pending
+    if (supply.status !== "pending") {
       return res.status(400).json({
         success: false,
-        message: "Chỉ có thể phê duyệt nguồn nhập ở trạng thái chờ phê duyệt"
+        message: "Chỉ có thể phê duyệt nguồn nhập ở trạng thái chờ duyệt"
       })
     }
 
     // Calculate total price
-    const totalPrice = Number(actualQuantity) * Number(price)
+    const totalPrice = Number(actualQuantity) * Number(unitPrice)
 
-    // Update supply with approval information
-    const result = await db.collection("supplies").updateOne(
-      { _id: new ObjectId(supplyId) },
-      {
-        $set: {
-          stationEntryDate: new Date(stationEntryDate),
-          requestedQuantity: Number(requestedQuantity),
-          actualQuantity: Number(actualQuantity),
-          unitPrice: Number(price),
-          totalPrice: totalPrice,
-          expiryDate: new Date(expiryDate),
-          status: "approved",
-          approvedBy: new ObjectId(req.user!.id),
-          updatedAt: new Date(),
-        },
-      },
-    )
+    // Get the user's full name for the approvedBy field
+    const user = await User.findById(req.user!.id).select('fullName').lean()
 
-    if (result.modifiedCount === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Không có thay đổi nào được thực hiện"
-      })
+    // Update supply with approval data
+    supply.status = "approved"
+    supply.stationEntryDate = new Date(stationEntryDate)
+    supply.requestedQuantity = Number(requestedQuantity)
+    supply.actualQuantity = Number(actualQuantity)
+    supply.unitPrice = Number(unitPrice)
+    supply.totalPrice = totalPrice
+    if (expiryDate) {
+      supply.expiryDate = new Date(expiryDate)
     }
+    if (note) {
+      supply.note = note
+    }
+    supply.approvedBy = {
+      id: new mongoose.Types.ObjectId(req.user!.id),
+      name: user?.fullName || 'Unknown'
+    }
+
+    await supply.save()
 
     res.status(200).json({
       success: true,
-      message: "Phê duyệt nguồn nhập thành công. Thông tin đã được cập nhật vào hệ thống trạm chế biến",
+      message: "Đã phê duyệt nguồn nhập thành công! Trạng thái: Đã duyệt",
+      data: { supplyId: supply._id.toString() }
     })
   } catch (error) {
     console.error("Error approving supply:", error)
@@ -751,24 +753,25 @@ export const approveSupply = async (req: Request, res: Response) => {
 
 // @desc    Reject supply
 // @route   PATCH /api/supplies/:id/reject
-// @access  Private (Admin, Brigade Assistant, Processing Station Chief)
+// @access  Private (Brigade Assistant only)
 export const rejectSupply = async (req: Request, res: Response) => {
   try {
-    // Check permission
-    if (!["admin", "brigadeAssistant", "processingStationChief"].includes(req.user!.role)) {
-      return res.status(403).json({
-        success: false,
-        message: "Chỉ trợ lý lữ đoàn hoặc trạm trưởng trạm chế biến mới có thể từ chối nguồn nhập"
-      })
-    }
-
     const supplyId = req.params.id
+    const { note } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(supplyId)) {
       return res.status(400).json({
         success: false,
         message: "ID nguồn nhập không hợp lệ"
+      })
+    }
+
+    // Check permission
+    if (req.user!.role !== "brigadeAssistant" && req.user!.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trợ lý lữ đoàn mới có thể từ chối nguồn nhập"
       })
     }
 
@@ -790,15 +793,13 @@ export const rejectSupply = async (req: Request, res: Response) => {
       })
     }
 
-    const { note } = req.body
-
-    // Update supply with rejection
+    // Update supply status to rejected
     const result = await db.collection("supplies").updateOne(
       { _id: new ObjectId(supplyId) },
       {
         $set: {
           status: "rejected",
-          note: note || existingSupply.note,
+          note: note || "Từ chối bởi trợ lý lữ đoàn",
           updatedAt: new Date(),
         },
       },
@@ -813,7 +814,7 @@ export const rejectSupply = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      message: "Từ chối nguồn nhập thành công",
+      message: "Đã từ chối nguồn nhập",
     })
   } catch (error) {
     console.error("Error rejecting supply:", error)
@@ -958,6 +959,91 @@ export const getFoodProducts = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Đã xảy ra lỗi khi lấy danh sách sản phẩm"
+    })
+  }
+}
+
+// @desc    Receive supply (Station Manager)
+// @route   PATCH /api/supplies/:id/receive
+// @access  Private (Station Manager only)
+export const receiveSupply = async (req: Request, res: Response) => {
+  try {
+    const supplyId = req.params.id
+    const { receivedQuantity } = req.body
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(supplyId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID nguồn nhập không hợp lệ"
+      })
+    }
+
+    // Check permission
+    if (req.user!.role !== "stationManager" && req.user!.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trạm trưởng mới có thể nhận nguồn nhập"
+      })
+    }
+
+    // Validate received quantity
+    if (!receivedQuantity || Number(receivedQuantity) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập số lượng thực nhập hợp lệ"
+      })
+    }
+
+    // Ensure database connection
+    await connectToDatabase()
+
+    // Find supply
+    const supply = await Supply.findById(supplyId)
+    if (!supply) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nguồn nhập"
+      })
+    }
+
+    // Check if supply is approved and has station entry date for today
+    if (supply.status !== "approved") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể nhận nguồn nhập đã được duyệt"
+      })
+    }
+
+    // Check if station entry date is today
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const stationDate = new Date(supply.stationEntryDate!)
+    stationDate.setHours(0, 0, 0, 0)
+    
+    if (stationDate.getTime() !== today.getTime()) {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể nhận nguồn nhập có ngày nhập trạm là hôm nay"
+      })
+    }
+
+    // Update supply with received quantity
+    supply.receivedQuantity = Number(receivedQuantity)
+    supply.status = "received"
+
+    await supply.save()
+
+    res.status(200).json({
+      success: true,
+      message: "Đã nhận nguồn nhập thành công! Trạng thái: Đã nhận",
+      data: { supplyId: supply._id.toString() }
+    })
+  } catch (error) {
+    console.error("Error receiving supply:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi nhận nguồn nhập"
     })
   }
 }

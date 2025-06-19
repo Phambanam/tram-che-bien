@@ -30,8 +30,6 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
     category: "all",
     status: "all",
     product: "",
-    fromDate: "",
-    toDate: "",
     stationEntryFromDate: "",
     stationEntryToDate: "",
     createdFromDate: "",
@@ -59,8 +57,6 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
       category: "all",
       status: "all",
       product: "",
-      fromDate: "",
-      toDate: "",
       stationEntryFromDate: "",
       stationEntryToDate: "",
       createdFromDate: "",
@@ -140,34 +136,6 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
                     value={filters.product}
                     onChange={(e) => handleFilterChange("product", e.target.value)}
                   />
-                </div>
-              </div>
-
-              {/* Filter theo ngày thu hoạch */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Ngày thu hoạch dự kiến
-                </h4>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="from-date" className="text-sm">Từ ngày</Label>
-                    <Input 
-                      id="from-date" 
-                      type="date" 
-                      value={filters.fromDate}
-                      onChange={(e) => handleFilterChange("fromDate", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="to-date" className="text-sm">Đến ngày</Label>
-                    <Input 
-                      id="to-date" 
-                      type="date" 
-                      value={filters.toDate}
-                      onChange={(e) => handleFilterChange("toDate", e.target.value)}
-                    />
-                  </div>
                 </div>
               </div>
 
