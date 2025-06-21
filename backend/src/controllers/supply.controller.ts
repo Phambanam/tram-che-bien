@@ -1105,7 +1105,9 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
 
     // Create a worksheet for each unit/date combination
     Object.values(groupedSupplies).forEach((group: any) => {
-      const worksheet = workbook.addWorksheet(`${group.unit} - ${group.date}`)
+      // Clean worksheet name by removing invalid characters: * ? : \ / [ ]
+      const cleanWorksheetName = `${group.unit} - ${group.date}`.replace(/[*?:\\/\[\]]/g, '-')
+      const worksheet = workbook.addWorksheet(cleanWorksheetName)
 
       // Add header
       worksheet.mergeCells('A1:C1')
