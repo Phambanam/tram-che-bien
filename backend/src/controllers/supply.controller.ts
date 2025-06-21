@@ -644,7 +644,6 @@ export const approveSupply = async (req: Request, res: Response) => {
     const { 
       stationEntryDate, 
       requestedQuantity, 
-      actualQuantity, 
       unitPrice, 
       expiryDate, 
       note 
@@ -666,11 +665,11 @@ export const approveSupply = async (req: Request, res: Response) => {
       })
     }
 
-    // Validate required fields for approval
-    if (!stationEntryDate || !requestedQuantity || !actualQuantity || !unitPrice) {
+    // Validate required fields for approval - không yêu cầu actualQuantity
+    if (!stationEntryDate || !requestedQuantity || !unitPrice) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng nhập đầy đủ: Số lượng phải nhập, Đơn giá, Thành tiền, Ngày nhập trạm"
+        message: "Vui lòng nhập đầy đủ: Số lượng phải nhập, Đơn giá, Ngày nhập trạm"
       })
     }
 
@@ -694,8 +693,8 @@ export const approveSupply = async (req: Request, res: Response) => {
       })
     }
 
-    // Calculate total price
-    const totalPrice = Number(actualQuantity) * Number(unitPrice)
+    // Calculate total price dựa trên requestedQuantity
+    const totalPrice = Number(requestedQuantity) * Number(unitPrice)
 
     // Get the user's full name for the approvedBy field
     const user = await User.findById(req.user!.id).select('fullName').lean()
@@ -704,9 +703,10 @@ export const approveSupply = async (req: Request, res: Response) => {
     supply.status = "approved"
     supply.stationEntryDate = new Date(stationEntryDate)
     supply.requestedQuantity = Number(requestedQuantity)
-    supply.actualQuantity = Number(actualQuantity)
     supply.unitPrice = Number(unitPrice)
     supply.totalPrice = totalPrice
+    // actualQuantity sẽ được nhập bởi trạm trưởng khi nhận hàng
+    supply.actualQuantity = null
     if (expiryDate) {
       supply.expiryDate = new Date(expiryDate)
     }
@@ -952,7 +952,7 @@ export const getFoodProducts = async (req: Request, res: Response) => {
 export const receiveSupply = async (req: Request, res: Response) => {
   try {
     const supplyId = req.params.id
-    const { receivedQuantity } = req.body
+    const { actualQuantity, receivedQuantity } = req.body
 
     // Validate ObjectId
     if (!ObjectId.isValid(supplyId)) {
@@ -970,11 +970,11 @@ export const receiveSupply = async (req: Request, res: Response) => {
       })
     }
 
-    // Validate received quantity
-    if (!receivedQuantity || Number(receivedQuantity) <= 0) {
+    // Validate quantities
+    if (!actualQuantity || Number(actualQuantity) <= 0 || !receivedQuantity || Number(receivedQuantity) <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng nhập số lượng thực nhập hợp lệ"
+        message: "Vui lòng nhập số lượng thực nhập và số lượng thực nhận hợp lệ"
       })
     }
 
@@ -1011,9 +1011,15 @@ export const receiveSupply = async (req: Request, res: Response) => {
       })
     }
 
-    // Update supply with received quantity
+    // Update supply with received quantities
+    supply.actualQuantity = Number(actualQuantity)
     supply.receivedQuantity = Number(receivedQuantity)
     supply.status = "received"
+    
+    // Recalculate total price based on actual quantity
+    if (supply.unitPrice) {
+      supply.totalPrice = Number(actualQuantity) * supply.unitPrice
+    }
 
     await supply.save()
 
