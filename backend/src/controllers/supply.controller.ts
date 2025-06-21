@@ -1038,39 +1038,31 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
   try {
     const { 
       unit, 
-      category, 
-      status, 
-      stationEntryFromDate, 
-      stationEntryToDate 
+      stationEntryDate,
+      status
     } = req.query
 
-    // Build query based on filters
-    const query: any = {}
+    // Build query - chỉ xuất các phiếu đã nhận
+    const query: any = {
+      status: "received" // Chỉ xuất phiếu đã nhận
+    }
+
+    // Filter by specific date if provided
+    if (stationEntryDate) {
+      const startOfDay = new Date(stationEntryDate as string)
+      startOfDay.setHours(0, 0, 0, 0)
+      const endOfDay = new Date(stationEntryDate as string)
+      endOfDay.setHours(23, 59, 59, 999)
+      
+      query.stationEntryDate = {
+        $gte: startOfDay,
+        $lte: endOfDay
+      }
+    }
 
     // Filter by unit if specified
     if (unit && unit !== "all" && mongoose.isValidObjectId(unit)) {
       query.unit = new mongoose.Types.ObjectId(unit as string)
-    }
-
-    // Filter by category if specified
-    if (category && category !== "all") {
-      query.category = category
-    }
-
-    // Filter by status if specified
-    if (status && status !== 'all') {
-      query.status = status
-    }
-
-    // Filter by station entry date range if specified
-    if (stationEntryFromDate || stationEntryToDate) {
-      query.stationEntryDate = {}
-      if (stationEntryFromDate) {
-        query.stationEntryDate.$gte = new Date(stationEntryFromDate as string)
-      }
-      if (stationEntryToDate) {
-        query.stationEntryDate.$lte = new Date(stationEntryToDate as string)
-      }
     }
 
     // Get supplies with populated unit data
@@ -1082,57 +1074,185 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
       .lean()
       .exec()
 
+    // Group supplies by unit and date
+    const groupedSupplies: any = {}
+    supplies.forEach((supply: any) => {
+      const dateKey = supply.stationEntryDate ? format(new Date(supply.stationEntryDate), 'dd/MM/yyyy') : 'Không xác định'
+      const unitKey = supply.unit?.name || 'Không xác định'
+      const key = `${unitKey}_${dateKey}`
+      
+      if (!groupedSupplies[key]) {
+        groupedSupplies[key] = {
+          unit: unitKey,
+          date: dateKey,
+          supplies: []
+        }
+      }
+      groupedSupplies[key].supplies.push(supply)
+    })
+
     // Create Excel workbook
     const ExcelJS = require('exceljs')
     const workbook = new ExcelJS.Workbook()
-    const worksheet = workbook.addWorksheet('Phiếu nhập')
 
-    // Set column headers
-    worksheet.columns = [
-      { header: 'STT', key: 'stt', width: 10 },
-      { header: 'Đơn vị', key: 'unit', width: 20 },
-      { header: 'Phân loại', key: 'category', width: 20 },
-      { header: 'Tên hàng', key: 'product', width: 30 },
-      { header: 'SL dự kiến', key: 'supplyQuantity', width: 15 },
-      { header: 'SL phải nhập', key: 'requestedQuantity', width: 15 },
-      { header: 'SL thực nhập', key: 'actualQuantity', width: 15 },
-      { header: 'SL thực nhận', key: 'receivedQuantity', width: 15 },
-      { header: 'Đơn giá', key: 'unitPrice', width: 15 },
-      { header: 'Thành tiền', key: 'totalPrice', width: 20 },
-      { header: 'Ngày nhập trạm', key: 'stationEntryDate', width: 15 },
-      { header: 'Hạn sử dụng', key: 'expiryDate', width: 15 },
-      { header: 'Trạng thái', key: 'status', width: 15 },
-      { header: 'Ghi chú', key: 'note', width: 30 }
-    ]
+    // Create a worksheet for each unit/date combination
+    Object.values(groupedSupplies).forEach((group: any) => {
+      const worksheet = workbook.addWorksheet(`${group.unit} - ${group.date}`)
 
-    // Style the header row
-    worksheet.getRow(1).font = { bold: true }
-    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' }
-    worksheet.getRow(1).height = 25
+      // Add header
+      worksheet.mergeCells('A1:C1')
+      worksheet.getCell('A1').value = `Đơn vị: ${group.unit}`
+      worksheet.getCell('A1').font = { size: 11 }
 
-    // Add data rows
-    supplies.forEach((supply, index) => {
-      worksheet.addRow({
-        stt: index + 1,
-        unit: supply.unit?.name || '',
-        category: FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category,
-        product: getProductName(supply.product),
-        supplyQuantity: supply.supplyQuantity || 0,
-        requestedQuantity: supply.requestedQuantity || 0,
-        actualQuantity: supply.actualQuantity || 0,
-        receivedQuantity: supply.receivedQuantity || 0,
-        unitPrice: supply.unitPrice || 0,
-        totalPrice: supply.totalPrice || 0,
-        stationEntryDate: supply.stationEntryDate ? format(new Date(supply.stationEntryDate), 'dd/MM/yyyy') : '',
-        expiryDate: supply.expiryDate ? format(new Date(supply.expiryDate), 'dd/MM/yyyy') : '',
-        status: getStatusDisplay(supply.status),
-        note: supply.note || ''
+      worksheet.mergeCells('D1:H1')
+      worksheet.getCell('D1').value = 'PHIẾU NHẬP KHO'
+      worksheet.getCell('D1').font = { bold: true, size: 16 }
+      worksheet.getCell('D1').alignment = { horizontal: 'center' }
+
+      worksheet.mergeCells('I1:J1')
+      worksheet.getCell('I1').value = `Mẫu 26: PNX-TMKH/QN21`
+      worksheet.getCell('I1').font = { italic: true, size: 10 }
+      worksheet.getCell('I1').alignment = { horizontal: 'right' }
+
+      // Add sub-header
+      worksheet.getCell('A2').value = 'Kho nhận hàng: Trạm chế biến'
+      worksheet.mergeCells('A2:C2')
+
+      worksheet.mergeCells('I2:J2')
+      worksheet.getCell('I2').value = `Số: ${Math.floor(Math.random() * 1000)}`
+      worksheet.getCell('I2').alignment = { horizontal: 'right' }
+
+      // Add date info
+      worksheet.mergeCells('D3:H3')
+      worksheet.getCell('D3').value = `Có giá trị kết ngày ${group.date}`
+      worksheet.getCell('D3').alignment = { horizontal: 'center' }
+
+      // Add receipt info
+      worksheet.mergeCells('A4:J4')
+      worksheet.getCell('A4').value = `Nhập của ${group.unit} theo phiếu yêu cầu`
+
+      worksheet.mergeCells('A5:J5')
+      worksheet.getCell('A5').value = 'Hàng do vận chuyển'
+
+      // Add table headers
+      const headers = [
+        'TT',
+        'TÊN, QUI CÁCH, KÝ MÃ HIỆU VẬT TƯ',
+        'Đơn vị tính',
+        'SỐ LƯỢNG',
+        '',
+        'Đơn giá',
+        'Thành tiền',
+        'GHI CHÚ'
+      ]
+
+      // Merge cells for headers
+      worksheet.mergeCells('B7:B8')
+      worksheet.mergeCells('C7:C8')
+      worksheet.mergeCells('D7:E7')
+      worksheet.getCell('D7').value = 'SỐ LƯỢNG'
+      worksheet.getCell('D8').value = 'Phải nhập'
+      worksheet.getCell('E8').value = 'Thực nhập'
+      worksheet.mergeCells('F7:F8')
+      worksheet.mergeCells('G7:G8')
+      worksheet.mergeCells('H7:H8')
+
+      // Set header values
+      worksheet.getCell('A7').value = 'TT'
+      worksheet.getCell('B7').value = 'TÊN, QUI CÁCH, KÝ MÃ HIỆU VẬT TƯ'
+      worksheet.getCell('C7').value = 'Đơn vị tính'
+      worksheet.getCell('F7').value = 'Đơn giá'
+      worksheet.getCell('G7').value = 'Thành tiền'
+      worksheet.getCell('H7').value = 'GHI CHÚ'
+
+      // Style headers
+      ['A7', 'A8', 'B7', 'C7', 'D7', 'D8', 'E8', 'F7', 'G7', 'H7'].forEach(cell => {
+        worksheet.getCell(cell).font = { bold: true }
+        worksheet.getCell(cell).alignment = { vertical: 'middle', horizontal: 'center' }
+        worksheet.getCell(cell).border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
       })
-    })
 
-    // Auto-fit columns
-    worksheet.columns.forEach(column => {
-      column.alignment = { vertical: 'middle', horizontal: 'center' }
+      // Add data rows
+      let rowIndex = 9
+      let totalAmount = 0
+      let totalItems = 0
+
+      group.supplies.forEach((supply: any, index: number) => {
+        const row = worksheet.getRow(rowIndex)
+        row.values = [
+          index + 1,
+          `${getProductName(supply.product)} - ${FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category}`,
+          getProductUnit(supply.product),
+          supply.requestedQuantity || 0,
+          supply.receivedQuantity || 0,
+          supply.unitPrice || 0,
+          supply.totalPrice || 0,
+          supply.note || ''
+        ]
+
+        // Apply borders
+        for (let col = 1; col <= 8; col++) {
+          row.getCell(col).border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+          row.getCell(col).alignment = { vertical: 'middle', horizontal: 'center' }
+        }
+
+        totalAmount += supply.totalPrice || 0
+        totalItems++
+        rowIndex++
+      })
+
+      // Add total row
+      worksheet.mergeCells(`A${rowIndex}:C${rowIndex}`)
+      worksheet.getCell(`A${rowIndex}`).value = `Tổng nhập: ${totalItems} mặt hàng`
+      worksheet.getCell(`A${rowIndex}`).font = { bold: true }
+
+      // Add total amount
+      worksheet.mergeCells(`A${rowIndex + 1}:J${rowIndex + 1}`)
+      worksheet.getCell(`A${rowIndex + 1}`).value = `Thành tiền: ${totalAmount.toLocaleString('vi-VN')} VNĐ`
+      worksheet.getCell(`A${rowIndex + 1}`).font = { bold: true }
+
+      // Add date row
+      worksheet.mergeCells(`A${rowIndex + 2}:E${rowIndex + 2}`)
+      worksheet.getCell(`A${rowIndex + 2}`).value = `Ngày giao nhận: ${group.date}`
+      worksheet.getCell(`A${rowIndex + 2}`).font = { italic: true }
+
+      worksheet.mergeCells(`F${rowIndex + 2}:J${rowIndex + 2}`)
+      worksheet.getCell(`F${rowIndex + 2}`).value = `Ngày..... tháng..... năm 20....`
+      worksheet.getCell(`F${rowIndex + 2}`).alignment = { horizontal: 'right' }
+      worksheet.getCell(`F${rowIndex + 2}`).font = { italic: true }
+
+      // Add signature row
+      const signRow = rowIndex + 3
+      worksheet.getCell(`A${signRow}`).value = 'Người viết phiếu'
+      worksheet.getCell(`C${signRow}`).value = 'Người giao'
+      worksheet.getCell(`F${signRow}`).value = 'Người nhận'
+      worksheet.getCell(`I${signRow}`).value = 'Người duyệt'
+
+      // Style signature row
+      ['A', 'C', 'F', 'I'].forEach(col => {
+        worksheet.getCell(`${col}${signRow}`).font = { bold: true }
+        worksheet.getCell(`${col}${signRow}`).alignment = { horizontal: 'center' }
+      })
+
+      // Set column widths
+      worksheet.getColumn(1).width = 5
+      worksheet.getColumn(2).width = 35
+      worksheet.getColumn(3).width = 10
+      worksheet.getColumn(4).width = 12
+      worksheet.getColumn(5).width = 12
+      worksheet.getColumn(6).width = 12
+      worksheet.getColumn(7).width = 15
+      worksheet.getColumn(8).width = 20
     })
 
     // Set response headers
@@ -1142,7 +1262,7 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
     )
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename=phieu-nhap-${format(new Date(), 'dd-MM-yyyy')}.xlsx`
+      `attachment; filename=phieu-nhap-kho-${format(new Date(), 'dd-MM-yyyy')}.xlsx`
     )
 
     // Write to response
@@ -1154,23 +1274,5 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
       success: false,
       message: "Đã xảy ra lỗi khi xuất Excel"
     })
-  }
-}
-
-// Helper function to get status display text
-function getStatusDisplay(status: string): string {
-  switch (status) {
-    case "pending":
-      return "Chờ duyệt"
-    case "approved":
-      return "Đã duyệt"
-    case "rejected":
-      return "Từ chối"
-    case "deleted":
-      return "Đã xóa"
-    case "received":
-      return "Đã nhận"
-    default:
-      return status
   }
 }

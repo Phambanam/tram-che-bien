@@ -585,23 +585,35 @@ export function SupplyManagementContent() {
 
   const handleExportExcel = async () => {
     try {
-      // Use current filters for export
-      const exportFilters = {
-        ...filters,
-        status: statusFilter !== "all" ? statusFilter : undefined
+      // Use current filters for export - chỉ xuất phiếu đã nhận theo ngày
+      const exportFilters: any = {
+        status: "received" // Chỉ xuất phiếu đã nhận
+      }
+      
+      // Thêm filter theo ngày nhập trạm nếu có
+      if (filters.stationEntryFromDate) {
+        exportFilters.stationEntryDate = filters.stationEntryFromDate
+      } else {
+        // Nếu không có filter ngày, mặc định xuất ngày hôm nay
+        exportFilters.stationEntryDate = format(new Date(), "yyyy-MM-dd")
+      }
+      
+      // Thêm filter theo đơn vị nếu có
+      if (filters.unit && filters.unit !== "all") {
+        exportFilters.unit = filters.unit
       }
       
       await suppliesApi.exportSuppliesExcel(exportFilters)
       
       toast({
         title: "Thành công",
-        description: "Đã xuất file Excel thành công!",
+        description: "Đã xuất phiếu nhập kho thành công!",
       })
     } catch (error) {
       console.error("Error exporting Excel:", error)
       toast({
         title: "Lỗi",
-        description: "Không thể xuất file Excel. Vui lòng thử lại.",
+        description: "Không thể xuất phiếu nhập kho. Vui lòng thử lại.",
         variant: "destructive",
       })
     }
