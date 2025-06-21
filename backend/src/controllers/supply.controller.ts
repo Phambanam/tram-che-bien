@@ -1205,16 +1205,16 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
 
       (group.supplies || []).forEach((supply: any, index: number) => {
         const row = worksheet.getRow(rowIndex)
-        row.values = [
-          index + 1,
-          `${getProductName(supply.product)} - ${FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category}`,
-          getProductUnit(supply.product),
-          supply.requestedQuantity || 0,
-          supply.receivedQuantity || 0,
-          supply.unitPrice || 0,
-          supply.totalPrice || 0,
-          supply.note || ''
-        ]
+        
+        // Set cell values individually instead of using row.values
+        row.getCell(1).value = index + 1
+        row.getCell(2).value = `${getProductName(supply.product)} - ${FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category}`
+        row.getCell(3).value = getProductUnit(supply.product)
+        row.getCell(4).value = supply.requestedQuantity || 0
+        row.getCell(5).value = supply.receivedQuantity || 0
+        row.getCell(6).value = supply.unitPrice || 0
+        row.getCell(7).value = supply.totalPrice || 0
+        row.getCell(8).value = supply.note || ''
 
         // Apply borders
         for (let col = 1; col <= 8; col++) {
