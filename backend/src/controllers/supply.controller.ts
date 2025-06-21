@@ -1113,6 +1113,8 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
 
     // Create a worksheet for each unit/date combination
     Object.values(groupedSupplies).forEach((group: any) => {
+      console.log("Processing group:", { unit: group.unit, date: group.date, suppliesCount: group.supplies?.length || 0 })
+      
       // Clean worksheet name by removing invalid characters: * ? : \ / [ ]
       const cleanWorksheetName = `${group.unit} - ${group.date}`.replace(/[*?:\\/\[\]]/g, '-')
       const worksheet = workbook.addWorksheet(cleanWorksheetName)
@@ -1184,7 +1186,8 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
       worksheet.getCell('H7').value = 'GHI CHÚ'
 
       // Style headers
-      ['A7', 'A8', 'B7', 'C7', 'D7', 'D8', 'E8', 'F7', 'G7', 'H7'].forEach(cell => {
+      const headerCells = ['A7', 'A8', 'B7', 'C7', 'D7', 'D8', 'E8', 'F7', 'G7', 'H7']
+      headerCells.forEach(cell => {
         worksheet.getCell(cell).font = { bold: true }
         worksheet.getCell(cell).alignment = { vertical: 'middle', horizontal: 'center' }
         worksheet.getCell(cell).border = {
@@ -1257,7 +1260,8 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
       worksheet.getCell(`I${signRow}`).value = 'Người duyệt'
 
       // Style signature row
-      ['A', 'C', 'F', 'I'].forEach(col => {
+      const signatureCells = ['A', 'C', 'F', 'I']
+      signatureCells.forEach(col => {
         worksheet.getCell(`${col}${signRow}`).font = { bold: true }
         worksheet.getCell(`${col}${signRow}`).alignment = { horizontal: 'center' }
       })
