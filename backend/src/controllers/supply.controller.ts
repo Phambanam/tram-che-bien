@@ -1090,6 +1090,8 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
       })
     }
 
+    console.log("Found supplies for export:", supplies.length)
+
     // Group supplies by unit and date
     const groupedSupplies: any = {}
     supplies.forEach((supply: any) => {
@@ -1107,174 +1109,32 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
       groupedSupplies[key].supplies.push(supply)
     })
 
+    console.log("Grouped supplies:", Object.keys(groupedSupplies))
+
     // Create Excel workbook
     const ExcelJS = require('exceljs')
     const workbook = new ExcelJS.Workbook()
 
-    // Create a worksheet for each unit/date combination
-    Object.values(groupedSupplies).forEach((group: any) => {
-      console.log("Processing group:", { unit: group.unit, date: group.date, suppliesCount: group.supplies?.length || 0 })
-      
-      // Clean worksheet name by removing invalid characters: * ? : \ / [ ]
-      const cleanWorksheetName = `${group.unit} - ${group.date}`.replace(/[*?:\\/\[\]]/g, '-')
-      const worksheet = workbook.addWorksheet(cleanWorksheetName)
+    // Create a simple worksheet
+    const worksheet = workbook.addWorksheet('Phieu Nhap Kho')
 
-      // Add header
-      worksheet.mergeCells('A1:C1')
-      worksheet.getCell('A1').value = `Đơn vị: ${group.unit}`
-      worksheet.getCell('A1').font = { size: 11 }
+    // Add headers
+    worksheet.addRow(['STT', 'Tên hàng', 'Đơn vị tính', 'SL phải nhập', 'SL thực nhận', 'Đơn giá', 'Thành tiền', 'Ghi chú'])
 
-      worksheet.mergeCells('D1:H1')
-      worksheet.getCell('D1').value = 'PHIẾU NHẬP KHO'
-      worksheet.getCell('D1').font = { bold: true, size: 16 }
-      worksheet.getCell('D1').alignment = { horizontal: 'center' }
-
-      worksheet.mergeCells('I1:J1')
-      worksheet.getCell('I1').value = `Mẫu 26: PNX-TMKH/QN21`
-      worksheet.getCell('I1').font = { italic: true, size: 10 }
-      worksheet.getCell('I1').alignment = { horizontal: 'right' }
-
-      // Add sub-header
-      worksheet.getCell('A2').value = 'Kho nhận hàng: Trạm chế biến'
-      worksheet.mergeCells('A2:C2')
-
-      worksheet.mergeCells('I2:J2')
-      worksheet.getCell('I2').value = `Số: ${Math.floor(Math.random() * 1000)}`
-      worksheet.getCell('I2').alignment = { horizontal: 'right' }
-
-      // Add date info
-      worksheet.mergeCells('D3:H3')
-      worksheet.getCell('D3').value = `Có giá trị kết ngày ${group.date}`
-      worksheet.getCell('D3').alignment = { horizontal: 'center' }
-
-      // Add receipt info
-      worksheet.mergeCells('A4:J4')
-      worksheet.getCell('A4').value = `Nhập của ${group.unit} theo phiếu yêu cầu`
-
-      worksheet.mergeCells('A5:J5')
-      worksheet.getCell('A5').value = 'Hàng do vận chuyển'
-
-      // Add table headers
-      const headers = [
-        'TT',
-        'TÊN, QUI CÁCH, KÝ MÃ HIỆU VẬT TƯ',
-        'Đơn vị tính',
-        'SỐ LƯỢNG',
-        '',
-        'Đơn giá',
-        'Thành tiền',
-        'GHI CHÚ'
-      ]
-
-      // Merge cells for headers
-      worksheet.mergeCells('B7:B8')
-      worksheet.mergeCells('C7:C8')
-      worksheet.mergeCells('D7:E7')
-      worksheet.getCell('D7').value = 'SỐ LƯỢNG'
-      worksheet.getCell('D8').value = 'Phải nhập'
-      worksheet.getCell('E8').value = 'Thực nhập'
-      worksheet.mergeCells('F7:F8')
-      worksheet.mergeCells('G7:G8')
-      worksheet.mergeCells('H7:H8')
-
-      // Set header values
-      worksheet.getCell('A7').value = 'TT'
-      worksheet.getCell('B7').value = 'TÊN, QUI CÁCH, KÝ MÃ HIỆU VẬT TƯ'
-      worksheet.getCell('C7').value = 'Đơn vị tính'
-      worksheet.getCell('F7').value = 'Đơn giá'
-      worksheet.getCell('G7').value = 'Thành tiền'
-      worksheet.getCell('H7').value = 'GHI CHÚ'
-
-      // Style headers
-      const headerCells = ['A7', 'A8', 'B7', 'C7', 'D7', 'D8', 'E8', 'F7', 'G7', 'H7']
-      headerCells.forEach(cell => {
-        worksheet.getCell(cell).font = { bold: true }
-        worksheet.getCell(cell).alignment = { vertical: 'middle', horizontal: 'center' }
-        worksheet.getCell(cell).border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        }
-      })
-
-      // Add data rows
-      let rowIndex = 9
-      let totalAmount = 0
-      let totalItems = 0
-
-      (group.supplies || []).forEach((supply: any, index: number) => {
-        const row = worksheet.getRow(rowIndex)
-        
-        // Set cell values individually instead of using row.values
-        row.getCell(1).value = index + 1
-        row.getCell(2).value = `${getProductName(supply.product)} - ${FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category}`
-        row.getCell(3).value = getProductUnit(supply.product)
-        row.getCell(4).value = supply.requestedQuantity || 0
-        row.getCell(5).value = supply.receivedQuantity || 0
-        row.getCell(6).value = supply.unitPrice || 0
-        row.getCell(7).value = supply.totalPrice || 0
-        row.getCell(8).value = supply.note || ''
-
-        // Apply borders
-        for (let col = 1; col <= 8; col++) {
-          row.getCell(col).border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          }
-          row.getCell(col).alignment = { vertical: 'middle', horizontal: 'center' }
-        }
-
-        totalAmount += supply.totalPrice || 0
-        totalItems++
-        rowIndex++
-      })
-
-      // Add total row
-      worksheet.mergeCells(`A${rowIndex}:C${rowIndex}`)
-      worksheet.getCell(`A${rowIndex}`).value = `Tổng nhập: ${totalItems} mặt hàng`
-      worksheet.getCell(`A${rowIndex}`).font = { bold: true }
-
-      // Add total amount
-      worksheet.mergeCells(`A${rowIndex + 1}:J${rowIndex + 1}`)
-      worksheet.getCell(`A${rowIndex + 1}`).value = `Thành tiền: ${totalAmount.toLocaleString('vi-VN')} VNĐ`
-      worksheet.getCell(`A${rowIndex + 1}`).font = { bold: true }
-
-      // Add date row
-      worksheet.mergeCells(`A${rowIndex + 2}:E${rowIndex + 2}`)
-      worksheet.getCell(`A${rowIndex + 2}`).value = `Ngày giao nhận: ${group.date}`
-      worksheet.getCell(`A${rowIndex + 2}`).font = { italic: true }
-
-      worksheet.mergeCells(`F${rowIndex + 2}:J${rowIndex + 2}`)
-      worksheet.getCell(`F${rowIndex + 2}`).value = `Ngày..... tháng..... năm 20....`
-      worksheet.getCell(`F${rowIndex + 2}`).alignment = { horizontal: 'right' }
-      worksheet.getCell(`F${rowIndex + 2}`).font = { italic: true }
-
-      // Add signature row
-      const signRow = rowIndex + 3
-      worksheet.getCell(`A${signRow}`).value = 'Người viết phiếu'
-      worksheet.getCell(`C${signRow}`).value = 'Người giao'
-      worksheet.getCell(`F${signRow}`).value = 'Người nhận'
-      worksheet.getCell(`I${signRow}`).value = 'Người duyệt'
-
-      // Style signature row
-      const signatureCells = ['A', 'C', 'F', 'I']
-      signatureCells.forEach(col => {
-        worksheet.getCell(`${col}${signRow}`).font = { bold: true }
-        worksheet.getCell(`${col}${signRow}`).alignment = { horizontal: 'center' }
-      })
-
-      // Set column widths
-      worksheet.getColumn(1).width = 5
-      worksheet.getColumn(2).width = 35
-      worksheet.getColumn(3).width = 10
-      worksheet.getColumn(4).width = 12
-      worksheet.getColumn(5).width = 12
-      worksheet.getColumn(6).width = 12
-      worksheet.getColumn(7).width = 15
-      worksheet.getColumn(8).width = 20
+    // Add data
+    let rowIndex = 1
+    supplies.forEach((supply: any) => {
+      rowIndex++
+      worksheet.addRow([
+        rowIndex - 1,
+        `${getProductName(supply.product)} - ${FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category}`,
+        getProductUnit(supply.product),
+        supply.requestedQuantity || 0,
+        supply.receivedQuantity || 0,
+        supply.unitPrice || 0,
+        supply.totalPrice || 0,
+        supply.note || ''
+      ])
     })
 
     // Set response headers
