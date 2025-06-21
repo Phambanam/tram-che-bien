@@ -54,13 +54,17 @@ interface TofuSummary {
   totalTofuRemaining: number
 }
 
-// New interfaces for daily tofu processing
+// New interfaces for daily tofu processing table
 interface DailyTofuProcessing {
   date: string
-  soybeanInput: number // Đậu tương chi (station manager input)
-  tofuCollected: number // Đậu phụ thu (station manager input)
-  tofuOutput: number // Đậu phụ xuất (from supply outputs)
-  tofuRemaining: number // Đậu phụ tồn (calculated)
+  tofuQuantity: number // THU - Đậu phụ - Số lượng (kg)
+  tofuAmount: number // THU - Đậu phụ - Thành tiền (1.000đ)
+  byProductQuantity: number // CHI - Sản phẩm phụ - Số lượng (kg) 
+  byProductAmount: number // CHI - Sản phẩm phụ - Thành tiền (1.000đ)
+  soybeanQuantity: number // CHI - Đậu tương - Số lượng (kg)
+  soybeanAmount: number // CHI - Đậu tương - Thành tiền (1.000đ)
+  otherExpenses: number // CHI - Chi khác (1.000đ)
+  profit: number // THU-CHI (LÃI) = 3+4-6-7 (calculated)
 }
 
 interface MonthlyTofuSummary {
@@ -106,13 +110,18 @@ export function ProcessingStationContent() {
   const { toast } = useToast()
   const { user } = useAuth()
 
-  // New state for daily tofu processing
+  // New state for daily tofu processing table
   const [dailyTofuProcessing, setDailyTofuProcessing] = useState<DailyTofuProcessing | null>(null)
   const [monthlyTofuSummary, setMonthlyTofuSummary] = useState<MonthlyTofuSummary[]>([])
   const [editingDailyData, setEditingDailyData] = useState(false)
   const [dailyUpdateData, setDailyUpdateData] = useState({
-    soybeanInput: 0,
-    tofuCollected: 0
+    tofuQuantity: 0,
+    tofuAmount: 0,
+    byProductQuantity: 0,
+    byProductAmount: 0,
+    soybeanQuantity: 0,
+    soybeanAmount: 0,
+    otherExpenses: 0
   })
 
   // Approval state
@@ -517,19 +526,6 @@ export function ProcessingStationContent() {
     try {
       const dateStr = format(date, 'yyyy-MM-dd')
       
-      // Get tofu outputs for the day from supply outputs API
-      const outputsResponse = await supplyOutputsApi.getSupplyOutputs()
-      const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
-      
-      // Filter for tofu outputs on this date
-      const tofuOutputs = outputs.filter((output: any) => {
-        const outputDate = format(new Date(output.outputDate), 'yyyy-MM-dd')
-        return outputDate === dateStr && 
-               output.product?.name?.toLowerCase().includes('đậu phụ')
-      })
-      
-      const totalTofuOutput = tofuOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
-      
       // Get existing processing station data for today (if any)
       const processingResponse = await processingStationApi.getItems()
       const processingItems = Array.isArray(processingResponse) ? processingResponse : (processingResponse as any).data || []
@@ -540,19 +536,31 @@ export function ProcessingStationContent() {
         format(new Date(item.processingDate), 'yyyy-MM-dd') === dateStr
       )
       
-      // Create daily processing data
+      // Create daily processing data based on table structure
       const dailyData: DailyTofuProcessing = {
         date: dateStr,
-        soybeanInput: todayProcessing?.quantity || 0, // Đậu tương chi from processing station
-        tofuCollected: todayProcessing?.nonExpiredQuantity || 0, // Đậu phụ thu
-        tofuOutput: totalTofuOutput, // Đậu phụ xuất from outputs
-        tofuRemaining: (todayProcessing?.nonExpiredQuantity || 0) - totalTofuOutput // Calculated
+        tofuQuantity: todayProcessing?.quantity || 0, // THU - Đậu phụ - Số lượng (kg)
+        tofuAmount: (todayProcessing?.quantity || 0) * 15, // THU - Thành tiền (giả định 15k/kg)
+        byProductQuantity: todayProcessing?.nonExpiredQuantity || 0, // CHI - Sản phẩm phụ
+        byProductAmount: (todayProcessing?.nonExpiredQuantity || 0) * 5, // CHI - Thành tiền phụ
+        soybeanQuantity: todayProcessing?.expiredQuantity || 0, // CHI - Đậu tương
+        soybeanAmount: (todayProcessing?.expiredQuantity || 0) * 12, // CHI - Thành tiền đậu tương
+        otherExpenses: 0, // CHI - Chi khác
+        profit: 0 // Will be calculated
       }
+      
+      // Calculate profit: THU - CHI = (tofuAmount) - (byProductAmount + soybeanAmount + otherExpenses)
+      dailyData.profit = dailyData.tofuAmount - (dailyData.byProductAmount + dailyData.soybeanAmount + dailyData.otherExpenses)
       
       setDailyTofuProcessing(dailyData)
       setDailyUpdateData({
-        soybeanInput: dailyData.soybeanInput,
-        tofuCollected: dailyData.tofuCollected
+        tofuQuantity: dailyData.tofuQuantity,
+        tofuAmount: dailyData.tofuAmount,
+        byProductQuantity: dailyData.byProductQuantity,
+        byProductAmount: dailyData.byProductAmount,
+        soybeanQuantity: dailyData.soybeanQuantity,
+        soybeanAmount: dailyData.soybeanAmount,
+        otherExpenses: dailyData.otherExpenses
       })
       
     } catch (error) {
@@ -562,16 +570,25 @@ export function ProcessingStationContent() {
       const dateStr = format(date, 'yyyy-MM-dd')
       const sampleData: DailyTofuProcessing = {
         date: dateStr,
-        soybeanInput: 150,
-        tofuCollected: 80,
-        tofuOutput: 70,
-        tofuRemaining: 10
+        tofuQuantity: 150,
+        tofuAmount: 2250, // 150kg * 15k
+        byProductQuantity: 20,
+        byProductAmount: 100, // 20kg * 5k
+        soybeanQuantity: 120,
+        soybeanAmount: 1440, // 120kg * 12k
+        otherExpenses: 200,
+        profit: 510 // 2250 - (100 + 1440 + 200)
       }
       
       setDailyTofuProcessing(sampleData)
       setDailyUpdateData({
-        soybeanInput: sampleData.soybeanInput,
-        tofuCollected: sampleData.tofuCollected
+        tofuQuantity: sampleData.tofuQuantity,
+        tofuAmount: sampleData.tofuAmount,
+        byProductQuantity: sampleData.byProductQuantity,
+        byProductAmount: sampleData.byProductAmount,
+        soybeanQuantity: sampleData.soybeanQuantity,
+        soybeanAmount: sampleData.soybeanAmount,
+        otherExpenses: sampleData.otherExpenses
       })
     }
   }
@@ -696,17 +713,20 @@ export function ProcessingStationContent() {
         console.log('Could not fetch products, using default tofu product ID')
       }
       
+      // Calculate profit automatically when updating
+      const calculatedProfit = dailyUpdateData.tofuAmount - (dailyUpdateData.byProductAmount + dailyUpdateData.soybeanAmount + dailyUpdateData.otherExpenses)
+      
       const processingData = {
         type: 'tofu',
         productId: tofuProductId,
         processingDate: dateStr,
         useDate: dateStr,
         expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-        quantity: dailyUpdateData.soybeanInput,
-        nonExpiredQuantity: dailyUpdateData.tofuCollected,
-        expiredQuantity: 0,
+        quantity: dailyUpdateData.tofuQuantity,
+        nonExpiredQuantity: dailyUpdateData.byProductQuantity,
+        expiredQuantity: dailyUpdateData.soybeanQuantity,
         status: 'active',
-        note: `Cập nhật ngày ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: vi })} bởi ${user?.fullName || 'Trạm trưởng'}`
+        note: `Cập nhật bảng làm đậu phụ ngày ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: vi })} bởi ${user?.fullName || 'Trạm trưởng'}. Lãi: ${calculatedProfit.toLocaleString()}đ`
       }
       
       try {
@@ -721,9 +741,14 @@ export function ProcessingStationContent() {
         // Update local state
         const updatedData: DailyTofuProcessing = {
           ...dailyTofuProcessing,
-          soybeanInput: dailyUpdateData.soybeanInput,
-          tofuCollected: dailyUpdateData.tofuCollected,
-          tofuRemaining: dailyUpdateData.tofuCollected - dailyTofuProcessing.tofuOutput
+          tofuQuantity: dailyUpdateData.tofuQuantity,
+          tofuAmount: dailyUpdateData.tofuAmount,
+          byProductQuantity: dailyUpdateData.byProductQuantity,
+          byProductAmount: dailyUpdateData.byProductAmount,
+          soybeanQuantity: dailyUpdateData.soybeanQuantity,
+          soybeanAmount: dailyUpdateData.soybeanAmount,
+          otherExpenses: dailyUpdateData.otherExpenses,
+          profit: calculatedProfit
         }
         
         setDailyTofuProcessing(updatedData)
@@ -989,17 +1014,14 @@ export function ProcessingStationContent() {
                 </Badge>
               </div>
 
-              {/* Position 1: Current Day Panel */}
+              {/* Position 1: Daily Tofu Processing Table as per design */}
               <Card className="mb-6">
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Chế biến đậu phụ ngày hiện tại</span>
-                    <Badge variant="outline" className="text-sm">
-                      {format(new Date(), "dd/MM/yyyy", { locale: vi })}
-                    </Badge>
+                  <CardTitle className="text-center text-xl font-bold">
+                    LÀM ĐẬU PHỤ
                   </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Dữ liệu chế biến đậu phụ cho ngày hôm nay
+                  <p className="text-sm text-gray-600 text-center">
+                    Bảng theo dõi thu chi hàng ngày - {format(new Date(), "dd/MM/yyyy", { locale: vi })}
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -1007,57 +1029,164 @@ export function ProcessingStationContent() {
                     <div className="text-center py-8">Đang tải dữ liệu...</div>
                   ) : (
                     <div className="space-y-4">
-                      {/* Daily Values Display */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                          <div className="text-sm text-green-600 font-medium">Đậu tương chi</div>
-                          {editingDailyData ? (
-                            <Input
-                              type="number"
-                              value={dailyUpdateData.soybeanInput}
-                              onChange={(e) => setDailyUpdateData(prev => ({ ...prev, soybeanInput: Number(e.target.value) || 0 }))}
-                              className="mt-1 font-bold text-lg"
-                            />
-                          ) : (
-                            <div className="text-2xl font-bold text-green-700">
-                              {dailyTofuProcessing.soybeanInput} kg
-                            </div>
-                          )}
-                          <div className="text-xs text-green-500 mt-1">Trạm trưởng nhập tay</div>
-                        </div>
+                      {/* Table Header */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-2 border-black">
+                          <thead>
+                            <tr>
+                              <th rowSpan={2} className="border border-black p-2 bg-gray-100 font-bold">NGÀY</th>
+                              <th colSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU</th>
+                              <th colSpan={4} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                              <th rowSpan={2} className="border border-black p-2 bg-blue-100 font-bold">THU-<br/>CHI<br/>(LÃI)</th>
+                            </tr>
+                            <tr>
+                              <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Đậu phụ</th>
+                              <th rowSpan={1} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ</th>
+                              <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu tương</th>
+                              <th rowSpan={1} className="border border-black p-1 bg-red-50 text-sm">Chi khác</th>
+                            </tr>
+                            <tr>
+                              <th className="border border-black p-1 text-xs">(1)</th>
+                              <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)<br/>(2)</th>
+                              <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)<br/>(3)</th>
+                              <th className="border border-black p-1 text-xs">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)<br/>(4)</th>
+                              <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)<br/>(5)</th>
+                              <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)<br/>(6)</th>
+                              <th className="border border-black p-1 text-xs">Chi khác<br/>(1.000đ)<br/>(7)</th>
+                              <th className="border border-black p-1 text-xs">(8=3+4-6-7)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="border border-black p-2 font-medium text-center">
+                                {format(new Date(), "dd/MM", { locale: vi })}
+                              </td>
+                              {/* THU - Đậu phụ */}
+                              <td className="border border-black p-1 text-center">
+                                {editingDailyData ? (
+                                  <Input
+                                    type="number"
+                                    value={dailyUpdateData.tofuQuantity}
+                                    onChange={(e) => {
+                                      const quantity = Number(e.target.value) || 0
+                                      setDailyUpdateData(prev => ({ 
+                                        ...prev, 
+                                        tofuQuantity: quantity,
+                                        tofuAmount: quantity * 15 // Auto calculate amount
+                                      }))
+                                    }}
+                                    className="w-16 h-8 text-center text-sm"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-green-600">
+                                    {dailyTofuProcessing.tofuQuantity}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="border border-black p-1 text-center">
+                                {editingDailyData ? (
+                                  <Input
+                                    type="number"
+                                    value={dailyUpdateData.tofuAmount}
+                                    onChange={(e) => setDailyUpdateData(prev => ({ ...prev, tofuAmount: Number(e.target.value) || 0 }))}
+                                    className="w-20 h-8 text-center text-sm"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-green-600">
+                                    {dailyTofuProcessing.tofuAmount.toLocaleString()}
+                                  </span>
+                                )}
+                              </td>
+                              {/* CHI - Sản phẩm phụ */}
+                              <td className="border border-black p-1 text-center">
+                                {editingDailyData ? (
+                                  <Input
+                                    type="number"
+                                    value={dailyUpdateData.byProductAmount}
+                                    onChange={(e) => setDailyUpdateData(prev => ({ ...prev, byProductAmount: Number(e.target.value) || 0 }))}
+                                    className="w-20 h-8 text-center text-sm"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-red-600">
+                                    {dailyTofuProcessing.byProductAmount.toLocaleString()}
+                                  </span>
+                                )}
+                              </td>
+                              {/* CHI - Đậu tương */}
+                              <td className="border border-black p-1 text-center">
+                                {editingDailyData ? (
+                                  <Input
+                                    type="number"
+                                    value={dailyUpdateData.soybeanQuantity}
+                                    onChange={(e) => {
+                                      const quantity = Number(e.target.value) || 0
+                                      setDailyUpdateData(prev => ({ 
+                                        ...prev, 
+                                        soybeanQuantity: quantity,
+                                        soybeanAmount: quantity * 12 // Auto calculate amount
+                                      }))
+                                    }}
+                                    className="w-16 h-8 text-center text-sm"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-red-600">
+                                    {dailyTofuProcessing.soybeanQuantity}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="border border-black p-1 text-center">
+                                {editingDailyData ? (
+                                  <Input
+                                    type="number"
+                                    value={dailyUpdateData.soybeanAmount}
+                                    onChange={(e) => setDailyUpdateData(prev => ({ ...prev, soybeanAmount: Number(e.target.value) || 0 }))}
+                                    className="w-20 h-8 text-center text-sm"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-red-600">
+                                    {dailyTofuProcessing.soybeanAmount.toLocaleString()}
+                                  </span>
+                                )}
+                              </td>
+                              {/* CHI - Chi khác */}
+                              <td className="border border-black p-1 text-center">
+                                {editingDailyData ? (
+                                  <Input
+                                    type="number"
+                                    value={dailyUpdateData.otherExpenses}
+                                    onChange={(e) => setDailyUpdateData(prev => ({ ...prev, otherExpenses: Number(e.target.value) || 0 }))}
+                                    className="w-20 h-8 text-center text-sm"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-red-600">
+                                    {dailyTofuProcessing.otherExpenses.toLocaleString()}
+                                  </span>
+                                )}
+                              </td>
+                              {/* THU-CHI (LÃI) */}
+                              <td className="border border-black p-1 text-center bg-blue-50">
+                                <span className={`font-bold ${
+                                  editingDailyData 
+                                    ? (dailyUpdateData.tofuAmount - (dailyUpdateData.byProductAmount + dailyUpdateData.soybeanAmount + dailyUpdateData.otherExpenses) >= 0 ? 'text-green-600' : 'text-red-600')
+                                    : (dailyTofuProcessing.profit >= 0 ? 'text-green-600' : 'text-red-600')
+                                }`}>
+                                  {editingDailyData 
+                                    ? (dailyUpdateData.tofuAmount - (dailyUpdateData.byProductAmount + dailyUpdateData.soybeanAmount + dailyUpdateData.otherExpenses)).toLocaleString()
+                                    : dailyTofuProcessing.profit.toLocaleString()
+                                  }
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
 
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                          <div className="text-sm text-blue-600 font-medium">Đậu phụ thu</div>
-                          {editingDailyData ? (
-                            <Input
-                              type="number"
-                              value={dailyUpdateData.tofuCollected}
-                              onChange={(e) => setDailyUpdateData(prev => ({ ...prev, tofuCollected: Number(e.target.value) || 0 }))}
-                              className="mt-1 font-bold text-lg"
-                            />
-                          ) : (
-                            <div className="text-2xl font-bold text-blue-700">
-                              {dailyTofuProcessing.tofuCollected} kg
-                            </div>
-                          )}
-                          <div className="text-xs text-blue-500 mt-1">Trạm trưởng nhập tay</div>
-                        </div>
-
-                        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                          <div className="text-sm text-yellow-600 font-medium">Đậu phụ xuất</div>
-                          <div className="text-2xl font-bold text-yellow-700">
-                            {dailyTofuProcessing.tofuOutput} kg
-                          </div>
-                          <div className="text-xs text-yellow-500 mt-1">Tổng yêu cầu từ quản lý bếp</div>
-                        </div>
-
-                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                          <div className="text-sm text-purple-600 font-medium">Đậu phụ tồn</div>
-                          <div className="text-2xl font-bold text-purple-700">
-                            {Math.max(0, (editingDailyData ? dailyUpdateData.tofuCollected : dailyTofuProcessing.tofuCollected) - dailyTofuProcessing.tofuOutput)} kg
-                          </div>
-                          <div className="text-xs text-purple-500 mt-1">Thu trừ xuất</div>
-                        </div>
+                      {/* Notes */}
+                      <div className="border-t-2 border-black p-2 bg-gray-50">
+                        <p className="text-sm font-medium">Cộng tháng trước chuyển sang</p>
+                        <p className="text-xs text-gray-600">
+                          Ngày thứ nhất đầu tháng là cộng lượng tồn của tháng và lượng làm trong ngày
+                        </p>
                       </div>
 
                       {/* Edit Controls for Station Manager */}
@@ -1070,8 +1199,13 @@ export function ProcessingStationContent() {
                                 onClick={() => {
                                   setEditingDailyData(false)
                                   setDailyUpdateData({
-                                    soybeanInput: dailyTofuProcessing.soybeanInput,
-                                    tofuCollected: dailyTofuProcessing.tofuCollected
+                                    tofuQuantity: dailyTofuProcessing.tofuQuantity,
+                                    tofuAmount: dailyTofuProcessing.tofuAmount,
+                                    byProductQuantity: dailyTofuProcessing.byProductQuantity,
+                                    byProductAmount: dailyTofuProcessing.byProductAmount,
+                                    soybeanQuantity: dailyTofuProcessing.soybeanQuantity,
+                                    soybeanAmount: dailyTofuProcessing.soybeanAmount,
+                                    otherExpenses: dailyTofuProcessing.otherExpenses
                                   })
                                 }}
                               >
@@ -1096,7 +1230,7 @@ export function ProcessingStationContent() {
                       {user?.role && !['stationManager', 'admin'].includes(user.role) && (
                         <div className="pt-4 border-t">
                           <p className="text-sm text-gray-500 text-center">
-                            Chỉ Trạm trưởng mới có thể chỉnh sửa dữ liệu chế biến đậu phụ
+                            Chỉ Trạm trưởng mới có thể chỉnh sửa dữ liệu làm đậu phụ
                           </p>
                         </div>
                       )}
@@ -1105,121 +1239,177 @@ export function ProcessingStationContent() {
                 </CardContent>
               </Card>
 
-              {/* Position 2: Today's Date with Value Table */}
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle className="text-center">
-                    {format(new Date(), "EEEE, dd 'tháng' MM 'năm' yyyy", { locale: vi })}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="bg-green-100 p-4 rounded-lg border-2 border-green-300">
-                        <div className="text-lg font-bold text-green-800 text-center">
-                          Đậu tương chi: {dailyTofuProcessing?.soybeanInput || 0} kg
-                        </div>
-                      </div>
-                      <div className="bg-yellow-100 p-4 rounded-lg border-2 border-yellow-300">
-                        <div className="text-lg font-bold text-yellow-800 text-center">
-                          Đậu phụ xuất: {dailyTofuProcessing?.tofuOutput || 0} kg
-                        </div>
-                      </div>
-                      <div className="bg-orange-100 p-4 rounded-lg border-2 border-orange-300">
-                        <div className="text-lg font-bold text-orange-800 text-center">
-                          Đậu phụ thu: {dailyTofuProcessing?.tofuCollected || 0} kg
-                        </div>
-                      </div>
-                      <div className="bg-red-100 p-4 rounded-lg border-2 border-red-300">
-                        <div className="text-lg font-bold text-red-800 text-center">
-                          Đậu phụ tồn: {Math.max(0, (dailyTofuProcessing?.tofuCollected || 0) - (dailyTofuProcessing?.tofuOutput || 0))} kg
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Position 3: Monthly Summary */}
+              {/* Position 3: Monthly Summary - Bảng LÀM ĐẬU PHỤ theo tháng */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Tổng hợp theo tháng</CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Báo cáo chi tiết hoạt động chế biến đậu phụ theo từng tháng
+                  <CardTitle className="text-center text-xl font-bold">
+                    LÀM ĐẬU PHỤ - TỔNG HỢP THEO THÁNG
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 text-center">
+                    Bảng thu chi lãi theo từng tháng trong năm {new Date().getFullYear()}
                   </p>
                 </CardHeader>
                 <CardContent>
                   {monthlyTofuSummary.length === 0 ? (
                     <div className="text-center py-8">Đang tải dữ liệu tháng...</div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-center">Tháng</TableHead>
-                            <TableHead className="text-center">Đậu tương chi (kg)</TableHead>
-                            <TableHead className="text-center">Đậu phụ thu (kg)</TableHead>
-                            <TableHead className="text-center">Đậu phụ xuất (kg)</TableHead>
-                            <TableHead className="text-center">Đậu phụ tồn (kg)</TableHead>
-                            <TableHead className="text-center">Hiệu suất (%)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {monthlyTofuSummary.map((month, index) => (
-                            <TableRow key={index} className={index === monthlyTofuSummary.length - 1 ? "bg-blue-50" : ""}>
-                              <TableCell className="text-center font-medium">
-                                {month.month}
-                                {index === monthlyTofuSummary.length - 1 && (
-                                  <Badge variant="default" className="ml-2 text-xs">Tháng hiện tại</Badge>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center font-semibold text-green-600">
-                                {month.totalSoybeanInput.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-center font-semibold text-blue-600">
-                                {month.totalTofuCollected.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-center font-semibold text-yellow-600">
-                                {month.totalTofuOutput.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-center font-semibold text-purple-600">
-                                {month.totalTofuRemaining.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge 
-                                  variant={month.processingEfficiency >= 80 ? "default" : 
-                                           month.processingEfficiency >= 60 ? "secondary" : "destructive"}
-                                  className="text-sm"
-                                >
-                                  {month.processingEfficiency}%
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                    <div className="space-y-4">
+                      {/* Monthly Table as per design */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-2 border-black">
+                          <thead>
+                            <tr>
+                              <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">THÁNG</th>
+                              <th colSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU</th>
+                              <th colSpan={3} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                              <th rowSpan={3} className="border border-black p-2 bg-blue-100 font-bold">THU-<br/>CHI<br/>(LÃI)</th>
+                            </tr>
+                            <tr>
+                              <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Đậu phụ</th>
+                              <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
+                              <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu tương</th>
+                              <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
+                            </tr>
+                            <tr>
+                              <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                              <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                              <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                              <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {monthlyTofuSummary.map((month, index) => (
+                              <tr key={index} className={index === monthlyTofuSummary.length - 1 ? "bg-blue-50" : ""}>
+                                <td className="border border-black p-2 font-medium text-center">
+                                  {month.month}
+                                  {index === monthlyTofuSummary.length - 1 && (
+                                    <div className="text-xs text-blue-600 mt-1">(Hiện tại)</div>
+                                  )}
+                                </td>
+                                {/* THU - Đậu phụ */}
+                                <td className="border border-black p-1 text-center font-semibold text-green-600">
+                                  {month.totalTofuCollected.toLocaleString()}
+                                </td>
+                                <td className="border border-black p-1 text-center font-semibold text-green-600">
+                                  {(month.totalTofuCollected * 15).toLocaleString()}
+                                </td>
+                                {/* THU - Sản phẩm phụ */}
+                                <td className="border border-black p-1 text-center font-semibold text-green-600">
+                                  {Math.round(month.totalTofuCollected * 0.1 * 5).toLocaleString()}
+                                </td>
+                                {/* CHI - Đậu tương */}
+                                <td className="border border-black p-1 text-center font-semibold text-red-600">
+                                  {month.totalSoybeanInput.toLocaleString()}
+                                </td>
+                                <td className="border border-black p-1 text-center font-semibold text-red-600">
+                                  {(month.totalSoybeanInput * 12).toLocaleString()}
+                                </td>
+                                {/* CHI - Chi khác */}
+                                <td className="border border-black p-1 text-center font-semibold text-red-600">
+                                  {Math.round(month.totalSoybeanInput * 0.02 * 1000).toLocaleString()}
+                                </td>
+                                {/* THU-CHI (LÃI) */}
+                                <td className="border border-black p-1 text-center bg-blue-50">
+                                  <span className={`font-bold ${
+                                    ((month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
+                                     (month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02 * 1000)) >= 0 
+                                    ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {(
+                                      (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
+                                      (month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                                    ).toLocaleString()}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                            
+                            {/* Total Row */}
+                            <tr className="bg-yellow-100 font-bold border-t-2 border-black">
+                              <td className="border border-black p-2 text-center font-bold">
+                                TỔNG NĂM
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-green-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + month.totalTofuCollected, 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-green-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + (month.totalTofuCollected * 15), 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-green-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + Math.round(month.totalTofuCollected * 0.1 * 5), 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-red-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + month.totalSoybeanInput, 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-red-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + (month.totalSoybeanInput * 12), 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-red-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + Math.round(month.totalSoybeanInput * 0.02 * 1000), 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center bg-blue-100">
+                                <span className="font-bold text-blue-700">
+                                  {monthlyTofuSummary.reduce((sum, month) => {
+                                    const revenue = (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5)
+                                    const cost = (month.totalSoybeanInput * 12) + Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                                    return sum + (revenue - cost)
+                                  }, 0).toLocaleString()}
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
 
-                  {/* Monthly Summary Stats */}
-                  {monthlyTofuSummary.length > 0 && (
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <div className="text-sm text-green-600">Tổng đậu tương chi (6 tháng)</div>
-                        <div className="text-xl font-bold text-green-700">
-                          {monthlyTofuSummary.reduce((sum, month) => sum + month.totalSoybeanInput, 0).toLocaleString()} kg
-                        </div>
+                      {/* Notes section */}
+                      <div className="border-t-2 border-black p-3 bg-gray-50">
+                        <p className="text-sm font-medium mb-2">Cộng tháng trước chuyển sang</p>
+                        <p className="text-xs text-gray-600">
+                          Ngày thứ nhất đầu tháng là cộng lượng tồn của tháng và lượng làm trong ngày
+                        </p>
                       </div>
-                      <div className="bg-blue-50 p-4 rounded-lg">  
-                        <div className="text-sm text-blue-600">Tổng đậu phụ thu (6 tháng)</div>
-                        <div className="text-xl font-bold text-blue-700">
-                          {monthlyTofuSummary.reduce((sum, month) => sum + month.totalTofuCollected, 0).toLocaleString()} kg
+
+                      {/* Summary Statistics */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                          <div className="text-sm text-green-600">Tổng thu (cả năm)</div>
+                          <div className="text-lg font-bold text-green-700">
+                            {monthlyTofuSummary.reduce((sum, month) => {
+                              return sum + (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5)
+                            }, 0).toLocaleString()}.000đ
+                          </div>
                         </div>
-                      </div>
-                      <div className="bg-purple-50 p-4 rounded-lg">
-                        <div className="text-sm text-purple-600">Hiệu suất trung bình</div>
-                        <div className="text-xl font-bold text-purple-700">
-                          {Math.round(monthlyTofuSummary.reduce((sum, month) => sum + month.processingEfficiency, 0) / monthlyTofuSummary.length)}%
+                        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                          <div className="text-sm text-red-600">Tổng chi (cả năm)</div>
+                          <div className="text-lg font-bold text-red-700">
+                            {monthlyTofuSummary.reduce((sum, month) => {
+                              return sum + (month.totalSoybeanInput * 12) + Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                            }, 0).toLocaleString()}.000đ
+                          </div>
+                        </div>
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          <div className="text-sm text-blue-600">Lãi ròng (cả năm)</div>
+                          <div className="text-lg font-bold text-blue-700">
+                            {monthlyTofuSummary.reduce((sum, month) => {
+                              const revenue = (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5)
+                              const cost = (month.totalSoybeanInput * 12) + Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                              return sum + (revenue - cost)
+                            }, 0).toLocaleString()}.000đ
+                          </div>
+                        </div>
+                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                          <div className="text-sm text-purple-600">Tỷ suất lợi nhuận</div>
+                          <div className="text-lg font-bold text-purple-700">
+                            {(() => {
+                              const totalRevenue = monthlyTofuSummary.reduce((sum, month) => {
+                                return sum + (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5)
+                              }, 0)
+                              const totalCost = monthlyTofuSummary.reduce((sum, month) => {
+                                return sum + (month.totalSoybeanInput * 12) + Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                              }, 0)
+                              return totalCost > 0 ? Math.round(((totalRevenue - totalCost) / totalCost) * 100) : 0
+                            })()}%
+                          </div>
                         </div>
                       </div>
                     </div>
