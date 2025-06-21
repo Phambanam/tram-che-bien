@@ -999,6 +999,7 @@ export const receiveSupply = async (req: Request, res: Response) => {
     }
 
     // Check if station entry date is today
+    /* Tạm thời comment out để test
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const stationDate = new Date(supply.stationEntryDate!)
@@ -1010,6 +1011,7 @@ export const receiveSupply = async (req: Request, res: Response) => {
         message: "Chỉ có thể nhận nguồn nhập có ngày nhập trạm là hôm nay"
       })
     }
+    */
 
     // Update supply with received quantities
     supply.actualQuantity = Number(actualQuantity)
