@@ -1115,26 +1115,178 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
     const ExcelJS = require('exceljs')
     const workbook = new ExcelJS.Workbook()
 
-    // Create a simple worksheet
-    const worksheet = workbook.addWorksheet('Phieu Nhap Kho')
+    // Create a worksheet for each unit/date combination
+    Object.values(groupedSupplies).forEach((group: any) => {
+      console.log("Processing group:", { unit: group.unit, date: group.date, suppliesCount: group.supplies?.length || 0 })
+      
+      // Clean worksheet name by removing invalid characters: * ? : \ / [ ]
+      const cleanWorksheetName = `${group.unit} - ${group.date}`.replace(/[*?:\\/\[\]]/g, '-')
+      const worksheet = workbook.addWorksheet(cleanWorksheetName)
 
-    // Add headers
-    worksheet.addRow(['STT', 'Tên hàng', 'Đơn vị tính', 'SL phải nhập', 'SL thực nhận', 'Đơn giá', 'Thành tiền', 'Ghi chú'])
+      // Set column widths
+      worksheet.columns = [
+        { width: 5 },   // STT
+        { width: 25 },  // Tên hàng
+        { width: 12 },  // ĐVT
+        { width: 12 },  // SL phải nhập
+        { width: 12 },  // SL thực nhận
+        { width: 12 },  // Đơn giá
+        { width: 15 },  // Thành tiền
+        { width: 20 }   // Ghi chú
+      ]
 
-    // Add data
-    let rowIndex = 1
-    supplies.forEach((supply: any) => {
-      rowIndex++
-      worksheet.addRow([
-        rowIndex - 1,
-        `${getProductName(supply.product)} - ${FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category}`,
-        getProductUnit(supply.product),
-        supply.requestedQuantity || 0,
-        supply.receivedQuantity || 0,
-        supply.unitPrice || 0,
-        supply.totalPrice || 0,
-        supply.note || ''
-      ])
+      // Header - Mẫu 26: PNX-TMKH/QN21
+      worksheet.mergeCells('A1:H1')
+      worksheet.getCell('A1').value = 'QUÂN ĐỘI NHÂN DÂN VIỆT NAM'
+      worksheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell('A1').font = { bold: true, size: 12 }
+
+      worksheet.mergeCells('A2:H2')
+      worksheet.getCell('A2').value = 'TRẠM THỰC PHẨM'
+      worksheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell('A2').font = { bold: true, size: 12 }
+
+      // Title
+      worksheet.mergeCells('A4:H4')
+      worksheet.getCell('A4').value = 'PHIẾU NHẬP XUẤT - THỰC PHẨM KHUYẾT HẬU'
+      worksheet.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell('A4').font = { bold: true, size: 14 }
+
+      worksheet.mergeCells('A5:H5')
+      worksheet.getCell('A5').value = `(Mẫu 26: PNX-TMKH/QN21)`
+      worksheet.getCell('A5').alignment = { horizontal: 'center', vertical: 'middle' }
+      worksheet.getCell('A5').font = { italic: true, size: 10 }
+
+      // Unit and Date info
+      worksheet.getCell('A6').value = `Đơn vị: ${group.unit}`
+      worksheet.getCell('A6').font = { bold: true }
+      
+      worksheet.getCell('F6').value = `Ngày nhập: ${group.date}`
+      worksheet.getCell('F6').font = { bold: true }
+
+      // Table headers
+      const headerRow = 7
+      worksheet.getCell(`A${headerRow}`).value = 'STT'
+      worksheet.getCell(`B${headerRow}`).value = 'Tên hàng'
+      worksheet.getCell(`C${headerRow}`).value = 'Đơn vị tính'
+      worksheet.getCell(`D${headerRow}`).value = 'SL phải nhập'
+      worksheet.getCell(`E${headerRow}`).value = 'SL thực nhận'
+      worksheet.getCell(`F${headerRow}`).value = 'Đơn giá (VNĐ)'
+      worksheet.getCell(`G${headerRow}`).value = 'Thành tiền (VNĐ)'
+      worksheet.getCell(`H${headerRow}`).value = 'Ghi chú'
+
+      // Style headers
+      const headerCells = ['A7', 'B7', 'C7', 'D7', 'E7', 'F7', 'G7', 'H7']
+      headerCells.forEach(cell => {
+        const cellObj = worksheet.getCell(cell)
+        cellObj.font = { bold: true }
+        cellObj.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+        cellObj.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+        cellObj.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE6E6FA' }
+        }
+      })
+
+      // Add data rows
+      let rowIndex = headerRow + 1
+      let totalAmount = 0
+
+      if (group.supplies && group.supplies.length > 0) {
+        group.supplies.forEach((supply: any, index: number) => {
+          const row = worksheet.getRow(rowIndex)
+          
+          // Set cell values individually
+          row.getCell(1).value = index + 1
+          row.getCell(2).value = `${getProductName(supply.product)} - ${FOOD_CATEGORIES[supply.category as keyof typeof FOOD_CATEGORIES] || supply.category}`
+          row.getCell(3).value = getProductUnit(supply.product)
+          row.getCell(4).value = supply.requestedQuantity || 0
+          row.getCell(5).value = supply.receivedQuantity || 0
+          row.getCell(6).value = supply.unitPrice || 0
+          row.getCell(7).value = supply.totalPrice || 0
+          row.getCell(8).value = supply.note || ''
+
+          // Add borders to data cells
+          for (let col = 1; col <= 8; col++) {
+            const cell = row.getCell(col)
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            }
+            
+            // Right align numbers
+            if (col >= 4 && col <= 7) {
+              cell.alignment = { horizontal: 'right', vertical: 'middle' }
+              if (col === 6 || col === 7) {
+                cell.numFmt = '#,##0'
+              }
+            }
+          }
+
+          totalAmount += supply.totalPrice || 0
+          rowIndex++
+        })
+      }
+
+      // Total row
+      const totalRow = worksheet.getRow(rowIndex)
+      totalRow.getCell(1).value = ''
+      totalRow.getCell(2).value = 'TỔNG CỘNG'
+      totalRow.getCell(2).font = { bold: true }
+      totalRow.getCell(7).value = totalAmount
+      totalRow.getCell(7).font = { bold: true }
+      totalRow.getCell(7).numFmt = '#,##0'
+      totalRow.getCell(7).alignment = { horizontal: 'right', vertical: 'middle' }
+
+      // Add borders to total row
+      for (let col = 1; col <= 8; col++) {
+        const cell = totalRow.getCell(col)
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+      }
+
+      // Signature section
+      const signatureRow = rowIndex + 3
+      worksheet.getCell(`A${signatureRow}`).value = 'NGƯỜI LẬP PHIẾU'
+      worksheet.getCell(`A${signatureRow}`).font = { bold: true }
+      worksheet.getCell(`A${signatureRow}`).alignment = { horizontal: 'center' }
+
+      worksheet.getCell(`C${signatureRow}`).value = 'THỦ KHO'
+      worksheet.getCell(`C${signatureRow}`).font = { bold: true }
+      worksheet.getCell(`C${signatureRow}`).alignment = { horizontal: 'center' }
+
+      worksheet.getCell(`F${signatureRow}`).value = 'TRẠM TRƯỞNG'
+      worksheet.getCell(`F${signatureRow}`).font = { bold: true }
+      worksheet.getCell(`F${signatureRow}`).alignment = { horizontal: 'center' }
+
+      worksheet.getCell(`A${signatureRow + 1}`).value = '(Ký, họ tên)'
+      worksheet.getCell(`A${signatureRow + 1}`).font = { italic: true }
+      worksheet.getCell(`A${signatureRow + 1}`).alignment = { horizontal: 'center' }
+
+      worksheet.getCell(`C${signatureRow + 1}`).value = '(Ký, họ tên)'
+      worksheet.getCell(`C${signatureRow + 1}`).font = { italic: true }
+      worksheet.getCell(`C${signatureRow + 1}`).alignment = { horizontal: 'center' }
+
+      worksheet.getCell(`F${signatureRow + 1}`).value = '(Ký, họ tên)'
+      worksheet.getCell(`F${signatureRow + 1}`).font = { italic: true }
+      worksheet.getCell(`F${signatureRow + 1}`).alignment = { horizontal: 'center' }
+
+      // Footer
+      worksheet.getCell(`H${signatureRow + 3}`).value = `Ngày ${format(new Date(), 'dd')} tháng ${format(new Date(), 'MM')} năm ${format(new Date(), 'yyyy')}`
+      worksheet.getCell(`H${signatureRow + 3}`).font = { italic: true }
+      worksheet.getCell(`H${signatureRow + 3}`).alignment = { horizontal: 'right' }
     })
 
     // Set response headers
