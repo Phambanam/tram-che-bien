@@ -783,12 +783,33 @@ export const processingStationApi = {
       body: JSON.stringify(data),
     })
   },
+
+  // New methods for daily tofu processing
+  getDailyData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/daily/${date}`)
+  },
+
+  updateDailyData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/daily/${date}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  },
 }
 
 // Supply Outputs API
 export const supplyOutputsApi = {
-  getSupplyOutputs: async () => {
-    return apiRequest<any[]>("/supply-outputs")
+  getSupplyOutputs: async (filters?: any) => {
+    const queryParams = new URLSearchParams()
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== "all") {
+          queryParams.append(key, value as string)
+        }
+      })
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<any[]>(`/supply-outputs${query}`)
   },
 
   getSupplyOutputById: async (id: string) => {
