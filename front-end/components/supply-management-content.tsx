@@ -705,12 +705,12 @@ export function SupplyManagementContent() {
 
   // Helper function to determine if additional columns should be shown
   const shouldShowAdditionalColumns = () => {
-    return user?.role === "brigadeAssistant" || filteredSupplies.some(supply => supply.status === "approved")
+    return user?.role === "brigadeAssistant" || filteredSupplies.some(supply => supply.status === "approved" || supply.status === "received")
   }
 
   // Helper function to determine if a specific supply's additional info should be shown
   const shouldShowSupplyDetails = (supply: SupplySource) => {
-    return user?.role === "brigadeAssistant" || supply.status === "approved"
+    return user?.role === "brigadeAssistant" || supply.status === "approved" || supply.status === "received"
   }
 
   const handleExportSingleSupply = async (supply: SupplySource) => {
@@ -820,6 +820,7 @@ export function SupplyManagementContent() {
                         <TableHead>Số lượng dự kiến</TableHead>
                         {shouldShowAdditionalColumns() && <TableHead>SL nhập yêu cầu</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>SL nhập thực tế</TableHead>}
+                        {shouldShowAdditionalColumns() && <TableHead>SL thực nhận</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Đơn giá (VND)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Thành tiền (VND)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Hạn sử dụng</TableHead>}
@@ -846,6 +847,11 @@ export function SupplyManagementContent() {
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
                               {shouldShowSupplyDetails(supply) ? (supply.actualQuantity || "Chưa có") : "Chưa phê duyệt"}
+                            </TableCell>
+                          )}
+                          {shouldShowAdditionalColumns() && (
+                            <TableCell>
+                              {shouldShowSupplyDetails(supply) ? (supply.receivedQuantity || "Chưa có") : "Chưa phê duyệt"}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
