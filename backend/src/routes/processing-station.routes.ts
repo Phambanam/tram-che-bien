@@ -20,10 +20,10 @@ router.get("/", getProcessingStationItems)
 router.get("/food-inventory", getFoodInventory)
 router.get("/:id", getProcessingStationItemById)
 
-// Routes for admin only
-router.post("/", authorize("admin"), createProcessingStationItem)
-router.patch("/:id", authorize("admin"), updateProcessingStationItem)
-router.delete("/:id", authorize("admin"), deleteProcessingStationItem)
-router.post("/update-expiry", authorize("admin"), updateExpiryStatus)
+// Routes for admin and station manager
+router.post("/", authorize("admin", "stationManager"), createProcessingStationItem)
+router.patch("/:id", authorize("admin", "stationManager"), updateProcessingStationItem)
+router.delete("/:id", authorize("admin"), deleteProcessingStationItem) // Only admin can delete
+router.post("/update-expiry", authorize("admin"), updateExpiryStatus) // Only admin can update expiry
 
 export default router

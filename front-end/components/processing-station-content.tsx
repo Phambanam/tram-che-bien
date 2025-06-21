@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarIcon, Package, Utensils, Fish, Beef, Wheat, Droplets } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi } from "@/lib/api-client"
+import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, productsApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -668,10 +668,37 @@ export function ProcessingStationContent() {
       
       const dateStr = dailyTofuProcessing.date
       
-      // Create or update processing station record
+      // Get existing processing items to check if today's record exists
+      const processingResponse = await processingStationApi.getItems()
+      const processingItems = Array.isArray(processingResponse) ? processingResponse : (processingResponse as any).data || []
+      
+      // Find today's tofu processing record
+      const todayProcessing = processingItems.find((item: any) => 
+        item.type === 'tofu' && 
+        format(new Date(item.processingDate), 'yyyy-MM-dd') === dateStr
+      )
+      
+      // Get or create a tofu product ID
+      let tofuProductId = '674a1234567890abcdef1234' // Default fallback
+      
+      try {
+        // Try to get products and find tofu product
+        const productsResponse = await productsApi.getAllProducts()
+        const products = Array.isArray(productsResponse) ? productsResponse : (productsResponse as any).data || []
+        const tofuProduct = products.find((product: any) => 
+          product.name && product.name.toLowerCase().includes('đậu phụ')
+        )
+        
+        if (tofuProduct && tofuProduct._id) {
+          tofuProductId = tofuProduct._id
+        }
+      } catch (productError) {
+        console.log('Could not fetch products, using default tofu product ID')
+      }
+      
       const processingData = {
         type: 'tofu',
-        productId: '674a1234567890abcdef1234', // Sample tofu product ID
+        productId: tofuProductId,
         processingDate: dateStr,
         useDate: dateStr,
         expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
@@ -679,33 +706,57 @@ export function ProcessingStationContent() {
         nonExpiredQuantity: dailyUpdateData.tofuCollected,
         expiredQuantity: 0,
         status: 'active',
-        note: `Cập nhật ngày ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: vi })}`
+        note: `Cập nhật ngày ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: vi })} bởi ${user?.fullName || 'Trạm trưởng'}`
       }
       
-      // Try to create new record (simplified approach)
-      await processingStationApi.createItem(processingData)
-      
-      // Update local state
-      const updatedData: DailyTofuProcessing = {
-        ...dailyTofuProcessing,
-        soybeanInput: dailyUpdateData.soybeanInput,
-        tofuCollected: dailyUpdateData.tofuCollected,
-        tofuRemaining: dailyUpdateData.tofuCollected - dailyTofuProcessing.tofuOutput
+      try {
+        if (todayProcessing && todayProcessing.id) {
+          // Update existing record
+          await processingStationApi.updateItem(todayProcessing.id, processingData)
+        } else {
+          // Create new record
+          await processingStationApi.createItem(processingData)
+        }
+        
+        // Update local state
+        const updatedData: DailyTofuProcessing = {
+          ...dailyTofuProcessing,
+          soybeanInput: dailyUpdateData.soybeanInput,
+          tofuCollected: dailyUpdateData.tofuCollected,
+          tofuRemaining: dailyUpdateData.tofuCollected - dailyTofuProcessing.tofuOutput
+        }
+        
+        setDailyTofuProcessing(updatedData)
+        setEditingDailyData(false)
+        
+        toast({
+          title: "Thành công",
+          description: "Đã cập nhật dữ liệu chế biến đậu phụ hôm nay",
+        })
+        
+        // Refresh monthly summary after update
+        fetchMonthlyTofuSummary()
+        
+      } catch (apiError: any) {
+        console.error('API Error:', apiError)
+        
+        // If still getting permission errors, show appropriate message
+        if (apiError.message?.includes('Forbidden') || apiError.message?.includes('403')) {
+          toast({
+            title: "Lỗi phân quyền",
+            description: "Bạn cần đăng nhập với vai trò Trạm trưởng để thực hiện thao tác này",
+            variant: "destructive",
+          })
+        } else {
+          throw apiError // Re-throw other errors
+        }
       }
-      
-      setDailyTofuProcessing(updatedData)
-      setEditingDailyData(false)
-      
-      toast({
-        title: "Thành công",
-        description: "Đã cập nhật dữ liệu chế biến đậu phụ hôm nay",
-      })
       
     } catch (error) {
       console.error('Error updating daily tofu processing:', error)
       toast({
         title: "Lỗi",
-        description: "Có lỗi xảy ra khi cập nhật dữ liệu",
+        description: "Có lỗi xảy ra khi cập nhật dữ liệu. Vui lòng thử lại sau.",
         variant: "destructive",
       })
     }
@@ -1010,7 +1061,7 @@ export function ProcessingStationContent() {
                       </div>
 
                       {/* Edit Controls for Station Manager */}
-                      {user?.role === 'stationManager' && (
+                      {(user?.role === 'stationManager' || user?.role === 'admin') && (
                         <div className="flex items-center justify-end gap-2 pt-4 border-t">
                           {editingDailyData ? (
                             <>
@@ -1038,6 +1089,15 @@ export function ProcessingStationContent() {
                               Chỉnh sửa
                             </Button>
                           )}
+                        </div>
+                      )}
+                      
+                      {/* Info message for other roles */}
+                      {user?.role && !['stationManager', 'admin'].includes(user.role) && (
+                        <div className="pt-4 border-t">
+                          <p className="text-sm text-gray-500 text-center">
+                            Chỉ Trạm trưởng mới có thể chỉnh sửa dữ liệu chế biến đậu phụ
+                          </p>
                         </div>
                       )}
                     </div>
