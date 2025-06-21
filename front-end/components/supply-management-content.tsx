@@ -29,8 +29,6 @@ export function SupplyManagementContent() {
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState("list")
   const [filters, setFilters] = useState<{
@@ -44,6 +42,8 @@ export function SupplyManagementContent() {
     stationEntryToDate?: string
     createdFromDate?: string
     createdToDate?: string
+    expiryFromDate?: string
+    expiryToDate?: string
   }>({})
   const { toast } = useToast()
   const { user } = useAuth()
@@ -643,15 +643,7 @@ export function SupplyManagementContent() {
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     setDate(selectedDate)
-    }
-    
-  const filteredSupplies = supplies.filter((supply) => {
-    const matchesSearch =
-      (supply.product?.name && supply.product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (supply.unit?.name && supply.unit.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesStatus = statusFilter === "all" || supply.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  }
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
@@ -705,7 +697,7 @@ export function SupplyManagementContent() {
 
   // Helper function to determine if additional columns should be shown
   const shouldShowAdditionalColumns = () => {
-    return user?.role === "brigadeAssistant" || filteredSupplies.some(supply => supply.status === "approved" || supply.status === "received")
+    return user?.role === "brigadeAssistant" || supplies.some(supply => supply.status === "approved" || supply.status === "received")
   }
 
   // Helper function to determine if a specific supply's additional info should be shown
@@ -756,29 +748,7 @@ export function SupplyManagementContent() {
             <SuppliesFilter onFilterChange={handleFilterChange} />
             
             <div className="flex justify-between items-center">
-              <div className="flex gap-2 items-center">
-                <Input 
-                  placeholder="Tìm kiếm..." 
-                  className="w-64" 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <Button variant="outline" size="icon">
-                  <Search className="h-4 w-4" />
-                </Button>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Trạng thái" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tất cả</SelectItem>
-                    <SelectItem value="pending">Chờ duyệt</SelectItem>
-                    <SelectItem value="approved">Đã duyệt</SelectItem>
-                    <SelectItem value="received">Đã nhận</SelectItem>
-                    <SelectItem value="rejected">Từ chối</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div></div>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
@@ -799,7 +769,7 @@ export function SupplyManagementContent() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Danh sách nguồn nhập ({filteredSupplies.length} mục)</CardTitle>
+                <CardTitle>Danh sách nguồn nhập ({supplies.length} mục)</CardTitle>
                 {shouldShowAdditionalColumns() && user?.role !== "brigadeAssistant" && (
                   <p className="text-sm text-blue-600 mt-2">
                     💡 Thông tin chi tiết (số lượng, giá tiền, hạn sử dụng) chỉ hiển thị cho các nguồn nhập đã được phê duyệt
@@ -833,7 +803,7 @@ export function SupplyManagementContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredSupplies.map((supply, index) => (
+                      {supplies.map((supply, index) => (
                         <TableRow key={supply.id}>
                           <TableCell>{index + 1}</TableCell>
                           <TableCell>{supply.product?.name}</TableCell>
