@@ -490,6 +490,11 @@ export function SupplyManagementContent() {
   }
 
   const handleReceive = (supply: SupplySource) => {
+    console.log("handleReceive called with supply:", supply)
+    console.log("User role:", user?.role)
+    console.log("Supply status:", supply.status)
+    console.log("Station entry date:", supply.stationEntryDate)
+    
     // Only station managers can receive supplies
     if (user?.role !== "stationManager") {
       toast({
@@ -510,6 +515,7 @@ export function SupplyManagementContent() {
     }
 
     // Check if station entry date is today
+    /* Tạm thời comment out để test
     if (supply.stationEntryDate) {
       const today = new Date()
       today.setHours(0, 0, 0, 0)
@@ -525,6 +531,7 @@ export function SupplyManagementContent() {
         return
       }
     }
+    */
 
     setSupplyToReceive(supply)
     setReceiveData({
@@ -766,7 +773,8 @@ export function SupplyManagementContent() {
                   <SelectContent>
                     <SelectItem value="all">Tất cả</SelectItem>
                     <SelectItem value="pending">Chờ duyệt</SelectItem>
-                    <SelectItem value="approved">Đã nhập</SelectItem>
+                    <SelectItem value="approved">Đã duyệt</SelectItem>
+                    <SelectItem value="received">Đã nhận</SelectItem>
                     <SelectItem value="rejected">Từ chối</SelectItem>
                   </SelectContent>
                 </Select>
@@ -932,17 +940,28 @@ export function SupplyManagementContent() {
                                       </Button>
                                     </>
                                   )}
-                                  {user?.role === "stationManager" && supply.status === "approved" && supply.stationEntryDate && (
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => handleReceive(supply)}
-                                      title="Nhận hàng"
-                                      className="text-blue-600 hover:text-blue-700"
-                                    >
-                                      <Package className="h-4 w-4" />
-                                    </Button>
-                                  )}
+                                  {(() => {
+                                    // Debug log for station manager button
+                                    if (user?.role === "stationManager") {
+                                      console.log("Station manager check for supply:", {
+                                        productName: supply.product?.name,
+                                        status: supply.status,
+                                        stationEntryDate: supply.stationEntryDate,
+                                        shouldShowButton: supply.status === "approved" && supply.stationEntryDate
+                                      })
+                                    }
+                                    return user?.role === "stationManager" && supply.status === "approved" && supply.stationEntryDate ? (
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => handleReceive(supply)}
+                                        title="Nhận hàng"
+                                        className="text-blue-600 hover:text-blue-700"
+                                      >
+                                        <Package className="h-4 w-4" />
+                                      </Button>
+                                    ) : null
+                                  })()}
                                   {supply.status === "received" && (
                                     <Button 
                                       variant="outline" 
