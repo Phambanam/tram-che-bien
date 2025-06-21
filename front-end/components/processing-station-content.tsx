@@ -72,10 +72,41 @@ interface InventoryItem {
   lastUpdated: string
 }
 
+interface DailyTofuSummary {
+  date: string
+  dayOfWeek: string
+  totalSoybeanInput: number
+  totalTofuCollected: number
+  totalTofuOutput: number
+  totalTofuRemaining: number
+  processingEfficiency: number // percentage
+}
+
+interface DailyTofuProcessing {
+  date: string
+  soybeanInput: number
+  soybeanOutput: number
+  tofuOutputToUnits: TofuOutputToUnit[]
+  tofuOutputToOthers: string
+  tofuRemaining: number
+  note: string
+}
+
 export function ProcessingStationContent() {
   const [activeSection, setActiveSection] = useState("tofu")
   const [tofuData, setTofuData] = useState<ProcessingItem[]>([])
   const [weeklyTofuData, setWeeklyTofuData] = useState<WeeklyTofuData[]>([])
+  const [dailyTofuSummary, setDailyTofuSummary] = useState<DailyTofuSummary[]>([])
+  const [dailyTofuProcessing, setDailyTofuProcessing] = useState<DailyTofuProcessing | null>(null)
+  const [editingDailyData, setEditingDailyData] = useState(false)
+  const [dailyUpdateData, setDailyUpdateData] = useState({
+    soybeanInput: 0,
+    tofuCollected: 0
+  })
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [soybeanData, setSoybeanData] = useState<any[]>([])
+  const [livestockData, setLivestockData] = useState<any[]>([])
+  const [isLoadingLivestock, setIsLoadingLivestock] = useState(false)
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -178,6 +209,72 @@ export function ProcessingStationContent() {
     }]
   }
 
+  // Fetch daily tofu summary for current month
+  const fetchDailyTofuSummary = async () => {
+    try {
+      // Get current month and all days in current month
+      const currentDate = new Date()
+      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+      
+      const dailySummaries: DailyTofuSummary[] = []
+      
+      // Loop through each day in the current month
+      for (let day = 1; day <= endOfMonth.getDate(); day++) {
+        const currentDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+        const dayStart = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate(), 0, 0, 0)
+        const dayEnd = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate(), 23, 59, 59)
+        
+        // Skip future dates
+        if (currentDay > currentDate) {
+          continue
+        }
+        
+        // Generate sample data for each day (in real implementation, this would fetch from API)
+        const totalSoybeanInput = day <= currentDate.getDate() ? 80 + Math.floor(Math.random() * 40) : 0
+        const totalTofuCollected = totalSoybeanInput > 0 ? Math.floor(totalSoybeanInput * 0.8) + Math.floor(Math.random() * 20) : 0
+        const totalTofuOutput = totalTofuCollected > 0 ? Math.floor(totalTofuCollected * 0.9) + Math.floor(Math.random() * 10) : 0
+        const totalTofuRemaining = totalTofuCollected - totalTofuOutput
+        const processingEfficiency = totalSoybeanInput > 0 ? Math.round((totalTofuCollected / totalSoybeanInput) * 100) : 0
+        
+        dailySummaries.push({
+          date: format(currentDay, 'yyyy-MM-dd'),
+          dayOfWeek: format(currentDay, 'EEEE', { locale: vi }),
+          totalSoybeanInput,
+          totalTofuCollected,
+          totalTofuOutput,
+          totalTofuRemaining,
+          processingEfficiency
+        })
+      }
+      
+      setDailyTofuSummary(dailySummaries)
+      
+    } catch (error) {
+      console.error('Error fetching daily tofu summary:', error)
+      
+      // Fallback to sample data
+      const currentDate = new Date()
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+      const sampleSummaries: DailyTofuSummary[] = []
+      
+      for (let day = 1; day <= Math.min(endOfMonth.getDate(), currentDate.getDate()); day++) {
+        const currentDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+        sampleSummaries.push({
+          date: format(currentDay, 'yyyy-MM-dd'),
+          dayOfWeek: format(currentDay, 'EEEE', { locale: vi }),
+          totalSoybeanInput: 100 + Math.floor(Math.random() * 200),
+          totalTofuCollected: 80 + Math.floor(Math.random() * 150),
+          totalTofuOutput: 70 + Math.floor(Math.random() * 120),
+          totalTofuRemaining: 10 + Math.floor(Math.random() * 30),
+          processingEfficiency: 75 + Math.floor(Math.random() * 20)
+        })
+      }
+      
+      setDailyTofuSummary(sampleSummaries)
+    }
+  }
+
   // Fetch data for tofu processing
   const fetchTofuData = async () => {
     try {
@@ -232,6 +329,9 @@ export function ProcessingStationContent() {
       const weeklyData = generateSampleWeeklyData()
       setWeeklyTofuData(weeklyData)
 
+      // Fetch daily summary data
+      fetchDailyTofuSummary()
+
       // Set inventory data
       if (soybeanSupplies.length === 0) {
         // Sample data for demonstration
@@ -260,6 +360,9 @@ export function ProcessingStationContent() {
       const weeklyData = generateSampleWeeklyData()
       setWeeklyTofuData(weeklyData)
       
+      // Load fallback daily summary
+      fetchDailyTofuSummary()
+      
       const fallbackInventory = {
         productName: "Đậu nành → Đậu phụ",
         inputQuantity: 100,
@@ -280,8 +383,10 @@ export function ProcessingStationContent() {
   }
 
   useEffect(() => {
-    fetchTofuData()
-  }, [])
+    if (activeSection === "tofu") {
+      fetchTofuData()
+    }
+  }, [activeSection])
 
   const sections = [
     { id: "tofu", name: "Chế biến đậu phụ", icon: Package, color: "bg-green-100 text-green-800" },
@@ -497,8 +602,8 @@ export function ProcessingStationContent() {
                   <p className="text-sm text-gray-600">
                     Theo dõi chi tiết từng ngày trong tuần (Thứ 2 - Chủ nhật)
                   </p>
-        </CardHeader>
-        <CardContent>
+                </CardHeader>
+                <CardContent>
                   {isLoading ? (
                     <div className="text-center py-8">Đang tải dữ liệu...</div>
                   ) : (
@@ -512,9 +617,9 @@ export function ProcessingStationContent() {
                           </div>
                           
                           <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
                                   <TableHead className="min-w-[100px]">Ngày</TableHead>
                                   <TableHead className="text-center">Đậu hạt nhập (kg)</TableHead>
                                   <TableHead className="text-center">Đậu hạt xuất (kg)</TableHead>
@@ -524,19 +629,19 @@ export function ProcessingStationContent() {
                                   <TableHead className="text-center">Đậu phụ tồn (kg)</TableHead>
                                   <TableHead className="min-w-[150px]">Ghi chú</TableHead>
                                   <TableHead className="text-center">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
                                 {week.dailyData.map((day) => (
                                   <TableRow key={day.date} className={day.dayOfWeek.includes("Chủ nhật") ? "bg-gray-50" : ""}>
                                     <TableCell className="font-medium">
                                       <div>
                                         <div className="font-semibold">{day.dayOfWeek}</div>
                                         <div className="text-sm text-gray-500">
-                                          {format(new Date(day.date), "dd/MM", { locale: vi })}
+                                          {format(new Date(day.date), "dd/MM/yyyy", { locale: vi })}
                                         </div>
-                    </div>
-                  </TableCell>
+                                      </div>
+                                    </TableCell>
                                     <TableCell className="text-center font-semibold text-blue-600">
                                       {day.soybeanInput.toLocaleString()}
                                     </TableCell>
@@ -577,9 +682,9 @@ export function ProcessingStationContent() {
                                       >
                                         Cập nhật
                                       </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
                                 
                                 {/* Weekly Total Row */}
                                 <TableRow className="bg-blue-50 font-semibold border-t-2 border-blue-200">
@@ -611,15 +716,106 @@ export function ProcessingStationContent() {
                                     —
                                   </TableCell>
                                 </TableRow>
-            </TableBody>
-          </Table>
+                              </TableBody>
+                            </Table>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
-        </CardContent>
-      </Card>
+                </CardContent>
+              </Card>
+
+              {/* Position 3: Daily Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tổng hợp theo ngày trong tháng</CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Báo cáo chi tiết hoạt động chế biến đậu phụ theo từng ngày trong tháng {format(new Date(), 'MM/yyyy')}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {dailyTofuSummary.length === 0 ? (
+                    <div className="text-center py-8">Đang tải dữ liệu ngày...</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-center">Ngày</TableHead>
+                            <TableHead className="text-center">Thứ</TableHead>
+                            <TableHead className="text-center">Đậu tương chi (kg)</TableHead>
+                            <TableHead className="text-center">Đậu phụ thu (kg)</TableHead>
+                            <TableHead className="text-center">Đậu phụ xuất (kg)</TableHead>
+                            <TableHead className="text-center">Đậu phụ tồn (kg)</TableHead>
+                            <TableHead className="text-center">Hiệu suất (%)</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dailyTofuSummary.map((day, index) => (
+                            <TableRow key={day.date} className={day.date === format(new Date(), 'yyyy-MM-dd') ? "bg-blue-50" : ""}>
+                              <TableCell className="text-center font-medium">
+                                {format(new Date(day.date), 'dd/MM')}
+                                {day.date === format(new Date(), 'yyyy-MM-dd') && (
+                                  <Badge variant="default" className="ml-2 text-xs">Hôm nay</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {day.dayOfWeek}
+                              </TableCell>
+                              <TableCell className="text-center font-semibold text-green-600">
+                                {day.totalSoybeanInput.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-center font-semibold text-blue-600">
+                                {day.totalTofuCollected.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-center font-semibold text-yellow-600">
+                                {day.totalTofuOutput.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-center font-semibold text-purple-600">
+                                {day.totalTofuRemaining.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge 
+                                  variant={day.processingEfficiency >= 80 ? "default" : 
+                                           day.processingEfficiency >= 60 ? "secondary" : "destructive"}
+                                  className="text-sm"
+                                >
+                                  {day.processingEfficiency}%
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {/* Daily Summary Stats */}
+                  {dailyTofuSummary.length > 0 && (
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <div className="text-sm text-green-600">Tổng đậu tương chi (tháng này)</div>
+                        <div className="text-xl font-bold text-green-700">
+                          {dailyTofuSummary.reduce((sum, day) => sum + day.totalSoybeanInput, 0).toLocaleString()} kg
+                        </div>
+                      </div>
+                      <div className="bg-blue-50 p-4 rounded-lg">  
+                        <div className="text-sm text-blue-600">Tổng đậu phụ thu (tháng này)</div>
+                        <div className="text-xl font-bold text-blue-700">
+                          {dailyTofuSummary.reduce((sum, day) => sum + day.totalTofuCollected, 0).toLocaleString()} kg
+                        </div>
+                      </div>
+                      <div className="bg-purple-50 p-4 rounded-lg">
+                        <div className="text-sm text-purple-600">Hiệu suất trung bình</div>
+                        <div className="text-xl font-bold text-purple-700">
+                          {Math.round(dailyTofuSummary.reduce((sum, day) => sum + day.processingEfficiency, 0) / dailyTofuSummary.length)}%
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           )}
 
