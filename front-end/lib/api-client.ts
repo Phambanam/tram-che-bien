@@ -795,6 +795,18 @@ export const processingStationApi = {
       body: JSON.stringify(data),
     })
   },
+
+  // New methods for daily sausage processing
+  getDailySausageData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/sausage/${date}`)
+  },
+
+  updateDailySausageData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/sausage/${date}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  },
 }
 
 // Supply Outputs API
