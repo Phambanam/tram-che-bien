@@ -144,7 +144,6 @@ export function ProcessingStationContent() {
   // Processing update state
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
   const [dayToUpdate, setDayToUpdate] = useState<DailyTofuData | null>(null)
-  const [isUpdating, setIsUpdating] = useState(false)
   const [updateData, setUpdateData] = useState({
     soybeanInput: 0,
     soybeanOutput: 0,
