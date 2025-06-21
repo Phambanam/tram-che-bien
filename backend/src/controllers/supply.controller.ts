@@ -1082,6 +1082,14 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
       .lean()
       .exec()
 
+    // Check if there are any supplies to export
+    if (!supplies || supplies.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không có nguồn nhập nào để xuất Excel"
+      })
+    }
+
     // Group supplies by unit and date
     const groupedSupplies: any = {}
     supplies.forEach((supply: any) => {
@@ -1192,7 +1200,7 @@ export const exportSuppliesExcel = async (req: Request, res: Response) => {
       let totalAmount = 0
       let totalItems = 0
 
-      group.supplies.forEach((supply: any, index: number) => {
+      (group.supplies || []).forEach((supply: any, index: number) => {
         const row = worksheet.getRow(rowIndex)
         row.values = [
           index + 1,
