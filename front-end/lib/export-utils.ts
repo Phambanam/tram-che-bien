@@ -58,7 +58,7 @@ export const exportMenuToExcel = (menuData: MenuExportData) => {
       morningDishes,
       noonDishes,
       eveningDishes,
-      dailyMenu.status === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'
+      'Đã duyệt' // Always approved when created by brigade assistant
     ])
   })
   
@@ -344,7 +344,7 @@ export const printMenu = (menuData: MenuExportData) => {
                   }
                 </td>
                 <td style="text-align: center;">
-                  ${dailyMenu.status === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'}
+                  Đã duyệt
                 </td>
               </tr>
             `

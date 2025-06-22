@@ -144,7 +144,7 @@ export const getMenuById = async (req: Request, res: Response) => {
 
 // @desc    Create new menu
 // @route   POST /api/menus
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const createMenu = async (req: Request, res: Response) => {
   try {
     const { week, year, startDate, endDate } = req.body
@@ -195,7 +195,7 @@ export const createMenu = async (req: Request, res: Response) => {
 
 // @desc    Update menu
 // @route   PATCH /api/menus/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const updateMenu = async (req: Request, res: Response) => {
   try {
     const menuId = req.params.id
@@ -270,7 +270,7 @@ export const updateMenu = async (req: Request, res: Response) => {
 
 // @desc    Delete menu
 // @route   DELETE /api/menus/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const deleteMenu = async (req: Request, res: Response) => {
   try {
     const menuId = req.params.id
@@ -324,7 +324,7 @@ export const deleteMenu = async (req: Request, res: Response) => {
 
 // @desc    Create daily menu
 // @route   POST /api/menus/:id/daily-menus
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const createDailyMenu = async (req: Request, res: Response) => {
   try {
     const menuId = req.params.id
@@ -408,7 +408,7 @@ export const createDailyMenu = async (req: Request, res: Response) => {
 
 // @desc    Update daily menu
 // @route   PATCH /api/menus/daily-menus/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const updateDailyMenu = async (req: Request, res: Response) => {
   try {
     const dailyMenuId = req.params.id
@@ -490,7 +490,7 @@ export const updateDailyMenu = async (req: Request, res: Response) => {
 
 // @desc    Delete daily menu
 // @route   DELETE /api/menus/daily-menus/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const deleteDailyMenu = async (req: Request, res: Response) => {
   try {
     const dailyMenuId = req.params.id
@@ -533,7 +533,7 @@ export const deleteDailyMenu = async (req: Request, res: Response) => {
 
 // @desc    Update meal dishes
 // @route   PATCH /api/menus/meals/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const updateMealDishes = async (req: Request, res: Response) => {
   try {
     const mealId = req.params.id
@@ -608,7 +608,7 @@ export const updateMealDishes = async (req: Request, res: Response) => {
 
 // @desc    Add dish to meal
 // @route   POST /api/menus/meals/:id/dishes
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const addDishToMeal = async (req: Request, res: Response) => {
   try {
     const mealId = req.params.id
@@ -711,7 +711,7 @@ export const addDishToMeal = async (req: Request, res: Response) => {
 
 // @desc    Remove dish from meal
 // @route   DELETE /api/menus/meals/:id/dishes/:dishId
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const removeDishFromMeal = async (req: Request, res: Response) => {
   try {
     const mealId = req.params.id
@@ -765,7 +765,7 @@ export const removeDishFromMeal = async (req: Request, res: Response) => {
 
 // @desc    Copy daily menu
 // @route   POST /api/menus/daily-menus/:id/copy
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const copyDailyMenu = async (req: Request, res: Response) => {
   try {
     const sourceDailyMenuId = req.params.id

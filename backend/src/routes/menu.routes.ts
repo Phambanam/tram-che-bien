@@ -13,31 +13,31 @@ import {
   removeDishFromMeal,
   copyDailyMenu,
 } from "../controllers/menu.controller"
-// import { protect, authorize } from "../middleware/auth.middleware" // Temporarily disabled for development
+import { protect, authorize } from "../middleware/auth.middleware"
 
 const router = express.Router()
 
-// Protected routes (temporarily disabled for development)
-// router.use(protect)
+// Protected routes
+router.use(protect)
 
-// Routes for all authenticated users
+// Routes for all authenticated users (everyone can view menus)
 router.get("/", getAllMenus)
 router.get("/:id", getMenuById)
 
-// Routes for admin only (temporarily public for development)
-router.post("/", createMenu)
-router.patch("/:id", updateMenu)
-router.delete("/:id", deleteMenu)
+// Routes for brigade assistant only (only brigade assistant can create/update/delete menus)
+router.post("/", authorize("brigadeAssistant"), createMenu)
+router.patch("/:id", authorize("brigadeAssistant"), updateMenu)
+router.delete("/:id", authorize("brigadeAssistant"), deleteMenu)
 
-// Daily menu routes
-router.post("/:id/daily-menus", createDailyMenu)
-router.patch("/daily-menus/:id", updateDailyMenu)
-router.delete("/daily-menus/:id", deleteDailyMenu)
-router.post("/daily-menus/:id/copy", copyDailyMenu)
+// Daily menu routes (only brigade assistant can manage)
+router.post("/:id/daily-menus", authorize("brigadeAssistant"), createDailyMenu)
+router.patch("/daily-menus/:id", authorize("brigadeAssistant"), updateDailyMenu)
+router.delete("/daily-menus/:id", authorize("brigadeAssistant"), deleteDailyMenu)
+router.post("/daily-menus/:id/copy", authorize("brigadeAssistant"), copyDailyMenu)
 
-// Meal routes
-router.patch("/meals/:id", updateMealDishes)
-router.post("/meals/:id/dishes", addDishToMeal)
-router.delete("/meals/:id/dishes/:dishId", removeDishFromMeal)
+// Meal routes (only brigade assistant can manage)
+router.patch("/meals/:id", authorize("brigadeAssistant"), updateMealDishes)
+router.post("/meals/:id/dishes", authorize("brigadeAssistant"), addDishToMeal)
+router.delete("/meals/:id/dishes/:dishId", authorize("brigadeAssistant"), removeDishFromMeal)
 
 export default router

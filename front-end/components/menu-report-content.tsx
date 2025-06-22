@@ -62,7 +62,7 @@ interface DailyMenu {
   id: string
   date: string
   mealCount: number
-  status: "pending" | "approved"
+  status?: "pending" | "approved" // Optional - no approval needed
   meals: Meal[]
 }
 
@@ -918,9 +918,7 @@ export function MenuReportContent() {
                             </ul>
                           </TableCell>
                           <TableCell>
-                                <Badge variant={dailyMenu.status === "approved" ? "success" : "outline"}>
-                                  {dailyMenu.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
-                            </Badge>
+                            {/* Status badge removed - no approval needed */}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
@@ -989,9 +987,7 @@ export function MenuReportContent() {
                         Thực đơn ngày {format(parseISO(item.date), "dd/MM/yyyy")} ({item.date})
                       </CardTitle>
                       <div className="flex items-center gap-2">
-                        <Badge variant={item.status === "approved" ? "success" : "outline"}>
-                          {item.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
-                        </Badge>
+                        {/* Status badge removed - no approval needed */}
                         <div className="text-sm font-medium">
                           Số người ăn: <span className="font-bold">{item.mealCount}</span>
                         </div>
