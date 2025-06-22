@@ -587,8 +587,30 @@ export function ProcessingStationContent() {
         return calculateFallbackTofuNeed(date)
       }
       
-      // Find tofu ingredients in the menu
-      let totalTofuNeeded = 0
+      // Get units and their personnel for this date (only once)
+      let totalPersonnel = 0
+      try {
+        const unitsResponse = await unitsApi.getUnits()
+        const unitsData = Array.isArray(unitsResponse) ? unitsResponse : (unitsResponse as any).data || []
+        
+        // Get personnel count for this specific date
+        const startDate = format(date, "yyyy-MM-dd")
+        const endDate = format(date, "yyyy-MM-dd")
+        const personnelResponse = await unitPersonnelDailyApi.getPersonnelByWeek(startDate, endDate)
+        
+        if (personnelResponse.success && personnelResponse.data && personnelResponse.data[dateStr]) {
+          totalPersonnel = Object.values(personnelResponse.data[dateStr]).reduce((sum: number, p: any) => sum + p, 0)
+        } else {
+          // Fallback to default personnel from units
+          totalPersonnel = unitsData.reduce((sum: number, unit: any) => sum + (unit.personnel || 100), 0)
+        }
+      } catch (unitError) {
+        console.log("Error getting units/personnel data:", unitError)
+        totalPersonnel = 400 // Default fallback
+      }
+      
+      // Collect all unique tofu ingredients across all meals for the day
+      const tofuIngredients = new Map<string, number>() // lttpName -> max quantity needed
       
       for (const dailySummary of response.data) {
         for (const ingredient of dailySummary.ingredients) {
@@ -597,35 +619,22 @@ export function ProcessingStationContent() {
               ingredient.lttpName.toLowerCase().includes("đậu phụ") ||
               ingredient.lttpName.toLowerCase().includes("tofu")) {
             
-            // Get units and their personnel for this date
-            try {
-              const unitsResponse = await unitsApi.getUnits()
-              const unitsData = Array.isArray(unitsResponse) ? unitsResponse : (unitsResponse as any).data || []
-              
-              // Get personnel count for this specific date
-              const startDate = format(date, "yyyy-MM-dd")
-              const endDate = format(date, "yyyy-MM-dd")
-              const personnelResponse = await unitPersonnelDailyApi.getPersonnelByWeek(startDate, endDate)
-              
-              let totalPersonnel = 0
-              if (personnelResponse.success && personnelResponse.data && personnelResponse.data[dateStr]) {
-                totalPersonnel = Object.values(personnelResponse.data[dateStr]).reduce((sum: number, p: any) => sum + p, 0)
-              } else {
-                // Fallback to default personnel from units
-                totalPersonnel = unitsData.reduce((sum: number, unit: any) => sum + (unit.personnel || 100), 0)
-              }
-              
-              // Calculate tofu needed: (personnel * quantity per 100 people) / 100
-              const tofuNeeded = (totalPersonnel * ingredient.totalQuantity) / 100
-              totalTofuNeeded += tofuNeeded
-              
-              console.log(`Date ${dateStr}: Found tofu ingredient "${ingredient.lttpName}", ${totalPersonnel} people, need ${tofuNeeded}kg`)
-              
-            } catch (unitError) {
-              console.log("Error getting units/personnel data:", unitError)
-            }
+            const currentQuantity = tofuIngredients.get(ingredient.lttpName) || 0
+            // Take the maximum quantity needed for this ingredient across all meals
+            tofuIngredients.set(ingredient.lttpName, Math.max(currentQuantity, ingredient.totalQuantity))
+            
+            console.log(`Date ${dateStr}: Found tofu ingredient "${ingredient.lttpName}", quantity per 100 people: ${ingredient.totalQuantity}kg`)
           }
         }
+      }
+      
+      // Calculate total tofu needed for the day
+      let totalTofuNeeded = 0
+      for (const [ingredientName, quantityPer100] of tofuIngredients) {
+        const tofuNeeded = (totalPersonnel * quantityPer100) / 100
+        totalTofuNeeded += tofuNeeded
+        
+        console.log(`Date ${dateStr}: Ingredient "${ingredientName}" for ${totalPersonnel} people, need ${tofuNeeded}kg`)
       }
       
       // If no tofu found in menu, use fallback calculation
@@ -634,7 +643,7 @@ export function ProcessingStationContent() {
         return calculateFallbackTofuNeed(date)
       }
       
-      console.log(`Total tofu needed for ${dateStr}: ${totalTofuNeeded}kg`)
+      console.log(`Total tofu needed for ${dateStr}: ${totalTofuNeeded}kg (from ${tofuIngredients.size} unique ingredients)`)
       return totalTofuNeeded
       
     } catch (error) {
