@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarIcon, Package, Utensils, Fish, Beef, Wheat, Droplets } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, productsApi } from "@/lib/api-client"
+import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, productsApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -59,7 +59,7 @@ interface DailyTofuProcessing {
   date: string
   soybeanInput: number // CHI - Đậu tương chi - Số lượng (kg) - Station manager input
   tofuInput: number // THU - Đậu phụ thu - Số lượng (kg) - Station manager input  
-  tofuOutput: number // Đậu phụ xuất - From supply outputs API
+  tofuOutput: number // Đậu phụ dự kiến cần xuất - Calculated from menu planning
   tofuRemaining: number // Đậu phụ tồn - Calculated: tofuInput - tofuOutput
   note?: string
 }
@@ -98,7 +98,7 @@ interface WeeklyTofuTracking {
   dayOfWeek: string
   soybeanInput: number // Đậu tương chi
   tofuInput: number // Đậu phụ thu
-  tofuOutput: number // Đậu phụ xuất
+  tofuOutput: number // Đậu phụ dự kiến cần xuất (từ thực đơn)
   tofuRemaining: number // Đậu phụ tồn
 }
 
@@ -569,6 +569,73 @@ export function ProcessingStationContent() {
     }
   }, [soybeanData, activeSection])
 
+  // Calculate tofu output needed from menu planning (expected requirement)
+  const calculateTofuOutputNeeded = async (date: Date): Promise<number> => {
+    try {
+      const dateStr = format(date, "yyyy-MM-dd")
+      
+      // Get ingredient summaries from menu planning for this specific date
+      const params = {
+        date: dateStr,
+        showAllDays: false // Only for specific date
+      }
+      
+      const response = await menuPlanningApi.getDailyIngredientSummaries(params)
+      
+      if (!response.success || !response.data || response.data.length === 0) {
+        console.log(`No menu data found for ${dateStr}, using 0 tofu requirement`)
+        return 0
+      }
+      
+      // Find tofu ingredients in the menu
+      let totalTofuNeeded = 0
+      
+      for (const dailySummary of response.data) {
+        for (const ingredient of dailySummary.ingredients) {
+          // Check if this ingredient is tofu-related
+          if (ingredient.lttpName.toLowerCase().includes("đậu phụ") ||
+              ingredient.lttpName.toLowerCase().includes("tofu")) {
+            
+            // Get units and their personnel for this date
+            try {
+              const unitsResponse = await unitsApi.getUnits()
+              const unitsData = Array.isArray(unitsResponse) ? unitsResponse : (unitsResponse as any).data || []
+              
+              // Get personnel count for this specific date
+              const startDate = format(date, "yyyy-MM-dd")
+              const endDate = format(date, "yyyy-MM-dd")
+              const personnelResponse = await unitPersonnelDailyApi.getPersonnelByWeek(startDate, endDate)
+              
+              let totalPersonnel = 0
+              if (personnelResponse.success && personnelResponse.data && personnelResponse.data[dateStr]) {
+                totalPersonnel = Object.values(personnelResponse.data[dateStr]).reduce((sum: number, p: any) => sum + p, 0)
+              } else {
+                // Fallback to default personnel from units
+                totalPersonnel = unitsData.reduce((sum: number, unit: any) => sum + (unit.personnel || 100), 0)
+              }
+              
+              // Calculate tofu needed: (personnel * quantity per 100 people) / 100
+              const tofuNeeded = (totalPersonnel * ingredient.totalQuantity) / 100
+              totalTofuNeeded += tofuNeeded
+              
+              console.log(`Date ${dateStr}: Found tofu ingredient "${ingredient.lttpName}", ${totalPersonnel} people, need ${tofuNeeded}kg`)
+              
+            } catch (unitError) {
+              console.log("Error getting units/personnel data:", unitError)
+            }
+          }
+        }
+      }
+      
+      console.log(`Total tofu needed for ${dateStr}: ${totalTofuNeeded}kg`)
+      return totalTofuNeeded
+      
+    } catch (error) {
+      console.error("Error calculating tofu output needed:", error)
+      return 0
+    }
+  }
+
   // Fetch daily tofu processing data
   const fetchDailyTofuProcessing = async (date: Date) => {
     try {
@@ -595,48 +662,17 @@ export function ProcessingStationContent() {
         console.log("No station data found for date, using defaults:", error)
       }
 
-      // Get tofu output data from supply outputs API
-      let tofuOutput = 0
-      try {
-        // First try with date filter
-        let outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-          startDate: dateStr,
-          endDate: dateStr
-        })
-        let outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
-        
-        // If no data found with date filter, try without date filter
-        if (outputs.length === 0) {
-          console.log("No outputs found with date filter, trying without date filter")
-          outputsResponse = await supplyOutputsApi.getSupplyOutputs()
-          outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
-        }
-        
-        // Filter for tofu outputs and the specific date
-        const dateObj = new Date(dateStr)
-        tofuOutput = outputs
-          .filter((output: any) => {
-            const hasTofu = output.product?.name?.toLowerCase().includes("đậu phụ")
-            // Check if output date matches the requested date
-            const outputDate = new Date(output.outputDate)
-            const isSameDate = outputDate.toDateString() === dateObj.toDateString()
-            return hasTofu && (outputs.length === 1 || isSameDate) // If only one output, assume it's for today
-          })
-          .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
-          
-        console.log(`Found ${outputs.length} total outputs, ${tofuOutput}kg tofu output for ${dateStr}`)
-      } catch (error) {
-        console.log("No output data found, using 0:", error)
-      }
+      // Calculate expected tofu output needed from menu planning (thay vì lấy từ supply outputs)
+      const tofuOutputNeeded = await calculateTofuOutputNeeded(date)
 
       // Calculate remaining tofu
-      const tofuRemaining = stationData.tofuInput - tofuOutput
+      const tofuRemaining = stationData.tofuInput - tofuOutputNeeded
 
       const processingData: DailyTofuProcessing = {
         date: dateStr,
         soybeanInput: stationData.soybeanInput,
         tofuInput: stationData.tofuInput,
-        tofuOutput: tofuOutput,
+        tofuOutput: tofuOutputNeeded, // Dự kiến cần xuất (từ thực đơn)
         tofuRemaining: Math.max(0, tofuRemaining),
         note: stationData.note
       }
@@ -694,43 +730,16 @@ export function ProcessingStationContent() {
           // Use default values
         }
 
-        // Get output data
-        let tofuOutput = 0
-        try {
-          // First try with date filter
-          let outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-            startDate: dateStr,
-            endDate: dateStr
-          })
-          let outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
-          
-          // If no data found with date filter, try without date filter
-          if (outputs.length === 0) {
-            outputsResponse = await supplyOutputsApi.getSupplyOutputs()
-            outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
-          }
-          
-          // Filter for tofu outputs and the specific date
-          const dateObj = new Date(dateStr)
-          tofuOutput = outputs
-            .filter((output: any) => {
-              const hasTofu = output.product?.name?.toLowerCase().includes("đậu phụ")
-              const outputDate = new Date(output.outputDate)
-              const isSameDate = outputDate.toDateString() === dateObj.toDateString()
-              return hasTofu && (outputs.length === 1 || isSameDate)
-            })
-            .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
-        } catch (error) {
-          // Use default value
-        }
+        // Calculate expected tofu output needed from menu planning (thay vì từ supply outputs)
+        const tofuOutputNeeded = await calculateTofuOutputNeeded(date)
 
         weeklyData.push({
           date: dateStr,
           dayOfWeek: getDayName(date.getDay()),
           soybeanInput: stationData.soybeanInput,
           tofuInput: stationData.tofuInput,
-          tofuOutput: tofuOutput,
-          tofuRemaining: Math.max(0, stationData.tofuInput - tofuOutput)
+          tofuOutput: tofuOutputNeeded, // Dự kiến cần xuất (từ thực đơn)
+          tofuRemaining: Math.max(0, stationData.tofuInput - tofuOutputNeeded)
         })
       }
 
@@ -1536,7 +1545,7 @@ export function ProcessingStationContent() {
                                 Đậu phụ thu<br/><span className="text-xs font-normal">(kg)</span>
                               </th>
                               <th className="border border-gray-300 p-3 text-center font-bold bg-red-50">
-                                Đậu phụ xuất<br/><span className="text-xs font-normal">(kg)</span>
+                                Dự kiến cần xuất<br/><span className="text-xs font-normal">(kg)</span>
                               </th>
                               <th className="border border-gray-300 p-3 text-center font-bold bg-purple-50">
                                 Đậu phụ tồn<br/><span className="text-xs font-normal">(kg)</span>
@@ -1624,7 +1633,7 @@ export function ProcessingStationContent() {
                           </div>
                         </div>
                         <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                          <div className="text-xs text-red-600">Tổng đậu phụ xuất</div>
+                                                      <div className="text-xs text-red-600">Tổng dự kiến cần xuất</div>
                           <div className="text-lg font-bold text-red-700">
                             {weeklyTracking.reduce((sum, day) => sum + day.tofuOutput, 0).toLocaleString()} kg
                           </div>
