@@ -589,6 +589,7 @@ export function ProcessingStationContent() {
             tofuInput: stationResponse.data.tofuInput || 0,
             note: stationResponse.data.note || ""
           }
+          console.log("Station data:", stationData)
         }
       } catch (error) {
         console.log("No station data found for date, using defaults:", error)
