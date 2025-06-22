@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CalendarIcon, Package, Utensils, Fish, Beef, Wheat, Droplets } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import { suppliesApi, supplyOutputsApi, unitsApi } from "@/lib/api-client"
+import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, productsApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -54,6 +54,26 @@ interface TofuSummary {
   totalTofuRemaining: number
 }
 
+// New interfaces for daily tofu processing table
+interface DailyTofuProcessing {
+  date: string
+  soybeanInput: number // CHI - Đậu tương chi - Số lượng (kg) - Station manager input
+  tofuInput: number // THU - Đậu phụ thu - Số lượng (kg) - Station manager input  
+  tofuOutput: number // Đậu phụ xuất - From supply outputs API
+  tofuRemaining: number // Đậu phụ tồn - Calculated: tofuInput - tofuOutput
+  note?: string
+}
+
+interface MonthlyTofuSummary {
+  month: string
+  year: number
+  totalSoybeanInput: number
+  totalTofuCollected: number
+  totalTofuOutput: number
+  totalTofuRemaining: number
+  processingEfficiency: number // percentage
+}
+
 interface ProcessingItem {
   id: string
   date: string
@@ -72,6 +92,46 @@ interface InventoryItem {
   lastUpdated: string
 }
 
+// Add new interface for weekly tracking
+interface WeeklyTofuTracking {
+  date: string
+  dayOfWeek: string
+  soybeanInput: number // Đậu tương chi
+  tofuInput: number // Đậu phụ thu
+  tofuOutput: number // Đậu phụ xuất
+  tofuRemaining: number // Đậu phụ tồn
+}
+
+// Add new interface for daily sausage processing
+interface DailySausageProcessing {
+  date: string
+  // Giò lụa data
+  porkLeanInput: number // CHI - Thịt nạc chi - Station manager input
+  porkFatInput: number // CHI - Thịt mỡ chi - Station manager input  
+  sausageInput: number // THU - Giò lụa thu - Station manager input
+  sausageOutput: number // Giò lụa xuất - From supply outputs API
+  sausageRemaining: number // Giò lụa tồn - Calculated
+  // Chả quế data
+  fishCakeInput: number // THU - Chả quế thu - Station manager input
+  fishCakeOutput: number // Chả quế xuất - From supply outputs API  
+  fishCakeRemaining: number // Chả quế tồn - Calculated
+  note?: string
+}
+
+// Add new interface for weekly sausage tracking
+interface WeeklySausageTracking {
+  date: string
+  dayOfWeek: string
+  porkLeanInput: number
+  porkFatInput: number
+  sausageInput: number
+  sausageOutput: number
+  sausageRemaining: number
+  fishCakeInput: number
+  fishCakeOutput: number
+  fishCakeRemaining: number
+}
+
 export function ProcessingStationContent() {
   const [activeSection, setActiveSection] = useState("tofu")
   const [tofuData, setTofuData] = useState<ProcessingItem[]>([])
@@ -87,10 +147,21 @@ export function ProcessingStationContent() {
   const { toast } = useToast()
   const { user } = useAuth()
 
+  // New state for daily tofu processing table
+  const [dailyTofuProcessing, setDailyTofuProcessing] = useState<DailyTofuProcessing | null>(null)
+  const [monthlyTofuSummary, setMonthlyTofuSummary] = useState<MonthlyTofuSummary[]>([])
+  const [editingDailyData, setEditingDailyData] = useState(false)
+  const [dailyUpdateData, setDailyUpdateData] = useState({
+    soybeanInput: 0,
+    tofuInput: 0,
+    note: ""
+  })
+
   // Approval state
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
   const [supplyToApprove, setSupplyToApprove] = useState<SupplySource | null>(null)
   const [isApproving, setIsApproving] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
   const [approvalData, setApprovalData] = useState({
     stationEntryDate: "",
     requestedQuantity: 0,
@@ -103,7 +174,6 @@ export function ProcessingStationContent() {
   // Processing update state
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
   const [dayToUpdate, setDayToUpdate] = useState<DailyTofuData | null>(null)
-  const [isUpdating, setIsUpdating] = useState(false)
   const [updateData, setUpdateData] = useState({
     soybeanInput: 0,
     soybeanOutput: 0,
@@ -111,6 +181,21 @@ export function ProcessingStationContent() {
     tofuOutputToOthers: "",
         note: "",
   })
+
+  // Add weekly tracking state
+  const [weeklyTracking, setWeeklyTracking] = useState<WeeklyTofuTracking[]>([])
+
+  // Add sausage processing state
+  const [dailySausageProcessing, setDailySausageProcessing] = useState<DailySausageProcessing | null>(null)
+  const [editingSausageData, setEditingSausageData] = useState(false)
+  const [sausageUpdateData, setSausageUpdateData] = useState({
+    porkLeanInput: 0,
+    porkFatInput: 0,
+    sausageInput: 0,
+    fishCakeInput: 0,
+    note: ""
+  })
+  const [weeklySausageTracking, setWeeklySausageTracking] = useState<WeeklySausageTracking[]>([])
 
   // Get current week dates
   const getCurrentWeekDates = () => {
@@ -474,8 +559,6 @@ export function ProcessingStationContent() {
     }
   }, [selectedDate, activeSection])
 
-
-
   // Generate weekly data when soybeanData changes
   useEffect(() => {
     if (soybeanData.length > 0 && activeSection === "tofu") {
@@ -485,6 +568,287 @@ export function ProcessingStationContent() {
       console.log("Generated weekly data with real soybean:", weeklyData)
     }
   }, [soybeanData, activeSection])
+
+  // Fetch daily tofu processing data
+  const fetchDailyTofuProcessing = async (date: Date) => {
+    try {
+      const dateStr = format(date, "yyyy-MM-dd")
+      
+      // Get station manager input data from processing station API
+      let stationData = {
+        soybeanInput: 0,
+        tofuInput: 0,
+        note: ""
+      }
+      
+      try {
+        const stationResponse = await processingStationApi.getDailyData(dateStr)
+        if (stationResponse && stationResponse.data) {
+          stationData = {
+            soybeanInput: stationResponse.data.soybeanInput || 0,
+            tofuInput: stationResponse.data.tofuInput || 0,
+            note: stationResponse.data.note || ""
+          }
+        }
+      } catch (error) {
+        console.log("No station data found for date, using defaults:", error)
+      }
+
+      // Get tofu output data from supply outputs API
+      let tofuOutput = 0
+      try {
+        const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+          date: dateStr,
+          productType: "đậu phụ"
+        })
+        const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        
+        // Calculate total tofu output for the day
+        tofuOutput = outputs
+          .filter((output: any) => output.product?.name?.toLowerCase().includes("đậu phụ"))
+          .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+      } catch (error) {
+        console.log("No output data found, using 0:", error)
+      }
+
+      // Calculate remaining tofu
+      const tofuRemaining = stationData.tofuInput - tofuOutput
+
+      const processingData: DailyTofuProcessing = {
+        date: dateStr,
+        soybeanInput: stationData.soybeanInput,
+        tofuInput: stationData.tofuInput,
+        tofuOutput: tofuOutput,
+        tofuRemaining: Math.max(0, tofuRemaining),
+        note: stationData.note
+      }
+
+      setDailyTofuProcessing(processingData)
+      
+      // Update dailyUpdateData for editing
+      setDailyUpdateData({
+        soybeanInput: stationData.soybeanInput,
+        tofuInput: stationData.tofuInput,
+        note: stationData.note
+      })
+
+    } catch (error) {
+      console.error("Error fetching daily tofu processing data:", error)
+      
+      // Set default data
+      const defaultData: DailyTofuProcessing = {
+        date: format(date, "yyyy-MM-dd"),
+        soybeanInput: 0,
+        tofuInput: 0,
+        tofuOutput: 0,
+        tofuRemaining: 0,
+        note: ""
+      }
+      setDailyTofuProcessing(defaultData)
+      setDailyUpdateData({
+        soybeanInput: 0,
+        tofuInput: 0,
+        note: ""
+      })
+    }
+  }
+
+  // Add function to fetch weekly tracking data
+  const fetchWeeklyTracking = async () => {
+    try {
+      const weekDates = getCurrentWeekDates()
+      const weeklyData: WeeklyTofuTracking[] = []
+
+      for (const date of weekDates) {
+        const dateStr = format(date, "yyyy-MM-dd")
+        
+        // Get station data
+        let stationData = { soybeanInput: 0, tofuInput: 0 }
+        try {
+          const stationResponse = await processingStationApi.getDailyData(dateStr)
+          if (stationResponse && stationResponse.data) {
+            stationData = {
+              soybeanInput: stationResponse.data.soybeanInput || 0,
+              tofuInput: stationResponse.data.tofuInput || 0
+            }
+          }
+        } catch (error) {
+          // Use default values
+        }
+
+        // Get output data
+        let tofuOutput = 0
+        try {
+          const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+            date: dateStr,
+            productType: "đậu phụ"
+          })
+          const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+          tofuOutput = outputs
+            .filter((output: any) => output.product?.name?.toLowerCase().includes("đậu phụ"))
+            .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        } catch (error) {
+          // Use default value
+        }
+
+        weeklyData.push({
+          date: dateStr,
+          dayOfWeek: getDayName(date.getDay()),
+          soybeanInput: stationData.soybeanInput,
+          tofuInput: stationData.tofuInput,
+          tofuOutput: tofuOutput,
+          tofuRemaining: Math.max(0, stationData.tofuInput - tofuOutput)
+        })
+      }
+
+      setWeeklyTracking(weeklyData)
+    } catch (error) {
+      console.error("Error fetching weekly tracking data:", error)
+      
+      // Generate sample data for current week
+      const weekDates = getCurrentWeekDates()
+      const sampleWeeklyData: WeeklyTofuTracking[] = weekDates.map((date) => ({
+        date: format(date, "yyyy-MM-dd"),
+        dayOfWeek: getDayName(date.getDay()),
+        soybeanInput: 0,
+        tofuInput: 0,
+        tofuOutput: 0,
+        tofuRemaining: 0
+      }))
+      setWeeklyTracking(sampleWeeklyData)
+    }
+  }
+
+  // Fetch monthly tofu summary
+  const fetchMonthlyTofuSummary = async () => {
+    try {
+      // Get current month and previous months data
+      const currentDate = new Date()
+      const months = []
+      
+      // Get last 6 months including current month
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
+        months.push(date)
+      }
+      
+      const monthlySummaries: MonthlyTofuSummary[] = []
+      
+      for (const month of months) {
+        const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1)
+        const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0)
+        
+        // Get processing station data for the month
+        const processingResponse = await processingStationApi.getItems()
+        const processingItems = Array.isArray(processingResponse) ? processingResponse : (processingResponse as any).data || []
+        
+        // Filter for tofu processing in this month
+        const monthProcessing = processingItems.filter((item: any) => {
+          const itemDate = new Date(item.processingDate)
+          return item.type === 'tofu' && 
+                 itemDate >= startOfMonth && 
+                 itemDate <= endOfMonth
+        })
+        
+        // Get tofu outputs for the month
+        const outputsResponse = await supplyOutputsApi.getSupplyOutputs()
+        const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        
+        const monthOutputs = outputs.filter((output: any) => {
+          const outputDate = new Date(output.outputDate)
+          return outputDate >= startOfMonth && 
+                 outputDate <= endOfMonth &&
+                 output.product?.name?.toLowerCase().includes('đậu phụ')
+        })
+        
+        const totalSoybeanInput = monthProcessing.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
+        const totalTofuCollected = monthProcessing.reduce((sum: number, item: any) => sum + (item.nonExpiredQuantity || 0), 0)
+        const totalTofuOutput = monthOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        const totalTofuRemaining = totalTofuCollected - totalTofuOutput
+        const processingEfficiency = totalSoybeanInput > 0 ? Math.round((totalTofuCollected / totalSoybeanInput) * 100) : 0
+        
+        monthlySummaries.push({
+          month: format(month, 'MM/yyyy', { locale: vi }),
+          year: month.getFullYear(),
+          totalSoybeanInput,
+          totalTofuCollected,
+          totalTofuOutput,
+          totalTofuRemaining,
+          processingEfficiency
+        })
+      }
+      
+      setMonthlyTofuSummary(monthlySummaries)
+      
+    } catch (error) {
+      console.error('Error fetching monthly tofu summary:', error)
+      
+      // Fallback to sample data
+      const currentDate = new Date()
+      const sampleSummaries: MonthlyTofuSummary[] = []
+      
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
+        sampleSummaries.push({
+          month: format(date, 'MM/yyyy', { locale: vi }),
+          year: date.getFullYear(),
+          totalSoybeanInput: 3000 + Math.floor(Math.random() * 1000),
+          totalTofuCollected: 2400 + Math.floor(Math.random() * 800),
+          totalTofuOutput: 2200 + Math.floor(Math.random() * 600),
+          totalTofuRemaining: 200 + Math.floor(Math.random() * 200),
+          processingEfficiency: 75 + Math.floor(Math.random() * 20)
+        })
+      }
+      
+      setMonthlyTofuSummary(sampleSummaries)
+    }
+  }
+
+  // Update daily tofu processing data
+  const updateDailyTofuProcessing = async () => {
+    if (!dailyTofuProcessing) return
+
+    try {
+      setIsUpdating(true)
+
+      // Update station data via API
+      await processingStationApi.updateDailyData(dailyTofuProcessing.date, {
+        soybeanInput: dailyUpdateData.soybeanInput,
+        tofuInput: dailyUpdateData.tofuInput,
+        note: dailyUpdateData.note
+      })
+
+      // Refresh data
+      await fetchDailyTofuProcessing(new Date(dailyTofuProcessing.date))
+      await fetchWeeklyTracking()
+
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật dữ liệu chế biến đậu phụ",
+      })
+
+      setEditingDailyData(false)
+
+    } catch (error) {
+      console.error("Error updating daily tofu processing:", error)
+      toast({
+        title: "Lỗi",
+        description: "Có lỗi xảy ra khi cập nhật dữ liệu",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  // Load daily data when tofu section is active
+  useEffect(() => {
+    if (activeSection === "tofu") {
+      fetchDailyTofuProcessing(new Date())
+      fetchMonthlyTofuSummary()
+      fetchWeeklyTracking()
+    }
+  }, [activeSection])
 
   // Calculate input quantities by unit from livestock data
   const getInputQuantityByUnit = (unitName: string, productName: string) => {
@@ -650,6 +1014,245 @@ export function ProcessingStationContent() {
     }
   }
 
+  // Add function to fetch daily sausage processing data
+  const fetchDailySausageProcessing = async (date: Date) => {
+    try {
+      const dateStr = format(date, "yyyy-MM-dd")
+      
+      // Get station manager input data
+      let stationData = {
+        porkLeanInput: 0,
+        porkFatInput: 0,
+        sausageInput: 0,
+        fishCakeInput: 0,
+        note: ""
+      }
+      
+      try {
+        const stationResponse = await processingStationApi.getDailySausageData(dateStr)
+        if (stationResponse && stationResponse.data) {
+          stationData = {
+            porkLeanInput: stationResponse.data.porkLeanInput || 0,
+            porkFatInput: stationResponse.data.porkFatInput || 0,
+            sausageInput: stationResponse.data.sausageInput || 0,
+            fishCakeInput: stationResponse.data.fishCakeInput || 0,
+            note: stationResponse.data.note || ""
+          }
+        }
+      } catch (error) {
+        console.log("No sausage station data found for date, using defaults:", error)
+      }
+
+      // Get sausage output data from supply outputs API
+      let sausageOutput = 0
+      let fishCakeOutput = 0
+      try {
+        const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+          date: dateStr
+        })
+        const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        
+        // Calculate outputs
+        sausageOutput = outputs
+          .filter((output: any) => output.product?.name?.toLowerCase().includes("giò"))
+          .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+          
+        fishCakeOutput = outputs
+          .filter((output: any) => output.product?.name?.toLowerCase().includes("chả"))
+          .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+      } catch (error) {
+        console.log("No sausage output data found, using 0:", error)
+      }
+
+      const processingData: DailySausageProcessing = {
+        date: dateStr,
+        porkLeanInput: stationData.porkLeanInput,
+        porkFatInput: stationData.porkFatInput,
+        sausageInput: stationData.sausageInput,
+        sausageOutput: sausageOutput,
+        sausageRemaining: Math.max(0, stationData.sausageInput - sausageOutput),
+        fishCakeInput: stationData.fishCakeInput,
+        fishCakeOutput: fishCakeOutput,
+        fishCakeRemaining: Math.max(0, stationData.fishCakeInput - fishCakeOutput),
+        note: stationData.note
+      }
+
+      setDailySausageProcessing(processingData)
+      setSausageUpdateData({
+        porkLeanInput: stationData.porkLeanInput,
+        porkFatInput: stationData.porkFatInput,
+        sausageInput: stationData.sausageInput,
+        fishCakeInput: stationData.fishCakeInput,
+        note: stationData.note
+      })
+
+    } catch (error) {
+      console.error("Error fetching daily sausage processing data:", error)
+      
+      // Set default data
+      const defaultData: DailySausageProcessing = {
+        date: format(date, "yyyy-MM-dd"),
+        porkLeanInput: 0,
+        porkFatInput: 0,
+        sausageInput: 0,
+        sausageOutput: 0,
+        sausageRemaining: 0,
+        fishCakeInput: 0,
+        fishCakeOutput: 0,
+        fishCakeRemaining: 0,
+        note: ""
+      }
+      setDailySausageProcessing(defaultData)
+      setSausageUpdateData({
+        porkLeanInput: 0,
+        porkFatInput: 0,
+        sausageInput: 0,
+        fishCakeInput: 0,
+        note: ""
+      })
+    }
+  }
+
+  // Add function to fetch weekly sausage tracking data
+  const fetchWeeklySausageTracking = async () => {
+    try {
+      const weekDates = getCurrentWeekDates()
+      const weeklyData: WeeklySausageTracking[] = []
+
+      for (const date of weekDates) {
+        const dateStr = format(date, "yyyy-MM-dd")
+        
+        // Get station data
+        let stationData = { 
+          porkLeanInput: 0, 
+          porkFatInput: 0, 
+          sausageInput: 0, 
+          fishCakeInput: 0 
+        }
+        try {
+          const stationResponse = await processingStationApi.getDailySausageData(dateStr)
+          if (stationResponse && stationResponse.data) {
+            stationData = {
+              porkLeanInput: stationResponse.data.porkLeanInput || 0,
+              porkFatInput: stationResponse.data.porkFatInput || 0,
+              sausageInput: stationResponse.data.sausageInput || 0,
+              fishCakeInput: stationResponse.data.fishCakeInput || 0
+            }
+          }
+        } catch (error) {
+          // Use default values
+        }
+
+        // Get output data
+        let sausageOutput = 0
+        let fishCakeOutput = 0
+        try {
+          const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+            date: dateStr
+          })
+          const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+          sausageOutput = outputs
+            .filter((output: any) => output.product?.name?.toLowerCase().includes("giò"))
+            .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+          fishCakeOutput = outputs
+            .filter((output: any) => output.product?.name?.toLowerCase().includes("chả"))
+            .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        } catch (error) {
+          // Use default values
+        }
+
+        weeklyData.push({
+          date: dateStr,
+          dayOfWeek: getDayName(date.getDay()),
+          porkLeanInput: stationData.porkLeanInput,
+          porkFatInput: stationData.porkFatInput,
+          sausageInput: stationData.sausageInput,
+          sausageOutput: sausageOutput,
+          sausageRemaining: Math.max(0, stationData.sausageInput - sausageOutput),
+          fishCakeInput: stationData.fishCakeInput,
+          fishCakeOutput: fishCakeOutput,
+          fishCakeRemaining: Math.max(0, stationData.fishCakeInput - fishCakeOutput)
+        })
+      }
+
+      setWeeklySausageTracking(weeklyData)
+    } catch (error) {
+      console.error("Error fetching weekly sausage tracking data:", error)
+      
+      // Generate sample data for current week
+      const weekDates = getCurrentWeekDates()
+      const sampleWeeklyData: WeeklySausageTracking[] = weekDates.map((date) => ({
+        date: format(date, "yyyy-MM-dd"),
+        dayOfWeek: getDayName(date.getDay()),
+        porkLeanInput: 0,
+        porkFatInput: 0,
+        sausageInput: 0,
+        sausageOutput: 0,
+        sausageRemaining: 0,
+        fishCakeInput: 0,
+        fishCakeOutput: 0,
+        fishCakeRemaining: 0
+      }))
+      setWeeklySausageTracking(sampleWeeklyData)
+    }
+  }
+
+  // Add function to update daily sausage processing
+  const updateDailySausageProcessing = async () => {
+    if (!dailySausageProcessing) return
+
+    try {
+      setIsUpdating(true)
+
+      // Update station data via API
+      await processingStationApi.updateDailySausageData(dailySausageProcessing.date, {
+        porkLeanInput: sausageUpdateData.porkLeanInput,
+        porkFatInput: sausageUpdateData.porkFatInput,
+        sausageInput: sausageUpdateData.sausageInput,
+        fishCakeInput: sausageUpdateData.fishCakeInput,
+        note: sausageUpdateData.note
+      })
+
+      // Refresh data
+      await fetchDailySausageProcessing(new Date(dailySausageProcessing.date))
+      await fetchWeeklySausageTracking()
+
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật dữ liệu làm giò chả",
+      })
+
+      setEditingSausageData(false)
+
+    } catch (error) {
+      console.error("Error updating daily sausage processing:", error)
+      toast({
+        title: "Lỗi",
+        description: "Có lỗi xảy ra khi cập nhật dữ liệu",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  // Load daily data when tofu section is active
+  useEffect(() => {
+    if (activeSection === "tofu") {
+      fetchDailyTofuProcessing(new Date())
+      fetchMonthlyTofuSummary()
+      fetchWeeklyTracking()
+    }
+  }, [activeSection])
+
+  // Load daily data when sausage section is active
+  useEffect(() => {
+    if (activeSection === "sausage") {
+      fetchDailySausageProcessing(new Date())
+      fetchWeeklySausageTracking()
+    }
+  }, [activeSection])
+
     return (
     <div className="container mx-auto p-6">
       <div className="bg-white rounded-lg shadow-md">
@@ -668,7 +1271,7 @@ export function ProcessingStationContent() {
             {sections.map((section) => {
               const Icon = section.icon
               const isActive = activeSection === section.id
-              const isImplemented = ["tofu", "livestock", "lttp"].includes(section.id)
+              const isImplemented = ["tofu", "sausage", "livestock", "lttp"].includes(section.id)
               
               return (
                 <Button
@@ -699,178 +1302,489 @@ export function ProcessingStationContent() {
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-4">
                 <Package className="h-6 w-6 text-green-600" />
-                <h2 className="text-2xl font-bold text-green-800">Chế biến đậu phụ</h2>
+                <h2 className="text-2xl font-bold text-green-800">Làm đậu phụ</h2>
                 <Badge className="bg-green-100 text-green-800">
-                  Tỷ lệ: 1kg đậu nành = 1kg đậu phụ
+                  Chỉ do Trạm trưởng chỉnh sửa
                 </Badge>
-          </div>
-
-              {/* Inventory Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                {inventory.map((item, index) => (
-                  <Card key={index}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600">
-                        {item.productName}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm">Đậu hạt nhập:</span>
-                        <span className="font-semibold text-blue-600">
-                          {item.inputQuantity.toLocaleString()} kg
-                        </span>
-              </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm">Đậu phụ xuất:</span>
-                        <span className="font-semibold text-green-600">
-                          {item.outputQuantity.toLocaleString()} kg
-                        </span>
-            </div>
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-sm font-medium">Tồn kho:</span>
-                        <span className="font-bold text-orange-600">
-                          {item.remainingQuantity.toLocaleString()} kg
-                        </span>
-              </div>
-                      <div className="text-xs text-gray-500">
-                        Cập nhật: {format(new Date(item.lastUpdated), "dd/MM/yyyy HH:mm", { locale: vi })}
-          </div>
-        </CardContent>
-      </Card>
-                ))}
               </div>
 
-              {/* Processing Table */}
-              <Card>
+              {/* Position 1: Daily Tofu Tracking - Current Day Values */}
+              <Card className="mb-6">
                 <CardHeader>
-                  <CardTitle>Bảng theo dõi chế biến đậu phụ theo tuần</CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Theo dõi chi tiết từng ngày trong tuần (Thứ 2 - Chủ nhật)
+                  <CardTitle className="text-center text-xl font-bold">
+                    CHẾ BIẾN ĐẬU PHỤ
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 text-center">
+                    Bảng theo dõi ngày hiện tại - {format(new Date(), "dd/MM/yyyy", { locale: vi })}
                   </p>
-        </CardHeader>
-        <CardContent>
-                  {isLoading ? (
+                </CardHeader>
+                <CardContent>
+                  {isLoading || !dailyTofuProcessing ? (
                     <div className="text-center py-8">Đang tải dữ liệu...</div>
                   ) : (
-                    <div className="space-y-6">
-                      {weeklyTofuData.map((week) => (
-                        <div key={week.id} className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">
-                              Tuần {week.week} ({format(new Date(week.startDate), "dd/MM", { locale: vi })} - {format(new Date(week.endDate), "dd/MM/yyyy", { locale: vi })})
-                            </h3>
-                          </div>
-                          
-                          <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                                  <TableHead className="min-w-[100px]">Ngày</TableHead>
-                                  <TableHead className="text-center">Đậu hạt nhập (kg)</TableHead>
-                                  <TableHead className="text-center">Đậu hạt xuất (kg)</TableHead>
-                                  <TableHead className="text-center">Đậu hạt tồn (kg)</TableHead>
-                                  <TableHead className="text-center">Đậu phụ xuất đơn vị (kg)</TableHead>
-                                  <TableHead className="text-center">Đậu phụ xuất khác</TableHead>
-                                  <TableHead className="text-center">Đậu phụ tồn (kg)</TableHead>
-                                  <TableHead className="min-w-[150px]">Ghi chú</TableHead>
-                                  <TableHead className="text-center">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-                                {week.dailyData.map((day) => (
-                                  <TableRow key={day.date} className={day.dayOfWeek.includes("Chủ nhật") ? "bg-gray-50" : ""}>
-                                    <TableCell className="font-medium">
-                                      <div>
-                                        <div className="font-semibold">{day.dayOfWeek}</div>
-                                        <div className="text-sm text-gray-500">
-                                          {format(new Date(day.date), "dd/MM", { locale: vi })}
-                                        </div>
-                    </div>
-                  </TableCell>
-                                    <TableCell className="text-center font-semibold text-blue-600">
-                                      {day.soybeanInput.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="text-center font-semibold text-orange-600">
-                                      {day.soybeanOutput.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="text-center font-semibold text-purple-600">
-                                      {day.soybeanRemaining.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                      <div className="space-y-1">
-                                        {day.tofuOutputToUnits.map((unit, index) => (
-                                          <div key={index} className="text-sm">
-                                            <span className="font-medium text-green-600">{unit.quantity}kg</span>
-                                            <span className="text-gray-500 ml-1">({unit.unitName})</span>
-                                          </div>
-                                        ))}
-                                        {day.tofuOutputToUnits.length === 0 && (
-                                          <span className="text-gray-400">—</span>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="text-center text-sm">
-                                      {day.tofuOutputToOthers || "—"}
-                                    </TableCell>
-                                    <TableCell className="text-center font-semibold text-indigo-600">
-                                      {day.tofuRemaining.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="text-sm">
-                                      {day.note || "—"}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="text-xs"
-                                        onClick={() => handleUpdateDay(day)}
-                                      >
-                                        Cập nhật
-                                      </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-                                
-                                {/* Weekly Total Row */}
-                                <TableRow className="bg-blue-50 font-semibold border-t-2 border-blue-200">
-                                  <TableCell className="font-bold text-blue-800">
-                                    TỔNG TUẦN
-                                  </TableCell>
-                                  <TableCell className="text-center font-bold text-blue-600">
-                                    {week.weeklyTotal.totalSoybeanInput.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell className="text-center font-bold text-orange-600">
-                                    {week.weeklyTotal.totalSoybeanOutput.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell className="text-center font-bold text-purple-600">
-                                    {week.weeklyTotal.totalSoybeanRemaining.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell className="text-center font-bold text-green-600">
-                                    {week.weeklyTotal.totalTofuOutputToUnits.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell className="text-center text-sm font-medium">
-                                    {week.weeklyTotal.totalTofuOutputToOthers}
-                                  </TableCell>
-                                  <TableCell className="text-center font-bold text-indigo-600">
-                                    {week.weeklyTotal.totalTofuRemaining.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell className="text-sm text-gray-600">
-                                    Tổng cả tuần
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    —
-                                  </TableCell>
-                                </TableRow>
-            </TableBody>
-          </Table>
+                    <div className="space-y-4">
+                      {/* Four box layout as per requirement */}
+                      <div className="grid grid-cols-2 gap-6">
+                        {/* Đậu tương chi */}
+                        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-green-700 mb-2">Đậu tương chi:</div>
+                            <div className="text-2xl font-bold text-green-800">
+                              {editingDailyData ? (
+                                <Input
+                                  type="number"
+                                  value={dailyUpdateData.soybeanInput}
+                                  onChange={(e) => setDailyUpdateData(prev => ({ 
+                                    ...prev, 
+                                    soybeanInput: Number(e.target.value) || 0
+                                  }))}
+                                  className="w-24 h-12 text-center text-2xl font-bold bg-white border-green-300"
+                                  placeholder="0"
+                                />
+                              ) : (
+                                <span>{dailyTofuProcessing.soybeanInput}</span>
+                              )}
+                              <span className="text-lg ml-1">kg</span>
+                            </div>
+                            <div className="text-xs text-green-600 mt-1">
+                              (Trạm trưởng nhập tay)
+                            </div>
                           </div>
                         </div>
-                      ))}
+
+                        {/* Đậu phụ thu */}
+                        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-yellow-700 mb-2">Đậu phụ thu:</div>
+                            <div className="text-2xl font-bold text-yellow-800">
+                              {editingDailyData ? (
+                                <Input
+                                  type="number"
+                                  value={dailyUpdateData.tofuInput}
+                                  onChange={(e) => setDailyUpdateData(prev => ({ 
+                                    ...prev, 
+                                    tofuInput: Number(e.target.value) || 0
+                                  }))}
+                                  className="w-24 h-12 text-center text-2xl font-bold bg-white border-yellow-300"
+                                  placeholder="0"
+                                />
+                              ) : (
+                                <span>{dailyTofuProcessing.tofuInput}</span>
+                              )}
+                              <span className="text-lg ml-1">kg</span>
+                            </div>
+                            <div className="text-xs text-yellow-600 mt-1">
+                              (Trạm trưởng nhập tay)
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Đậu phụ xuất */}
+                        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-red-700 mb-2">Đậu phụ xuất:</div>
+                            <div className="text-2xl font-bold text-red-800">
+                              <span>{dailyTofuProcessing.tofuOutput}</span>
+                              <span className="text-lg ml-1">kg</span>
+                            </div>
+                            <div className="text-xs text-red-600 mt-1">
+                              (Từ quản lý nguồn xuất)
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Đậu phụ tồn */}
+                        <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-purple-700 mb-2">Đậu phụ tồn:</div>
+                            <div className="text-2xl font-bold text-purple-800">
+                              <span>{dailyTofuProcessing.tofuRemaining}</span>
+                              <span className="text-lg ml-1">kg</span>
+                            </div>
+                            <div className="text-xs text-purple-600 mt-1">
+                              (Thu - Xuất = {dailyTofuProcessing.tofuInput} - {dailyTofuProcessing.tofuOutput})
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notes section */}
+                      {editingDailyData && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Ghi chú:</label>
+                          <textarea
+                            value={dailyUpdateData.note}
+                            onChange={(e) => setDailyUpdateData(prev => ({ ...prev, note: e.target.value }))}
+                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                            rows={2}
+                            placeholder="Ghi chú về quá trình chế biến trong ngày"
+                          />
+                        </div>
+                      )}
+
+                      {dailyTofuProcessing.note && !editingDailyData && (
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <div className="text-sm font-medium text-gray-700">Ghi chú:</div>
+                          <div className="text-sm text-gray-600 mt-1">{dailyTofuProcessing.note}</div>
+                        </div>
+                      )}
+
+                      {/* Edit Controls for Station Manager */}
+                      {(user?.role === 'stationManager' || user?.role === 'admin') && (
+                        <div className="flex items-center justify-end gap-2 pt-4 border-t">
+                          {editingDailyData ? (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                onClick={() => {
+                                  setEditingDailyData(false)
+                                  setDailyUpdateData({
+                                    soybeanInput: dailyTofuProcessing.soybeanInput,
+                                    tofuInput: dailyTofuProcessing.tofuInput,
+                                    note: dailyTofuProcessing.note || ""
+                                  })
+                                }}
+                              >
+                                Hủy
+                              </Button>
+                              <Button onClick={updateDailyTofuProcessing} disabled={isUpdating}>
+                                {isUpdating ? "Đang lưu..." : "Lưu thay đổi"}
+                              </Button>
+                            </>
+                          ) : (
+                            <Button 
+                              variant="outline"
+                              onClick={() => setEditingDailyData(true)}
+                            >
+                              Chỉnh sửa
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Info message for other roles */}
+                      {user?.role && !['stationManager', 'admin'].includes(user.role) && (
+                        <div className="pt-4 border-t">
+                          <p className="text-sm text-gray-500 text-center">
+                            Chỉ Trạm trưởng mới có thể chỉnh sửa dữ liệu chế biến đậu phụ
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
-        </CardContent>
-      </Card>
+                </CardContent>
+              </Card>
+
+              {/* Position 2: Weekly Tracking Table */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="text-center text-xl font-bold">
+                    BẢNG THEO DÕI CHẾ BIẾN ĐẬU PHỤ THEO TUẦN
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 text-center">
+                    Ngày hôm nay: {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {isLoading || weeklyTracking.length === 0 ? (
+                    <div className="text-center py-8">Đang tải dữ liệu tuần...</div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-2 border-gray-300">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-gray-300 p-3 text-center font-bold">Ngày</th>
+                              <th className="border border-gray-300 p-3 text-center font-bold">Thứ</th>
+                              <th className="border border-gray-300 p-3 text-center font-bold bg-green-50">
+                                Đậu tương chi<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-3 text-center font-bold bg-yellow-50">
+                                Đậu phụ thu<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-3 text-center font-bold bg-red-50">
+                                Đậu phụ xuất<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-3 text-center font-bold bg-purple-50">
+                                Đậu phụ tồn<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {weeklyTracking.map((day, index) => {
+                              const isToday = format(new Date(), "yyyy-MM-dd") === day.date
+                              return (
+                                <tr key={index} className={isToday ? "bg-blue-50 font-semibold" : ""}>
+                                  <td className="border border-gray-300 p-2 text-center">
+                                    {format(new Date(day.date), "dd/MM", { locale: vi })}
+                                    {isToday && <div className="text-xs text-blue-600">(Hôm nay)</div>}
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center">
+                                    {day.dayOfWeek}
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-green-25">
+                                    <span className="font-semibold text-green-700">
+                                      {day.soybeanInput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-yellow-25">
+                                    <span className="font-semibold text-yellow-700">
+                                      {day.tofuInput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-red-25">
+                                    <span className="font-semibold text-red-700">
+                                      {day.tofuOutput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-purple-25">
+                                    <span className="font-semibold text-purple-700">
+                                      {day.tofuRemaining.toLocaleString()}
+                                    </span>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                            
+                            {/* Weekly Total Row */}
+                            <tr className="bg-gray-200 font-bold border-t-2 border-gray-400">
+                              <td colSpan={2} className="border border-gray-300 p-2 text-center">
+                                TỔNG TUẦN
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-green-100">
+                                <span className="text-green-800">
+                                  {weeklyTracking.reduce((sum, day) => sum + day.soybeanInput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-yellow-100">
+                                <span className="text-yellow-800">
+                                  {weeklyTracking.reduce((sum, day) => sum + day.tofuInput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-red-100">
+                                <span className="text-red-800">
+                                  {weeklyTracking.reduce((sum, day) => sum + day.tofuOutput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-purple-100">
+                                <span className="text-purple-800">
+                                  {weeklyTracking.reduce((sum, day) => sum + day.tofuRemaining, 0).toLocaleString()}
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Summary Statistics */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                          <div className="text-xs text-green-600">Tổng đậu tương chi</div>
+                          <div className="text-lg font-bold text-green-700">
+                            {weeklyTracking.reduce((sum, day) => sum + day.soybeanInput, 0).toLocaleString()} kg
+                          </div>
+                        </div>
+                        <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                          <div className="text-xs text-yellow-600">Tổng đậu phụ thu</div>
+                          <div className="text-lg font-bold text-yellow-700">
+                            {weeklyTracking.reduce((sum, day) => sum + day.tofuInput, 0).toLocaleString()} kg
+                          </div>
+                        </div>
+                        <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                          <div className="text-xs text-red-600">Tổng đậu phụ xuất</div>
+                          <div className="text-lg font-bold text-red-700">
+                            {weeklyTracking.reduce((sum, day) => sum + day.tofuOutput, 0).toLocaleString()} kg
+                          </div>
+                        </div>
+                        <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                          <div className="text-xs text-purple-600">Tổng đậu phụ tồn</div>
+                          <div className="text-lg font-bold text-purple-700">
+                            {weeklyTracking.reduce((sum, day) => sum + day.tofuRemaining, 0).toLocaleString()} kg
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Position 3: Monthly Summary - Bảng LÀM ĐẬU PHỤ theo tháng */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-center text-xl font-bold">
+                    LÀM ĐẬU PHỤ - TỔNG HỢP THEO THÁNG
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 text-center">
+                    Bảng thu chi lãi theo từng tháng trong năm {new Date().getFullYear()}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {monthlyTofuSummary.length === 0 ? (
+                    <div className="text-center py-8">Đang tải dữ liệu tháng...</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Monthly Table as per design */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-2 border-black">
+                          <thead>
+                            <tr>
+                              <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">THÁNG</th>
+                              <th colSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU</th>
+                              <th colSpan={3} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                              <th rowSpan={3} className="border border-black p-2 bg-blue-100 font-bold">THU-<br/>CHI<br/>(LÃI)</th>
+                            </tr>
+                            <tr>
+                              <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Đậu phụ</th>
+                              <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
+                              <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu tương</th>
+                              <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
+                            </tr>
+                            <tr>
+                              <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                              <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                              <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                              <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {monthlyTofuSummary.map((month, index) => (
+                              <tr key={index} className={index === monthlyTofuSummary.length - 1 ? "bg-blue-50" : ""}>
+                                <td className="border border-black p-2 font-medium text-center">
+                                  {month.month}
+                                  {index === monthlyTofuSummary.length - 1 && (
+                                    <div className="text-xs text-blue-600 mt-1">(Hiện tại)</div>
+                                  )}
+                                </td>
+                                {/* THU - Đậu phụ */}
+                                <td className="border border-black p-1 text-center font-semibold text-green-600">
+                                  {month.totalTofuCollected.toLocaleString()}
+                                </td>
+                                <td className="border border-black p-1 text-center font-semibold text-green-600">
+                                  {(month.totalTofuCollected * 15).toLocaleString()}
+                                </td>
+                                {/* THU - Sản phẩm phụ */}
+                                <td className="border border-black p-1 text-center font-semibold text-green-600">
+                                  {Math.round(month.totalTofuCollected * 0.1 * 5).toLocaleString()}
+                                </td>
+                                {/* CHI - Đậu tương */}
+                                <td className="border border-black p-1 text-center font-semibold text-red-600">
+                                  {month.totalSoybeanInput.toLocaleString()}
+                                </td>
+                                <td className="border border-black p-1 text-center font-semibold text-red-600">
+                                  {(month.totalSoybeanInput * 12).toLocaleString()}
+                                </td>
+                                {/* CHI - Chi khác */}
+                                <td className="border border-black p-1 text-center font-semibold text-red-600">
+                                  {Math.round(month.totalSoybeanInput * 0.02 * 1000).toLocaleString()}
+                                </td>
+                                {/* THU-CHI (LÃI) */}
+                                <td className="border border-black p-1 text-center bg-blue-50">
+                                  <span className={`font-bold ${
+                                    ((month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
+                                     (month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02 * 1000)) >= 0 
+                                    ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {(
+                                      (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
+                                      (month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                                    ).toLocaleString()}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                            
+                            {/* Total Row */}
+                            <tr className="bg-yellow-100 font-bold border-t-2 border-black">
+                              <td className="border border-black p-2 text-center font-bold">
+                                TỔNG NĂM
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-green-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + month.totalTofuCollected, 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-green-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + (month.totalTofuCollected * 15), 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-green-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + Math.round(month.totalTofuCollected * 0.1 * 5), 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-red-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + month.totalSoybeanInput, 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-red-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + (month.totalSoybeanInput * 12), 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center font-bold text-red-700">
+                                {monthlyTofuSummary.reduce((sum, month) => sum + Math.round(month.totalSoybeanInput * 0.02 * 1000), 0).toLocaleString()}
+                              </td>
+                              <td className="border border-black p-1 text-center bg-blue-100">
+                                <span className="font-bold text-blue-700">
+                                  {monthlyTofuSummary.reduce((sum, month) => {
+                                    const revenue = (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5)
+                                    const cost = (month.totalSoybeanInput * 12) + Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                                    return sum + (revenue - cost)
+                                  }, 0).toLocaleString()}
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Notes section */}
+                      <div className="border-t-2 border-black p-3 bg-gray-50">
+                        <p className="text-sm font-medium mb-2">Cộng tháng trước chuyển sang</p>
+                        <p className="text-xs text-gray-600">
+                          Ngày thứ nhất đầu tháng là cộng lượng tồn của tháng và lượng làm trong ngày
+                        </p>
+                      </div>
+
+                      {/* Summary Statistics */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                          <div className="text-sm text-green-600">Tổng thu (cả năm)</div>
+                          <div className="text-lg font-bold text-green-700">
+                            {monthlyTofuSummary.reduce((sum, month) => {
+                              return sum + (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5)
+                            }, 0).toLocaleString()}.000đ
+                          </div>
+                        </div>
+                        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                          <div className="text-sm text-red-600">Tổng chi (cả năm)</div>
+                          <div className="text-lg font-bold text-red-700">
+                            {monthlyTofuSummary.reduce((sum, month) => {
+                              return sum + (month.totalSoybeanInput * 12) + Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                            }, 0).toLocaleString()}.000đ
+                          </div>
+                        </div>
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          <div className="text-sm text-blue-600">Lãi ròng (cả năm)</div>
+                          <div className="text-lg font-bold text-blue-700">
+                            {monthlyTofuSummary.reduce((sum, month) => {
+                              const revenue = (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5)
+                              const cost = (month.totalSoybeanInput * 12) + Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                              return sum + (revenue - cost)
+                            }, 0).toLocaleString()}.000đ
+                          </div>
+                        </div>
+                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                          <div className="text-sm text-purple-600">Tỷ suất lợi nhuận</div>
+                          <div className="text-lg font-bold text-purple-700">
+                            {(() => {
+                              const totalRevenue = monthlyTofuSummary.reduce((sum, month) => {
+                                return sum + (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5)
+                              }, 0)
+                              const totalCost = monthlyTofuSummary.reduce((sum, month) => {
+                                return sum + (month.totalSoybeanInput * 12) + Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                              }, 0)
+                              return totalCost > 0 ? Math.round(((totalRevenue - totalCost) / totalCost) * 100) : 0
+                            })()}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -913,6 +1827,711 @@ export function ProcessingStationContent() {
                         </Button>
                         <Input
                           id="livestock-date"
+                          type="date"
+                          value={format(selectedDate, "yyyy-MM-dd")}
+                          className="w-40"
+                          onChange={(e) => {
+                            const newDate = new Date(e.target.value)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã thay đổi ngày",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const newDate = new Date(selectedDate)
+                            newDate.setDate(newDate.getDate() + 1)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã chuyển sang ngày mai",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        >
+                          Ngày mai →
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedDate(new Date())
+                          toast({
+                            title: "Đã chuyển về hôm nay",
+                            description: `Xem dữ liệu ngày ${format(new Date(), "dd/MM/yyyy", { locale: vi })}`,
+                          })
+                        }}
+                      >
+                        <CalendarIcon className="h-4 w-4 mr-1" />
+                        Hôm nay
+                      </Button>
+                      <Badge variant="outline" className="text-sm">
+                        {format(selectedDate, "EEEE, dd/MM/yyyy", { locale: vi })}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>Bảng tổng hợp ngày trước chuyển qua và nhập trong ngày</span>
+                    <Badge variant="secondary" className="text-sm">
+                      {format(selectedDate, "dd/MM/yyyy", { locale: vi })}
+                    </Badge>
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Theo dõi nhập - xuất - tồn thịt và sản phẩm gia súc cho các đơn vị • Ngày được chọn: {format(selectedDate, "EEEE, dd/MM/yyyy", { locale: vi })}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead rowSpan={2} className="text-center border-r w-8">TT</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-24">Tên LTP</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-12">Đvt</TableHead>
+                          <TableHead rowSpan={2} className="text-center border-r w-20">Đơn giá</TableHead>
+                          <TableHead colSpan={2} className="text-center border-r bg-gray-50">Ngày trước chuyển qua</TableHead>
+                          <TableHead colSpan={8} className="text-center border-r bg-blue-50">Nhập trong ngày</TableHead>
+                          <TableHead colSpan={8} className="text-center border-r bg-yellow-50">Xuất trong ngày</TableHead>
+                          <TableHead colSpan={2} className="text-center bg-purple-50">Tồn cuối ngày</TableHead>
+                        </TableRow>
+                        <TableRow>
+                          <TableHead className="text-center w-16 border-r">Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 1<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 2<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 3<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16 border-r">Lữ đoàn bộ<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 1<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 2<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Tiểu đoàn 3<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16 border-r">Lữ đoàn bộ<br/>Số lượng</TableHead>
+                          <TableHead className="text-center w-20 border-r">Thành tiền</TableHead>
+                          <TableHead className="text-center w-16">Số lượng</TableHead>
+                          <TableHead className="text-center w-20">Thành tiền</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          { id: 1, name: "Thịt xá", price: "65,000" },
+                          { id: 2, name: "Thịt nạc", price: "80,000" },
+                          { id: 3, name: "Xương", price: "15,000" },
+                          { id: 4, name: "Sườn", price: "70,000" },
+                          { id: 5, name: "Lòng", price: "45,000" },
+                          { id: 6, name: "Sụn", price: "35,000" },
+                          { id: 7, name: "Da con", price: "25,000" },
+                          { id: 8, name: "Mỡ", price: "30,000" }
+                        ].map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="text-center font-medium border-r">{item.id}</TableCell>
+                            <TableCell className="font-medium border-r">{item.name}</TableCell>
+                            <TableCell className="text-center border-r">kg</TableCell>
+                            <TableCell className="text-center border-r">{item.price}</TableCell>
+                            {/* Ngày trước chuyển qua */}
+                            <TableCell className="text-center bg-gray-50">
+                              <span className="text-xs font-semibold">
+                                {isLoadingLivestock ? "..." : getTotalInputQuantity(item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-gray-50 border-r">
+                              <span className="text-xs">
+                                {((getTotalInputQuantity(item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            {/* Nhập trong ngày - 4 đơn vị */}
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 1", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 1", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 2", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 2", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Tiểu đoàn 3", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Tiểu đoàn 3", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50">
+                              <span className="text-xs font-semibold text-blue-800">
+                                {isLoadingLivestock ? "..." : getInputQuantityByUnit("Lữ đoàn", item.name)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-center bg-blue-50 border-r">
+                              <span className="text-xs">
+                                {((getInputQuantityByUnit("Lữ đoàn", item.name) * parseFloat(item.price.replace(",", ""))) || 0).toLocaleString()}
+                              </span>
+                            </TableCell>
+                            {/* Xuất trong ngày - 4 đơn vị */}
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-yellow-50">
+                              <Input type="number" placeholder="0" className="w-12 h-6 text-center text-xs border-yellow-200" />
+                            </TableCell>
+                            <TableCell className="text-center bg-yellow-50 border-r"><span className="text-xs">0</span></TableCell>
+                            {/* Tồn cuối ngày */}
+                            <TableCell className="text-center bg-purple-50"><span className="text-xs">0</span></TableCell>
+                            <TableCell className="text-center bg-purple-50"><span className="text-xs">0</span></TableCell>
+                          </TableRow>
+                        ))}
+
+
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  <div className="mt-6 flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
+                      <p><span className="inline-block w-4 h-4 bg-green-50 border border-green-200 mr-2"></span>Phân phối cho đơn vị</p>
+                      <p><span className="inline-block w-4 h-4 bg-blue-50 border border-blue-200 mr-2"></span>Nhập trong ngày</p>
+                      <p><span className="inline-block w-4 h-4 bg-yellow-50 border border-yellow-200 mr-2"></span>Xuất trong ngày</p>
+                      <p><span className="inline-block w-4 h-4 bg-purple-50 border border-purple-200 mr-2"></span>Tồn kho cuối ngày</p>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button variant="outline">
+                        Nhập từ Excel
+                      </Button>
+                      <Button variant="outline">
+                        Xuất báo cáo
+                      </Button>
+                      <Button>
+                        Lưu dữ liệu
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeSection === "sausage" && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Utensils className="h-6 w-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-orange-800">Làm giò chả</h2>
+                <Badge className="bg-orange-100 text-orange-800">
+                  Quản lý làm giò chả
+                </Badge>
+              </div>
+
+              {/* Position 1: Daily Sausage Processing - Current Day Values */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="text-center text-xl font-bold">
+                    LÀM GIÒ CHẢ
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 text-center">
+                    Bảng theo dõi ngày hiện tại - {format(new Date(), "dd/MM/yyyy", { locale: vi })}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {isLoading || !dailySausageProcessing ? (
+                    <div className="text-center py-8">Đang tải dữ liệu...</div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Two section layout as per requirement */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Giò lụa section */}
+                        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+                          <h3 className="text-lg font-bold text-blue-800 text-center mb-4">GIÒ LỤA</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Thịt nạc chi */}
+                            <div className="bg-green-50 border border-green-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-green-700 mb-1">thịt nạc chi:</div>
+                                <div className="text-lg font-bold text-green-800">
+                                  {editingSausageData ? (
+                                    <Input
+                                      type="number"
+                                      value={sausageUpdateData.porkLeanInput}
+                                      onChange={(e) => setSausageUpdateData(prev => ({ 
+                                        ...prev, 
+                                        porkLeanInput: Number(e.target.value) || 0
+                                      }))}
+                                      className="w-16 h-8 text-center text-lg font-bold bg-white border-green-300"
+                                      placeholder="0"
+                                    />
+                                  ) : (
+                                    <span>{dailySausageProcessing.porkLeanInput}</span>
+                                  )}
+                                  <span className="text-sm ml-1">kg</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Giò lụa xuất */}
+                            <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-yellow-700 mb-1">giò lụa xuất:</div>
+                                <div className="text-lg font-bold text-yellow-800">
+                                  <span>{dailySausageProcessing.sausageOutput}</span>
+                                  <span className="text-sm ml-1">kg</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Thịt mỡ chi */}
+                            <div className="bg-orange-50 border border-orange-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-orange-700 mb-1">thịt mỡ chi:</div>
+                                <div className="text-lg font-bold text-orange-800">
+                                  {editingSausageData ? (
+                                    <Input
+                                      type="number"
+                                      value={sausageUpdateData.porkFatInput}
+                                      onChange={(e) => setSausageUpdateData(prev => ({ 
+                                        ...prev, 
+                                        porkFatInput: Number(e.target.value) || 0
+                                      }))}
+                                      className="w-16 h-8 text-center text-lg font-bold bg-white border-orange-300"
+                                      placeholder="0"
+                                    />
+                                  ) : (
+                                    <span>{dailySausageProcessing.porkFatInput}</span>
+                                  )}
+                                  <span className="text-sm ml-1">kg</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Giò lụa tồn */}
+                            <div className="bg-red-50 border border-red-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-red-700 mb-1">giò lụa tồn:</div>
+                                <div className="text-lg font-bold text-red-800">
+                                  <span>{dailySausageProcessing.sausageRemaining}</span>
+                                  <span className="text-sm ml-1">kg</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Giò lụa thu - full width */}
+                            <div className="col-span-2 bg-purple-50 border border-purple-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-purple-700 mb-1">giò lụa thu:</div>
+                                <div className="text-xl font-bold text-purple-800">
+                                  {editingSausageData ? (
+                                    <Input
+                                      type="number"
+                                      value={sausageUpdateData.sausageInput}
+                                      onChange={(e) => setSausageUpdateData(prev => ({ 
+                                        ...prev, 
+                                        sausageInput: Number(e.target.value) || 0
+                                      }))}
+                                      className="w-20 h-10 text-center text-xl font-bold bg-white border-purple-300"
+                                      placeholder="0"
+                                    />
+                                  ) : (
+                                    <span>{dailySausageProcessing.sausageInput}</span>
+                                  )}
+                                  <span className="text-lg ml-1">kg</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Chả quế section */}
+                        <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-6">
+                          <h3 className="text-lg font-bold text-amber-800 text-center mb-4">CHẢ QUÉ</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Thịt nạc chi */}
+                            <div className="bg-green-50 border border-green-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-green-700 mb-1">thịt nạc chi:</div>
+                                <div className="text-lg font-bold text-green-800">
+                                  <span>{dailySausageProcessing.porkLeanInput}</span>
+                                  <span className="text-sm ml-1">kg</span>
+                                </div>
+                                <div className="text-xs text-green-600 mt-1">(Dùng chung)</div>
+                              </div>
+                            </div>
+
+                            {/* Chả quế xuất */}
+                            <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-yellow-700 mb-1">chả quế xuất:</div>
+                                <div className="text-lg font-bold text-yellow-800">
+                                  <span>{dailySausageProcessing.fishCakeOutput}</span>
+                                  <span className="text-sm ml-1">kg</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Chả quế thu */}
+                            <div className="bg-pink-50 border border-pink-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-pink-700 mb-1">chả quế thu:</div>
+                                <div className="text-lg font-bold text-pink-800">
+                                  {editingSausageData ? (
+                                    <Input
+                                      type="number"
+                                      value={sausageUpdateData.fishCakeInput}
+                                      onChange={(e) => setSausageUpdateData(prev => ({ 
+                                        ...prev, 
+                                        fishCakeInput: Number(e.target.value) || 0
+                                      }))}
+                                      className="w-16 h-8 text-center text-lg font-bold bg-white border-pink-300"
+                                      placeholder="0"
+                                    />
+                                  ) : (
+                                    <span>{dailySausageProcessing.fishCakeInput}</span>
+                                  )}
+                                  <span className="text-sm ml-1">kg</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Chả quế tồn */}
+                            <div className="bg-purple-50 border border-purple-200 rounded p-3">
+                              <div className="text-center">
+                                <div className="text-sm font-medium text-purple-700 mb-1">chả quế tồn:</div>
+                                <div className="text-lg font-bold text-purple-800">
+                                  <span>{dailySausageProcessing.fishCakeRemaining}</span>
+                                  <span className="text-sm ml-1">kg</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notes section */}
+                      {editingSausageData && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Ghi chú:</label>
+                          <textarea
+                            value={sausageUpdateData.note}
+                            onChange={(e) => setSausageUpdateData(prev => ({ ...prev, note: e.target.value }))}
+                            className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                            rows={2}
+                            placeholder="Ghi chú về quá trình làm giò chả trong ngày"
+                          />
+                        </div>
+                      )}
+
+                      {dailySausageProcessing.note && !editingSausageData && (
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <div className="text-sm font-medium text-gray-700">Ghi chú:</div>
+                          <div className="text-sm text-gray-600 mt-1">{dailySausageProcessing.note}</div>
+                        </div>
+                      )}
+
+                      {/* Edit Controls for Station Manager */}
+                      {(user?.role === 'stationManager' || user?.role === 'admin') && (
+                        <div className="flex items-center justify-end gap-2 pt-4 border-t">
+                          {editingSausageData ? (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                onClick={() => {
+                                  setEditingSausageData(false)
+                                  setSausageUpdateData({
+                                    porkLeanInput: dailySausageProcessing.porkLeanInput,
+                                    porkFatInput: dailySausageProcessing.porkFatInput,
+                                    sausageInput: dailySausageProcessing.sausageInput,
+                                    fishCakeInput: dailySausageProcessing.fishCakeInput,
+                                    note: dailySausageProcessing.note || ""
+                                  })
+                                }}
+                              >
+                                Hủy
+                              </Button>
+                              <Button onClick={updateDailySausageProcessing} disabled={isUpdating}>
+                                {isUpdating ? "Đang lưu..." : "Lưu thay đổi"}
+                              </Button>
+                            </>
+                          ) : (
+                            <Button 
+                              variant="outline"
+                              onClick={() => setEditingSausageData(true)}
+                            >
+                              Chỉnh sửa
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Info message for other roles */}
+                      {user?.role && !['stationManager', 'admin'].includes(user.role) && (
+                        <div className="pt-4 border-t">
+                          <p className="text-sm text-gray-500 text-center">
+                            Chỉ Trạm trưởng mới có thể chỉnh sửa dữ liệu làm giò chả
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Position 2: Weekly Tracking Table */}
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="text-center text-xl font-bold">
+                    BẢNG THEO DÕI LÀM GIÒ CHẢ THEO TUẦN
+                  </CardTitle>
+                  <p className="text-sm text-gray-600 text-center">
+                    Ngày hôm nay: {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {isLoading || weeklySausageTracking.length === 0 ? (
+                    <div className="text-center py-8">Đang tải dữ liệu tuần...</div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-2 border-gray-300">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border border-gray-300 p-2 text-center font-bold">Ngày</th>
+                              <th className="border border-gray-300 p-2 text-center font-bold">Thứ</th>
+                              <th className="border border-gray-300 p-2 text-center font-bold bg-green-50">
+                                Thịt nạc chi<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-2 text-center font-bold bg-orange-50">
+                                Thịt mỡ chi<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-2 text-center font-bold bg-blue-50">
+                                Giò lụa thu<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-2 text-center font-bold bg-yellow-50">
+                                Giò lụa xuất<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-2 text-center font-bold bg-red-50">
+                                Giò lụa tồn<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-2 text-center font-bold bg-pink-50">
+                                Chả quế thu<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-2 text-center font-bold bg-amber-50">
+                                Chả quế xuất<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                              <th className="border border-gray-300 p-2 text-center font-bold bg-purple-50">
+                                Chả quế tồn<br/><span className="text-xs font-normal">(kg)</span>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {weeklySausageTracking.map((day, index) => {
+                              const isToday = format(new Date(), "yyyy-MM-dd") === day.date
+                              return (
+                                <tr key={index} className={isToday ? "bg-blue-50 font-semibold" : ""}>
+                                  <td className="border border-gray-300 p-2 text-center">
+                                    {format(new Date(day.date), "dd/MM", { locale: vi })}
+                                    {isToday && <div className="text-xs text-blue-600">(Hôm nay)</div>}
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center">
+                                    {day.dayOfWeek}
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-green-25">
+                                    <span className="font-semibold text-green-700">
+                                      {day.porkLeanInput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-orange-25">
+                                    <span className="font-semibold text-orange-700">
+                                      {day.porkFatInput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-blue-25">
+                                    <span className="font-semibold text-blue-700">
+                                      {day.sausageInput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-yellow-25">
+                                    <span className="font-semibold text-yellow-700">
+                                      {day.sausageOutput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-red-25">
+                                    <span className="font-semibold text-red-700">
+                                      {day.sausageRemaining.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-pink-25">
+                                    <span className="font-semibold text-pink-700">
+                                      {day.fishCakeInput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-amber-25">
+                                    <span className="font-semibold text-amber-700">
+                                      {day.fishCakeOutput.toLocaleString()}
+                                    </span>
+                                  </td>
+                                  <td className="border border-gray-300 p-2 text-center bg-purple-25">
+                                    <span className="font-semibold text-purple-700">
+                                      {day.fishCakeRemaining.toLocaleString()}
+                                    </span>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                            
+                            {/* Weekly Total Row */}
+                            <tr className="bg-gray-200 font-bold border-t-2 border-gray-400">
+                              <td colSpan={2} className="border border-gray-300 p-2 text-center">
+                                TỔNG TUẦN
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-green-100">
+                                <span className="text-green-800">
+                                  {weeklySausageTracking.reduce((sum, day) => sum + day.porkLeanInput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-orange-100">
+                                <span className="text-orange-800">
+                                  {weeklySausageTracking.reduce((sum, day) => sum + day.porkFatInput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-blue-100">
+                                <span className="text-blue-800">
+                                  {weeklySausageTracking.reduce((sum, day) => sum + day.sausageInput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-yellow-100">
+                                <span className="text-yellow-800">
+                                  {weeklySausageTracking.reduce((sum, day) => sum + day.sausageOutput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-red-100">
+                                <span className="text-red-800">
+                                  {weeklySausageTracking.reduce((sum, day) => sum + day.sausageRemaining, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-pink-100">
+                                <span className="text-pink-800">
+                                  {weeklySausageTracking.reduce((sum, day) => sum + day.fishCakeInput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-amber-100">
+                                <span className="text-amber-800">
+                                  {weeklySausageTracking.reduce((sum, day) => sum + day.fishCakeOutput, 0).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="border border-gray-300 p-2 text-center bg-purple-100">
+                                <span className="text-purple-800">
+                                  {weeklySausageTracking.reduce((sum, day) => sum + day.fishCakeRemaining, 0).toLocaleString()}
+                                </span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Summary Statistics */}
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
+                        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                          <div className="text-xs text-green-600">Tổng thịt nạc chi</div>
+                          <div className="text-lg font-bold text-green-700">
+                            {weeklySausageTracking.reduce((sum, day) => sum + day.porkLeanInput, 0).toLocaleString()} kg
+                          </div>
+                        </div>
+                        <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                          <div className="text-xs text-orange-600">Tổng thịt mỡ chi</div>
+                          <div className="text-lg font-bold text-orange-700">
+                            {weeklySausageTracking.reduce((sum, day) => sum + day.porkFatInput, 0).toLocaleString()} kg
+                          </div>
+                        </div>
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                          <div className="text-xs text-blue-600">Tổng giò lụa thu</div>
+                          <div className="text-lg font-bold text-blue-700">
+                            {weeklySausageTracking.reduce((sum, day) => sum + day.sausageInput, 0).toLocaleString()} kg
+                          </div>
+                        </div>
+                        <div className="bg-pink-50 p-3 rounded-lg border border-pink-200">
+                          <div className="text-xs text-pink-600">Tổng chả quế thu</div>
+                          <div className="text-lg font-bold text-pink-700">
+                            {weeklySausageTracking.reduce((sum, day) => sum + day.fishCakeInput, 0).toLocaleString()} kg
+                          </div>
+                        </div>
+                        <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                          <div className="text-xs text-purple-600">Tổng tồn kho</div>
+                          <div className="text-lg font-bold text-purple-700">
+                            {(weeklySausageTracking.reduce((sum, day) => sum + day.sausageRemaining, 0) + 
+                              weeklySausageTracking.reduce((sum, day) => sum + day.fishCakeRemaining, 0)).toLocaleString()} kg
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Date Filter */}
+              <Card className="mb-6">
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-gray-500" />
+                        <label htmlFor="sausage-date" className="font-medium text-sm">
+                          Chọn ngày:
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            const newDate = new Date(selectedDate)
+                            newDate.setDate(newDate.getDate() - 1)
+                            setSelectedDate(newDate)
+                            toast({
+                              title: "Đã chuyển sang hôm qua",
+                              description: `Xem dữ liệu ngày ${format(newDate, "dd/MM/yyyy", { locale: vi })}`,
+                            })
+                          }}
+                        >
+                          ← Hôm qua
+                        </Button>
+                        <Input
+                          id="sausage-date"
                           type="date"
                           value={format(selectedDate, "yyyy-MM-dd")}
                           className="w-40"

@@ -1,5 +1,5 @@
 // API client for communicating with the backend server
-const API_BASE_URL = "http://localhost:5001/api"
+const API_BASE_URL =  "http://localhost:5001/api"
 
 // Helper function to get auth token
 const getAuthToken = () => {
@@ -359,10 +359,61 @@ export const suppliesApi = {
     })
   },
 
+  receiveSupply: async (id: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/supplies/${id}/receive`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
   deleteSupply: async (id: string) => {
     return apiRequest<{ success: boolean; message: string }>(`/supplies/${id}`, {
       method: "DELETE",
     })
+  },
+
+  exportSuppliesExcel: async (filters?: any) => {
+    const queryParams = new URLSearchParams()
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== "all") {
+          queryParams.append(key, value as string)
+        }
+      })
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    
+    const token = getAuthToken()
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
+    const url = `${baseUrl}/api/supplies/export${query}`
+    
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error("Failed to export Excel")
+      }
+      
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `phieu-nhap-${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(downloadUrl)
+      
+      return { success: true }
+    } catch (error) {
+      console.error("Error exporting Excel:", error)
+      throw error
+    }
   },
 
   getFoodCategories: async () => {
@@ -732,12 +783,45 @@ export const processingStationApi = {
       body: JSON.stringify(data),
     })
   },
+
+  // New methods for daily tofu processing
+  getDailyData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/daily/${date}`)
+  },
+
+  updateDailyData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/daily/${date}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  },
+
+  // New methods for daily sausage processing
+  getDailySausageData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/sausage/${date}`)
+  },
+
+  updateDailySausageData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/sausage/${date}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  },
 }
 
 // Supply Outputs API
 export const supplyOutputsApi = {
-  getSupplyOutputs: async () => {
-    return apiRequest<any[]>("/supply-outputs")
+  getSupplyOutputs: async (filters?: any) => {
+    const queryParams = new URLSearchParams()
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== "all") {
+          queryParams.append(key, value as string)
+        }
+      })
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<any[]>(`/supply-outputs${query}`)
   },
 
   getSupplyOutputById: async (id: string) => {

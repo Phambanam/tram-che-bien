@@ -15,7 +15,7 @@ export const authOptions: AuthOptions = {
         }
 
         try {
-          const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/login`
+          const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'}/auth/login`
           
           const response = await fetch(apiUrl, {
             method: "POST",

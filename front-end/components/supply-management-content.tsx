@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CalendarIcon, Search, FileDown, FileUp, Edit, Eye, Trash2, Check, X } from "lucide-react"
+import { CalendarIcon, Search, FileDown, FileUp, Edit, Eye, Trash2, Check, X, Package } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { suppliesApi, unitsApi, categoriesApi, productsApi } from "@/lib/api-client"
@@ -29,8 +29,6 @@ export function SupplyManagementContent() {
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState("list")
   const [filters, setFilters] = useState<{
@@ -44,6 +42,8 @@ export function SupplyManagementContent() {
     stationEntryToDate?: string
     createdFromDate?: string
     createdToDate?: string
+    expiryFromDate?: string
+    expiryToDate?: string
   }>({})
   const { toast } = useToast()
   const { user } = useAuth()
@@ -68,13 +68,21 @@ export function SupplyManagementContent() {
     note: "",
   })
 
+  // Receive state (for station manager)
+  const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
+  const [supplyToReceive, setSupplyToReceive] = useState<SupplySource | null>(null)
+  const [isReceiving, setIsReceiving] = useState(false)
+  const [receiveData, setReceiveData] = useState({
+    actualQuantity: 0,
+    receivedQuantity: 0,
+  })
+
   // Form state
   const [formData, setFormData] = useState<SupplyFormData>({
     unit: "",
     category: "",
     product: "",
     supplyQuantity: 0,
-    expectedHarvestDate: "",
     expiryDate: "",
     note: "",
   })
@@ -251,7 +259,7 @@ export function SupplyManagementContent() {
 
     try {
       // Validate required fields
-      if (!formData.category || !formData.product || !formData.supplyQuantity || !formData.expectedHarvestDate) {
+      if (!formData.category || !formData.product || !formData.supplyQuantity) {
         toast({
           title: "Lỗi",
           description: "Vui lòng điền đầy đủ thông tin bắt buộc",
@@ -276,7 +284,7 @@ export function SupplyManagementContent() {
       if (response.success) {
         toast({
           title: "Thành công",
-          description: isEditing ? "Đã cập nhật nguồn nhập thành công!" : "Đã thêm nguồn nhập mới thành công! Trạng thái: Chờ phê duyệt",
+          description: isEditing ? "Đã cập nhật nguồn nhập thành công!" : "Đã thêm nguồn nhập mới thành công! Trạng thái: Chờ duyệt",
         })
 
         // Reset form and editing state
@@ -324,15 +332,9 @@ export function SupplyManagementContent() {
       category: supply.category?._id || "",
       product: supply.product?._id || "",
       supplyQuantity: supply.supplyQuantity || 0,
-      expectedHarvestDate: supply.expectedHarvestDate ? format(new Date(supply.expectedHarvestDate), "yyyy-MM-dd") : "",
       expiryDate: supply.expiryDate ? format(new Date(supply.expiryDate), "yyyy-MM-dd") : "",
       note: supply.note || "",
     })
-
-    // Set date for calendar
-    if (supply.expectedHarvestDate) {
-      setDate(new Date(supply.expectedHarvestDate))
-    }
 
     // Switch to add tab (which will now be edit mode)
     setActiveTab("add")
@@ -407,7 +409,7 @@ export function SupplyManagementContent() {
     setApprovalData({
       stationEntryDate: "",
       requestedQuantity: supply.supplyQuantity || 0,
-      actualQuantity: supply.actualQuantity || 0,
+      actualQuantity: 0,
       unitPrice: 0,
       expiryDate: "",
       note: supply.note || "",
@@ -487,13 +489,94 @@ export function SupplyManagementContent() {
     }
   }
 
+  const handleReceive = (supply: SupplySource) => {
+    console.log("handleReceive called with supply:", supply)
+    console.log("User role:", user?.role)
+    console.log("Supply status:", supply.status)
+    console.log("Station entry date:", supply.stationEntryDate)
+    
+    // Only station managers can receive supplies
+    if (user?.role !== "stationManager") {
+      toast({
+        title: "Không có quyền",
+        description: "Chỉ trạm trưởng mới có thể nhận nguồn nhập",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (supply.status !== "approved") {
+      toast({
+        title: "Không thể nhận",
+        description: "Chỉ có thể nhận nguồn nhập đã được duyệt",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Check if station entry date is today
+    /* Tạm thời comment out để test
+    if (supply.stationEntryDate) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const stationDate = new Date(supply.stationEntryDate)
+      stationDate.setHours(0, 0, 0, 0)
+      
+      if (stationDate.getTime() !== today.getTime()) {
+        toast({
+          title: "Không thể nhận",
+          description: "Chỉ có thể nhận nguồn nhập có ngày nhập trạm là hôm nay",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+    */
+
+    setSupplyToReceive(supply)
+    setReceiveData({
+      actualQuantity: supply.requestedQuantity || 0, // Mặc định bằng số lượng phải nhập
+      receivedQuantity: supply.requestedQuantity || 0,
+    })
+    setReceiveDialogOpen(true)
+  }
+
+  const confirmReceive = async () => {
+    if (!supplyToReceive) return
+
+    setIsReceiving(true)
+    try {
+      const response = await suppliesApi.receiveSupply(supplyToReceive.id, receiveData)
+      
+      if (response.success) {
+        toast({
+          title: "Thành công",
+          description: "Đã nhận nguồn nhập thành công! Trạng thái: Đã nhận",
+        })
+        
+        // Refresh supplies list
+        fetchSupplies()
+      }
+    } catch (error) {
+      console.error("Error receiving supply:", error)
+      toast({
+        title: "Lỗi",
+        description: error instanceof Error ? error.message : "Có lỗi xảy ra khi nhận nguồn nhập",
+        variant: "destructive",
+      })
+    } finally {
+      setIsReceiving(false)
+      setReceiveDialogOpen(false)
+      setSupplyToReceive(null)
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       unit: "",
       category: "",
       product: "",
       supplyQuantity: 0,
-      expectedHarvestDate: "",
       expiryDate: "",
       note: "",
     })
@@ -507,6 +590,42 @@ export function SupplyManagementContent() {
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters)
+  }
+
+  const handleExportExcel = async () => {
+    try {
+      // Use current filters for export - chỉ xuất phiếu đã nhận theo ngày
+      const exportFilters: any = {
+        status: "received" // Chỉ xuất phiếu đã nhận
+      }
+      
+      // Thêm filter theo ngày nhập trạm nếu có
+      if (filters.stationEntryFromDate) {
+        exportFilters.stationEntryDate = filters.stationEntryFromDate
+      } else {
+        // Nếu không có filter ngày, mặc định xuất ngày hôm nay
+        exportFilters.stationEntryDate = format(new Date(), "yyyy-MM-dd")
+      }
+      
+      // Thêm filter theo đơn vị nếu có
+      if (filters.unit && filters.unit !== "all") {
+        exportFilters.unit = filters.unit
+      }
+      
+      await suppliesApi.exportSuppliesExcel(exportFilters)
+      
+      toast({
+        title: "Thành công",
+        description: "Đã xuất phiếu nhập kho thành công!",
+      })
+    } catch (error) {
+      console.error("Error exporting Excel:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xuất phiếu nhập kho. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleInputChange = (field: keyof SupplyFormData, value: string | number | boolean) => {
@@ -524,27 +643,20 @@ export function SupplyManagementContent() {
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     setDate(selectedDate)
-    if (selectedDate) {
-      handleInputChange("expectedHarvestDate", format(selectedDate, "yyyy-MM-dd"))
-    }
-    }
-    
-  const filteredSupplies = supplies.filter((supply) => {
-    const matchesSearch =
-      (supply.product?.name && supply.product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (supply.unit?.name && supply.unit.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesStatus = statusFilter === "all" || supply.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  }
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case "pending":
-        return "Chờ phê duyệt"
+        return "Chờ duyệt"
       case "approved":
-        return "Đã phê duyệt ✓"
+        return "Đã duyệt"
       case "rejected":
-        return "Đã từ chối"
+        return "Từ chối"
+      case "deleted":
+        return "Đã xóa"
+      case "received":
+        return "Đã nhận"
       default:
         return status
     }
@@ -555,9 +667,13 @@ export function SupplyManagementContent() {
       case "pending":
         return "bg-yellow-100 text-yellow-800"
       case "approved":
-        return "bg-green-100 text-green-800 font-semibold"
+        return "bg-blue-100 text-blue-800"
       case "rejected":
         return "bg-red-100 text-red-800"
+      case "deleted":
+        return "bg-gray-100 text-gray-800"
+      case "received":
+        return "bg-green-100 text-green-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -581,12 +697,37 @@ export function SupplyManagementContent() {
 
   // Helper function to determine if additional columns should be shown
   const shouldShowAdditionalColumns = () => {
-    return user?.role === "brigadeAssistant" || filteredSupplies.some(supply => supply.status === "approved")
+    return user?.role === "brigadeAssistant" || supplies.some(supply => supply.status === "approved" || supply.status === "received")
   }
 
   // Helper function to determine if a specific supply's additional info should be shown
   const shouldShowSupplyDetails = (supply: SupplySource) => {
-    return user?.role === "brigadeAssistant" || supply.status === "approved"
+    return user?.role === "brigadeAssistant" || supply.status === "approved" || supply.status === "received"
+  }
+
+  const handleExportSingleSupply = async (supply: SupplySource) => {
+    try {
+      // Xuất phiếu nhập cho một nguồn nhập cụ thể
+      const exportFilters = {
+        status: "received",
+        stationEntryDate: supply.stationEntryDate ? format(new Date(supply.stationEntryDate), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        unit: supply.unit?._id
+      }
+      
+      await suppliesApi.exportSuppliesExcel(exportFilters)
+      
+      toast({
+        title: "Thành công",
+        description: "Đã xuất phiếu nhập kho thành công!",
+      })
+    } catch (error) {
+      console.error("Error exporting Excel:", error)
+      toast({
+        title: "Lỗi",
+        description: "Không thể xuất phiếu nhập kho. Vui lòng thử lại.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -607,30 +748,13 @@ export function SupplyManagementContent() {
             <SuppliesFilter onFilterChange={handleFilterChange} />
             
             <div className="flex justify-between items-center">
-              <div className="flex gap-2 items-center">
-                <Input 
-                  placeholder="Tìm kiếm..." 
-                  className="w-64" 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <Button variant="outline" size="icon">
-                  <Search className="h-4 w-4" />
-                </Button>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Trạng thái" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tất cả</SelectItem>
-                    <SelectItem value="pending">Chờ duyệt</SelectItem>
-                    <SelectItem value="approved">Đã nhập</SelectItem>
-                    <SelectItem value="rejected">Từ chối</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div></div>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                  onClick={handleExportExcel}
+                >
                   <FileDown className="h-4 w-4" />
                   Xuất Excel
                 </Button>
@@ -645,7 +769,7 @@ export function SupplyManagementContent() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Danh sách nguồn nhập ({filteredSupplies.length} mục)</CardTitle>
+                <CardTitle>Danh sách nguồn nhập ({supplies.length} mục)</CardTitle>
                 {shouldShowAdditionalColumns() && user?.role !== "brigadeAssistant" && (
                   <p className="text-sm text-blue-600 mt-2">
                     💡 Thông tin chi tiết (số lượng, giá tiền, hạn sử dụng) chỉ hiển thị cho các nguồn nhập đã được phê duyệt
@@ -666,9 +790,9 @@ export function SupplyManagementContent() {
                         <TableHead>Số lượng dự kiến</TableHead>
                         {shouldShowAdditionalColumns() && <TableHead>SL nhập yêu cầu</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>SL nhập thực tế</TableHead>}
+                        {shouldShowAdditionalColumns() && <TableHead>SL thực nhận</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Đơn giá (VND)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Thành tiền (VND)</TableHead>}
-                        <TableHead>Ngày thu hoạch dự kiến</TableHead>
                         {shouldShowAdditionalColumns() && <TableHead>Hạn sử dụng</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Ngày nhập trạm</TableHead>}
                         <TableHead>Trạng thái</TableHead>
@@ -679,7 +803,7 @@ export function SupplyManagementContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredSupplies.map((supply, index) => (
+                      {supplies.map((supply, index) => (
                         <TableRow key={supply.id}>
                           <TableCell>{index + 1}</TableCell>
                           <TableCell>{supply.product?.name}</TableCell>
@@ -697,6 +821,11 @@ export function SupplyManagementContent() {
                           )}
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
+                              {shouldShowSupplyDetails(supply) ? (supply.receivedQuantity || "Chưa có") : "Chưa phê duyệt"}
+                            </TableCell>
+                          )}
+                          {shouldShowAdditionalColumns() && (
+                            <TableCell>
                               {shouldShowSupplyDetails(supply) ? (supply.unitPrice?.toLocaleString('vi-VN') || "Chưa có") : "Chưa phê duyệt"}
                             </TableCell>
                           )}
@@ -707,7 +836,6 @@ export function SupplyManagementContent() {
                                 : "Chưa phê duyệt"}
                             </TableCell>
                           )}
-                          <TableCell>{format(new Date(supply.expectedHarvestDate), "dd/MM/yyyy")}</TableCell>
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
                               {shouldShowSupplyDetails(supply) ? 
@@ -787,6 +915,39 @@ export function SupplyManagementContent() {
                                         <X className="h-4 w-4" />
                                       </Button>
                                     </>
+                                  )}
+                                  {(() => {
+                                    // Debug log for station manager button
+                                    if (user?.role === "stationManager") {
+                                      console.log("Station manager check for supply:", {
+                                        productName: supply.product?.name,
+                                        status: supply.status,
+                                        stationEntryDate: supply.stationEntryDate,
+                                        shouldShowButton: supply.status === "approved" && supply.stationEntryDate
+                                      })
+                                    }
+                                    return user?.role === "stationManager" && supply.status === "approved" && supply.stationEntryDate ? (
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => handleReceive(supply)}
+                                        title="Nhận hàng"
+                                        className="text-blue-600 hover:text-blue-700"
+                                      >
+                                        <Package className="h-4 w-4" />
+                                      </Button>
+                                    ) : null
+                                  })()}
+                                  {supply.status === "received" && (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handleExportSingleSupply(supply)}
+                                      title="Xuất phiếu nhập"
+                                      className="text-green-600 hover:text-green-700"
+                                    >
+                                      <FileDown className="h-4 w-4" />
+                                    </Button>
                                   )}
                                 </>
                               )}
@@ -881,23 +1042,6 @@ export function SupplyManagementContent() {
                     </div>
 
                     <div className="space-y-2">
-                        <label htmlFor="expectedHarvestDate" className="font-medium">
-                          Ngày thu hoạch dự kiến *
-                      </label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="w-full justify-start text-left font-normal">
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date ? format(date, "PPP", { locale: vi }) : "Chọn ngày"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={date} onSelect={handleDateSelect} initialFocus />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                      <div className="space-y-2">
                         <label htmlFor="expiryDate" className="font-medium">
                           Hạn sử dụng
                         </label>
@@ -994,7 +1138,7 @@ export function SupplyManagementContent() {
               </div>
               <div className="space-y-2">
                 <label htmlFor="approval-requested-quantity" className="font-medium">
-                  Số lượng nhập yêu cầu (kg) *
+                  Số lượng phải nhập (kg) *
                 </label>
                 <Input
                   id="approval-requested-quantity"
@@ -1003,21 +1147,6 @@ export function SupplyManagementContent() {
                   onChange={(e) => setApprovalData(prev => ({ ...prev, requestedQuantity: Number(e.target.value) || 0 }))}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="approval-actual-quantity" className="font-medium">
-                  Số lượng nhập thực tế (kg) *
-                </label>
-                <Input
-                  id="approval-actual-quantity"
-                  type="number"
-                  value={approvalData.actualQuantity || ""}
-                  onChange={(e) => setApprovalData(prev => ({ ...prev, actualQuantity: Number(e.target.value) || 0 }))}
-                  required
-                />
-                <p className="text-sm text-gray-600">
-                  Ví dụ: Yêu cầu 100kg nhưng cân thực tế là 110kg
-                </p>
               </div>
               <div className="space-y-2">
                 <label htmlFor="approval-unit-price" className="font-medium">
@@ -1050,12 +1179,12 @@ export function SupplyManagementContent() {
                 <Input
                   id="approval-total-price"
                   type="text"
-                  value={((approvalData.actualQuantity || 0) * (approvalData.unitPrice || 0)).toLocaleString('vi-VN') + ' VND'}
+                  value={((approvalData.requestedQuantity || 0) * (approvalData.unitPrice || 0)).toLocaleString('vi-VN') + ' VND'}
                   disabled
                   className="bg-gray-50"
                 />
                 <p className="text-sm text-gray-600">
-                  Tự động tính: {approvalData.actualQuantity || 0} kg × {(approvalData.unitPrice || 0).toLocaleString('vi-VN')} VND/kg
+                  Tự động tính: {approvalData.requestedQuantity || 0} kg × {(approvalData.unitPrice || 0).toLocaleString('vi-VN')} VND/kg
                 </p>
               </div>
               <div className="space-y-2">
@@ -1081,9 +1210,91 @@ export function SupplyManagementContent() {
               </Button>
               <Button
                 onClick={confirmApproval}
-                disabled={isApproving || !approvalData.stationEntryDate || !approvalData.requestedQuantity || !approvalData.actualQuantity || !approvalData.unitPrice || !approvalData.expiryDate}
+                disabled={isApproving || !approvalData.stationEntryDate || !approvalData.requestedQuantity || !approvalData.unitPrice || !approvalData.expiryDate}
               >
                 {isApproving ? "Đang phê duyệt..." : "Phê duyệt"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Receive Dialog for Station Manager */}
+        <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nhận nguồn nhập</DialogTitle>
+              <DialogDescription>
+                Nhập số lượng thực nhận cho "{supplyToReceive?.product?.name}"
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="font-medium">Thông tin nguồn nhập</label>
+                <div className="bg-gray-50 p-3 rounded-md space-y-1 text-sm">
+                  <p>Đơn vị: {supplyToReceive?.unit?.name}</p>
+                  <p>Số lượng phải nhập: {supplyToReceive?.requestedQuantity} kg</p>
+                  <p>Đơn giá: {supplyToReceive?.unitPrice?.toLocaleString('vi-VN')} VND/kg</p>
+                  <p>Ngày nhập trạm: {supplyToReceive?.stationEntryDate ? format(new Date(supplyToReceive.stationEntryDate), "dd/MM/yyyy") : ""}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="actual-quantity" className="font-medium">
+                  Số lượng thực nhập (kg) *
+                </label>
+                <Input
+                  id="actual-quantity"
+                  type="number"
+                  value={receiveData.actualQuantity || ""}
+                  onChange={(e) => setReceiveData(prev => ({ ...prev, actualQuantity: Number(e.target.value) || 0 }))}
+                  placeholder="Số lượng thực tế đã nhập vào kho"
+                  required
+                />
+                <p className="text-sm text-gray-600">
+                  Số lượng thực tế đã nhập vào kho (có thể khác với số lượng phải nhập)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="receive-quantity" className="font-medium">
+                  Số lượng thực nhận (kg) *
+                </label>
+                <Input
+                  id="receive-quantity"
+                  type="number"
+                  value={receiveData.receivedQuantity || ""}
+                  onChange={(e) => setReceiveData(prev => ({ ...prev, receivedQuantity: Number(e.target.value) || 0 }))}
+                  placeholder="Số lượng thực tế nhận được"
+                  required
+                />
+                <p className="text-sm text-gray-600">
+                  Số lượng thực tế nhận được tại trạm chế biến
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className="font-medium">Thành tiền tự động tính</label>
+                <Input
+                  type="text"
+                  value={`${((receiveData.actualQuantity || 0) * (supplyToReceive?.unitPrice || 0)).toLocaleString('vi-VN')} VND`}
+                  disabled
+                  className="bg-gray-50"
+                />
+                <p className="text-sm text-gray-600">
+                  = {receiveData.actualQuantity || 0} kg × {(supplyToReceive?.unitPrice || 0).toLocaleString('vi-VN')} VND/kg
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setReceiveDialogOpen(false)}
+                disabled={isReceiving}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={confirmReceive}
+                disabled={isReceiving || !receiveData.actualQuantity || receiveData.actualQuantity <= 0 || !receiveData.receivedQuantity || receiveData.receivedQuantity <= 0}
+              >
+                {isReceiving ? "Đang xác nhận..." : "Xác nhận nhận hàng"}
               </Button>
             </DialogFooter>
           </DialogContent>
