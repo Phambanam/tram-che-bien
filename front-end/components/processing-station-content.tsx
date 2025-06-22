@@ -597,16 +597,33 @@ export function ProcessingStationContent() {
       // Get tofu output data from supply outputs API
       let tofuOutput = 0
       try {
-        const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-          date: dateStr,
-          productType: "đậu phụ"
+        // First try with date filter
+        let outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+          startDate: dateStr,
+          endDate: dateStr
         })
-        const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        let outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
         
-        // Calculate total tofu output for the day
+        // If no data found with date filter, try without date filter
+        if (outputs.length === 0) {
+          console.log("No outputs found with date filter, trying without date filter")
+          outputsResponse = await supplyOutputsApi.getSupplyOutputs()
+          outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        }
+        
+        // Filter for tofu outputs and the specific date
+        const dateObj = new Date(dateStr)
         tofuOutput = outputs
-          .filter((output: any) => output.product?.name?.toLowerCase().includes("đậu phụ"))
+          .filter((output: any) => {
+            const hasTofu = output.product?.name?.toLowerCase().includes("đậu phụ")
+            // Check if output date matches the requested date
+            const outputDate = new Date(output.outputDate)
+            const isSameDate = outputDate.toDateString() === dateObj.toDateString()
+            return hasTofu && (outputs.length === 1 || isSameDate) // If only one output, assume it's for today
+          })
           .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+          
+        console.log(`Found ${outputs.length} total outputs, ${tofuOutput}kg tofu output for ${dateStr}`)
       } catch (error) {
         console.log("No output data found, using 0:", error)
       }
@@ -679,13 +696,28 @@ export function ProcessingStationContent() {
         // Get output data
         let tofuOutput = 0
         try {
-          const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-            date: dateStr,
-            productType: "đậu phụ"
+          // First try with date filter
+          let outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+            startDate: dateStr,
+            endDate: dateStr
           })
-          const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+          let outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+          
+          // If no data found with date filter, try without date filter
+          if (outputs.length === 0) {
+            outputsResponse = await supplyOutputsApi.getSupplyOutputs()
+            outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+          }
+          
+          // Filter for tofu outputs and the specific date
+          const dateObj = new Date(dateStr)
           tofuOutput = outputs
-            .filter((output: any) => output.product?.name?.toLowerCase().includes("đậu phụ"))
+            .filter((output: any) => {
+              const hasTofu = output.product?.name?.toLowerCase().includes("đậu phụ")
+              const outputDate = new Date(output.outputDate)
+              const isSameDate = outputDate.toDateString() === dateObj.toDateString()
+              return hasTofu && (outputs.length === 1 || isSameDate)
+            })
             .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
         } catch (error) {
           // Use default value
