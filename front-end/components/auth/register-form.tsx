@@ -247,7 +247,7 @@ export function RegisterForm() {
                 <SelectContent>
                   <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem>
                   <SelectItem value="brigadeAssistant">Trợ lý hậu cần Lữ đoàn</SelectItem>
-                  {/* <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem> */}
+                  <SelectItem value="stationManager">Trạm trưởng</SelectItem>
                   <SelectItem value="commander">Chỉ huy</SelectItem>
                 </SelectContent>
               </Select>

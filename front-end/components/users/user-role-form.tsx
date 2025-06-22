@@ -109,6 +109,7 @@ export function UserRoleForm({ userId, currentRole, onSuccess, onCancel }: UserR
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="brigadeAssistant">Trợ lý Lữ đoàn</SelectItem>
                   <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem>
+                  <SelectItem value="stationManager">Trạm trưởng</SelectItem>
                   <SelectItem value="commander">Chỉ huy</SelectItem>
                 </SelectContent>
               </Select>
