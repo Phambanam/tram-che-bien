@@ -25,13 +25,13 @@ export function DashboardNav() {
       title: "Tổng quan",
       href: "/dashboard",
       icon: <LayoutDashboard className="mr-2 h-4 w-4" />,
-      roles: ["admin", "brigadeAssistant", "unitAssistant", "commander"], // Tất cả vai trò
+      roles: ["admin", "brigadeAssistant", "unitAssistant", "commander", "stationManager"], // Tất cả vai trò
     },
     {
       title: "Quản lý nguồn nhập",
       href: "/dashboard/supplies",
       icon: <Package className="mr-2 h-4 w-4" />,
-      roles: ["admin", "brigadeAssistant", "unitAssistant", "commander"], // Tất cả vai trò
+      roles: ["admin", "brigadeAssistant", "unitAssistant", "commander", "stationManager"], // Tất cả vai trò
     },
     {
       title: "Quản lý người dùng",
@@ -43,19 +43,19 @@ export function DashboardNav() {
       title: "Thư viện dữ liệu",
       href: "/dashboard/library",
       icon: <Library className="mr-2 h-4 w-4" />,
-      roles: ["admin", "brigadeAssistant"], // Admin và trợ lý lữ đoàn
+      roles: ["admin", "brigadeAssistant", "stationManager"], // Admin, trợ lý lữ đoàn và trạm trưởng
     },
     {
       title: "Báo cáo thống kê",
       href: "/dashboard/reports",
       icon: <BarChart className="mr-2 h-4 w-4" />,
-      roles: ["admin", "brigadeAssistant", "commander"], // Admin, trợ lý lữ đoàn và chỉ huy
+      roles: ["admin", "brigadeAssistant", "commander", "stationManager"], // Admin, trợ lý lữ đoàn, chỉ huy và trạm trưởng
     },
     {
       title: "Cài đặt",
       href: "/dashboard/settings",
       icon: <Settings className="mr-2 h-4 w-4" />,
-      roles: ["admin", "brigadeAssistant", "unitAssistant", "commander"], // Tất cả vai trò
+      roles: ["admin", "brigadeAssistant", "unitAssistant", "commander", "stationManager"], // Tất cả vai trò
     },
   ]
 
