@@ -847,6 +847,31 @@ export const supplyOutputsApi = {
       method: "DELETE",
     })
   },
+
+  // New methods for planned outputs
+  generatePlannedOutputs: async (data: { week: number; year: number; overwriteExisting?: boolean }) => {
+    return apiRequest<{ success: boolean; message: string; data: any }>("/supply-outputs/generate-planned", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  },
+
+  getPlannedVsActual: async (params: { week: number; year: number; unitId?: string; productId?: string }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.unitId) queryParams.append("unitId", params.unitId)
+    if (params.productId) queryParams.append("productId", params.productId)
+    
+    return apiRequest<{ success: boolean; data: any[]; summary: any }>(`/supply-outputs/planned-vs-actual?${queryParams.toString()}`)
+  },
+
+  updatePlannedOutput: async (id: string, data: { quantity?: number; note?: string; status?: string }) => {
+    return apiRequest<{ success: boolean; message: string }>(`/supply-outputs/planned/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
 }
 
 // Upload API

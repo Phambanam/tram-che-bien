@@ -10,11 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { CalendarIcon, Search, FileDown, FileUp, Users, Calculator, Edit, Plus, Bot, Sparkles } from "lucide-react"
+import { CalendarIcon, Search, FileDown, FileUp, Users, Calculator, Edit, Plus, Bot, Sparkles, Save } from "lucide-react"
 import { format, startOfWeek, addDays, isSameDay, getWeek, getYear, isValid } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/components/ui/use-toast"
-import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
+import { unitsApi, dailyRationsApi, categoriesApi, menuPlanningApi, unitPersonnelDailyApi, supplyOutputsApi } from "@/lib/api-client"
 import { useAuth } from "@/components/auth/auth-provider"
 
 interface Unit {
@@ -129,6 +129,9 @@ export function OutputManagementContent() {
   // })
   const [aiSuggestions, setAISuggestions] = useState<string[]>([])
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false)
+  
+  // Save planned outputs state
+  const [isSaving, setIsSaving] = useState(false)
   
   const { toast } = useToast()
   const { user } = useAuth()
@@ -411,6 +414,48 @@ export function OutputManagementContent() {
     })
     
     setSupplyData(outputData)
+  }
+
+  // Handle saving planned outputs to database
+  const handleSavePlannedOutputs = async () => {
+    if (dataSource !== "ingredients" || ingredientSummaries.length === 0) {
+      toast({
+        title: "Thông báo",
+        description: "Chỉ có thể lưu kế hoạch từ dữ liệu thực đơn",
+        variant: "default",
+      })
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const week = getWeek(selectedDate, { locale: vi })
+      const year = getYear(selectedDate)
+      
+      const response = await supplyOutputsApi.generatePlannedOutputs({
+        week,
+        year,
+        overwriteExisting: true // Allow overwriting existing planned data
+      })
+
+      if (response.success) {
+        toast({
+          title: "Thành công",
+          description: response.message,
+        })
+      } else {
+        throw new Error(response.message || "Lỗi không xác định")
+      }
+    } catch (error) {
+      console.error("Error saving planned outputs:", error)
+      toast({
+        title: "Lỗi",
+        description: error instanceof Error ? error.message : "Không thể lưu kế hoạch xuất",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Generate supply output data based on daily rations and units (FALLBACK)
@@ -704,6 +749,25 @@ export function OutputManagementContent() {
                 </div>
               </div>
               <div className="flex gap-2">
+                {dataSource === "ingredients" && (
+                  <Button 
+                    onClick={handleSavePlannedOutputs}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Lưu kế hoạch xuất
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button variant="outline" className="flex items-center gap-2">
                   <FileDown className="h-4 w-4" />
                   Xuất Excel
