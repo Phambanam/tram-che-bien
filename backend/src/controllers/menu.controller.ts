@@ -110,7 +110,7 @@ export const getMenuById = async (req: Request, res: Response) => {
         return {
           id: dailyMenu._id.toString(),
           menuId: dailyMenu.menuId.toString(),
-          date: dailyMenu.date.toISOString().split('T')[0],
+          date: dailyMenu.date instanceof Date ? dailyMenu.date.toISOString().split('T')[0] : dailyMenu.date,
           mealCount: dailyMenu.mealCount,
           status: dailyMenu.status,
           meals: meals,
