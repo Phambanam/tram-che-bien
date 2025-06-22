@@ -583,8 +583,8 @@ export function ProcessingStationContent() {
       const response = await menuPlanningApi.getDailyIngredientSummaries(params)
       
       if (!response.success || !response.data || response.data.length === 0) {
-        console.log(`No menu data found for ${dateStr}, using 0 tofu requirement`)
-        return 0
+        console.log(`No menu data found for ${dateStr}, using fallback calculation`)
+        return calculateFallbackTofuNeed(date)
       }
       
       // Find tofu ingredients in the menu
@@ -593,7 +593,8 @@ export function ProcessingStationContent() {
       for (const dailySummary of response.data) {
         for (const ingredient of dailySummary.ingredients) {
           // Check if this ingredient is tofu-related
-          if (ingredient.lttpName.toLowerCase().includes("đậu phụ") ||
+          if (ingredient.lttpName.toLowerCase().includes("đậu phủ") ||
+              ingredient.lttpName.toLowerCase().includes("đậu phụ") ||
               ingredient.lttpName.toLowerCase().includes("tofu")) {
             
             // Get units and their personnel for this date
@@ -627,12 +628,42 @@ export function ProcessingStationContent() {
         }
       }
       
+      // If no tofu found in menu, use fallback calculation
+      if (totalTofuNeeded === 0) {
+        console.log(`No tofu ingredients found in menu for ${dateStr}, using fallback calculation`)
+        return calculateFallbackTofuNeed(date)
+      }
+      
       console.log(`Total tofu needed for ${dateStr}: ${totalTofuNeeded}kg`)
       return totalTofuNeeded
       
     } catch (error) {
       console.error("Error calculating tofu output needed:", error)
-      return 0
+      return calculateFallbackTofuNeed(date)
+    }
+  }
+
+  // Fallback calculation when no tofu in menu or no menu data
+  const calculateFallbackTofuNeed = async (date: Date): Promise<number> => {
+    try {
+      // Get total personnel from units
+      const unitsResponse = await unitsApi.getUnits()
+      const unitsData = Array.isArray(unitsResponse) ? unitsResponse : (unitsResponse as any).data || []
+      
+      const totalPersonnel = unitsData.reduce((sum: number, unit: any) => sum + (unit.personnel || 100), 0)
+      
+      // Standard tofu requirement: 0.15kg per person per day (150g)
+      const standardTofuPerPerson = 0.15
+      const fallbackTofuNeed = totalPersonnel * standardTofuPerPerson
+      
+      console.log(`Fallback calculation: ${totalPersonnel} people × ${standardTofuPerPerson}kg = ${fallbackTofuNeed}kg tofu needed`)
+      
+      return fallbackTofuNeed
+      
+    } catch (error) {
+      console.error("Error in fallback calculation:", error)
+      // Last resort: assume 400 people × 0.15kg = 60kg
+      return 60
     }
   }
 
