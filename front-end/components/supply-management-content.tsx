@@ -821,14 +821,23 @@ export function SupplyManagementContent() {
                       {supplies.map((supply, index) => {
                         // Debug log for each supply row
                         if (supply.status === "approved") {
+                          const shouldShow = shouldShowSupplyDetails(supply)
                           console.log(`DEBUG - Rendering approved supply ${index}:`, {
                             productName: supply.product?.name,
                             status: supply.status,
                             unitPrice: supply.unitPrice,
                             requestedQuantity: supply.requestedQuantity,
                             actualQuantity: supply.actualQuantity,
-                            shouldShowDetails: shouldShowSupplyDetails(supply),
-                            userRole: user?.role
+                            shouldShowDetails: shouldShow,
+                            userRole: user?.role,
+                            shouldShowAdditionalColumns: shouldShowAdditionalColumns()
+                          })
+                          
+                          // Debug the display logic
+                          console.log(`DEBUG - Display logic for unitPrice:`, {
+                            shouldShowDetails: shouldShow,
+                            unitPrice: supply.unitPrice,
+                            displayValue: shouldShow ? (supply.unitPrice?.toLocaleString('vi-VN') || "Chưa có") : "Chưa phê duyệt"
                           })
                         }
                         
@@ -861,7 +870,11 @@ export function SupplyManagementContent() {
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
                               {shouldShowSupplyDetails(supply) ? 
-                                ((supply.actualQuantity && supply.unitPrice) ? (supply.actualQuantity * supply.unitPrice).toLocaleString('vi-VN') : "Chưa có") 
+                                (() => {
+                                  // For approved status, use requestedQuantity, for received status use actualQuantity
+                                  const quantity = supply.status === "received" ? supply.actualQuantity : supply.requestedQuantity;
+                                  return (quantity && supply.unitPrice) ? (quantity * supply.unitPrice).toLocaleString('vi-VN') : "Chưa có";
+                                })()
                                 : "Chưa phê duyệt"}
                             </TableCell>
                           )}
