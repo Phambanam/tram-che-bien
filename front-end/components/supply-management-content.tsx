@@ -803,9 +803,9 @@ export function SupplyManagementContent() {
                         <TableHead>Tên hàng</TableHead>
                         <TableHead>Đơn vị</TableHead>
                         <TableHead>Số lượng dự kiến</TableHead>
-                        {shouldShowAdditionalColumns() && <TableHead>SL nhập yêu cầu</TableHead>}
-                        {shouldShowAdditionalColumns() && <TableHead>SL nhập thực tế</TableHead>}
-                        {shouldShowAdditionalColumns() && <TableHead>SL thực nhận</TableHead>}
+                        {shouldShowAdditionalColumns() && <TableHead>SL cung cấp (kg)</TableHead>}
+                        {shouldShowAdditionalColumns() && <TableHead>SL nhập kho (kg)</TableHead>}
+                        {shouldShowAdditionalColumns() && <TableHead>SL thực nhận (kg)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Đơn giá (VND)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Thành tiền (VND)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Hạn sử dụng</TableHead>}
@@ -849,17 +849,17 @@ export function SupplyManagementContent() {
                           <TableCell>{supply.supplyQuantity}</TableCell>
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {shouldShowSupplyDetails(supply) ? (supply.requestedQuantity || "Chưa có") : "Chưa phê duyệt"}
+                              {shouldShowSupplyDetails(supply) ? (supply.requestedQuantity || "Chưa phê duyệt") : "Chưa phê duyệt"}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {shouldShowSupplyDetails(supply) ? (supply.actualQuantity || "Chưa có") : "Chưa phê duyệt"}
+                              {supply.status === "received" ? (supply.actualQuantity || "Chưa có") : (supply.status === "approved" ? "Chưa nhập kho" : "Chưa phê duyệt")}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {shouldShowSupplyDetails(supply) ? (supply.receivedQuantity || "Chưa có") : "Chưa phê duyệt"}
+                              {supply.status === "received" ? (supply.receivedQuantity || "Chưa có") : (supply.status === "approved" ? "Chưa nhận hàng" : "Chưa phê duyệt")}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
@@ -1181,7 +1181,7 @@ export function SupplyManagementContent() {
               </div>
               <div className="space-y-2">
                 <label htmlFor="approval-requested-quantity" className="font-medium">
-                  Số lượng phải nhập (kg) *
+                  Số lượng cung cấp (kg) *
                 </label>
                 <Input
                   id="approval-requested-quantity"
@@ -1227,7 +1227,7 @@ export function SupplyManagementContent() {
                   className="bg-gray-50"
                 />
                 <p className="text-sm text-gray-600">
-                  Tự động tính: {approvalData.requestedQuantity || 0} kg × {(approvalData.unitPrice || 0).toLocaleString('vi-VN')} VND/kg
+                  Tự động tính: {approvalData.requestedQuantity || 0} kg × {(approvalData.unitPrice || 0).toLocaleString('vi-VN')} VND/kg = Thành tiền cung cấp
                 </p>
               </div>
               <div className="space-y-2">
@@ -1275,7 +1275,7 @@ export function SupplyManagementContent() {
                 <label className="font-medium">Thông tin nguồn nhập</label>
                 <div className="bg-gray-50 p-3 rounded-md space-y-1 text-sm">
                   <p>Đơn vị: {supplyToReceive?.unit?.name}</p>
-                  <p>Số lượng phải nhập: {supplyToReceive?.requestedQuantity} kg</p>
+                  <p>Số lượng cung cấp: {supplyToReceive?.requestedQuantity} kg</p>
                   <p>Đơn giá: {supplyToReceive?.unitPrice?.toLocaleString('vi-VN')} VND/kg</p>
                   <p>Ngày nhập trạm: {supplyToReceive?.stationEntryDate ? format(new Date(supplyToReceive.stationEntryDate), "dd/MM/yyyy") : ""}</p>
                 </div>
