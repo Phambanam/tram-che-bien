@@ -18,7 +18,6 @@ interface SuppliesFilterProps {
     product?: string
     searchText?: string
     stationEntryDate?: string
-    expiryFromDate?: string
     expiryToDate?: string
   }) => void
   onExportExcel?: () => void
@@ -30,7 +29,6 @@ export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilter
   const [filters, setFilters] = useState({
     stationEntryDate: format(new Date(), "yyyy-MM-dd"), // Ngày nhập trạm mặc định hôm nay
     unit: "all", // Lọc theo đơn vị
-    expiryFromDate: "", // Hạn sử dụng từ ngày
     expiryToDate: "", // Hạn sử dụng đến ngày
     category: "all", // Tất cả các LTTP
     searchText: "", // Tìm kiếm theo tên LTTP
@@ -83,6 +81,9 @@ export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilter
           // For station entry date, use both from and to date
           acc["stationEntryFromDate"] = value
           acc["stationEntryToDate"] = value
+        } else if (key === "expiryToDate") {
+          // For expiry date, use as expiryToDate
+          acc["expiryToDate"] = value
         } else {
           acc[key] = value
         }
@@ -90,13 +91,14 @@ export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilter
       return acc
     }, {} as any)
     
+    console.log("Applying filters:", activeFilters) // Debug log
     onFilterChange?.(activeFilters)
   }, [filters, onFilterChange])
 
   return (
     <Card className="mb-4">
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 items-end">
           {/* Ngày nhập trạm */}
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700">Ngày nhập trạm</label>
@@ -124,17 +126,6 @@ export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilter
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Hạn sử dụng từ */}
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Hạn sử dụng từ</label>
-            <Input 
-              type="date" 
-              value={filters.expiryFromDate}
-              onChange={(e) => handleFilterChange("expiryFromDate", e.target.value)}
-              className="text-sm"
-            />
           </div>
 
           {/* Hạn sử dụng đến */}
@@ -174,6 +165,11 @@ export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilter
               value={filters.searchText}
               onChange={(e) => handleFilterChange("searchText", e.target.value)}
               className="text-sm"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch()
+                }
+              }}
             />
           </div>
 
