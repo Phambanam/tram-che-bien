@@ -109,20 +109,62 @@ export function IntroductionContent() {
             <div className="lg:col-span-2 space-y-6">
               <h2 className="text-3xl font-bold text-gray-800 mb-6">Quá trình hình thành và phát triển</h2>
               
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-lg border-l-4 border-amber-500 mb-6">
+                <h4 className="font-bold text-amber-800 mb-3">🏛️ Lễ thành lập trang nghiêm:</h4>
+                <p className="text-amber-700 mb-3 leading-relaxed">
+                  <strong>Ngày 12 tháng 8 năm 1972</strong>, tại làng Hoàng Mai, huyện Việt Yên, tỉnh Hà Bắc (nay là tỉnh Bắc Giang), 
+                  Lễ thành lập Trung đoàn được tổ chức trang nghiêm, với khí thế sẵn sàng chiến đấu cao. 
+                  Thành lập vào những ngày tháng 8 lịch sử nên Trung đoàn vinh dự được đặt tên gọi là 
+                  <strong>"Đoàn Công binh Tháng Tám"</strong>.
+                </p>
+                <div className="bg-amber-100 p-4 rounded-lg">
+                  <h5 className="font-bold text-amber-800 mb-2">👥 Lãnh đạo ban đầu:</h5>
+                  <ul className="text-amber-700 space-y-1">
+                    <li><strong>Đồng chí Hà Đức Tân</strong> - Trung đoàn trưởng</li>
+                    <li><strong>Đồng chí Đỗ Đình Nha</strong> - Chính ủy</li>
+                  </ul>
+                </div>
+              </div>
+              
               <p className="text-lg leading-8 mb-6 text-justify">
                 <strong>Lữ đoàn 279 được thành lập ngày 12 tháng 8 năm 1972</strong>, trong bối cảnh cuộc kháng chiến chống Mỹ của nhân dân Việt Nam đang diễn ra quyết liệt. Ngay từ những ngày đầu tiên, lữ đoàn đã đảm nhiệm nhiệm vụ đặc biệt quan trọng: <strong>mở đường, xây dựng những trình chiến đấu, rà phá bom mìn, đảm bảo giao thông vận tải và bảo vệ các tuyến đường huyết mạch</strong>, phục vụ trực tiếp cho các chiến dịch lớn ở chiến trường miền Nam và miền Bắc.
               </p>
 
               <div className="bg-red-50 p-6 rounded-lg mb-6 border-l-4 border-red-500">
-                <h4 className="font-bold text-red-800 mb-3">⚔️ Thời kỳ kháng chiến chống Mỹ:</h4>
+                <h4 className="font-bold text-red-800 mb-3">⚔️ Nhiệm vụ thời kỳ kháng chiến:</h4>
                 <p className="text-red-700 mb-3">
                   Trong suốt cuộc kháng chiến chống Mỹ, đơn vị đã vượt qua muôn vàn khó khăn, gian khổ, không quản hy sinh, bám trụ trên các địa bàn chiến lược quan trọng:
                 </p>
-                <ul className="list-disc pl-6 space-y-2 text-red-700">
-                  <li><strong>Đầu sông Sài Gòn</strong> - Vị trí chiến lược quan trọng</li>
-                  <li><strong>Tây Nguyên</strong> - Khu vực hiểm trở, khó khăn</li>
-                  <li><strong>Miền Đông Nam Bộ</strong> - Tuyến đường huyết mạch</li>
-                </ul>
+                <div className="space-y-4">
+                  <div className="bg-red-100 p-4 rounded-lg">
+                    <h5 className="font-bold text-red-800 mb-2">🛣️ Khôi phục và xây dựng tuyến đường:</h5>
+                    <ul className="list-disc pl-6 space-y-1 text-red-700">
+                      <li>Khôi phục tuyến đường từ <strong>Hòa Bình đến Thanh Hóa</strong></li>
+                      <li>Khôi phục tuyến đường từ <strong>Nghệ An đến Hà Tĩnh</strong></li>
+                      <li>Bảo đảm đường cơ động vận chuyển trên tuyến <strong>Tây Trường Sơn nối Đông Trường Sơn</strong></li>
+                      <li>Bảo đảm cho Quân đoàn 1 vượt ngầm <strong>Bến Bào (qua Sông Bé)</strong> sang Đồng Xoài, Phước Vĩnh</li>
+                      <li>Nối liền với <strong>Đường 14</strong> cho đại quân tiến vào Sài Gòn, giải phóng hoàn toàn miền Nam</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-red-100 p-4 rounded-lg">
+                    <h5 className="font-bold text-red-800 mb-2">✈️ Xây dựng công trình hàng không:</h5>
+                    <ul className="list-disc pl-6 space-y-1 text-red-700">
+                      <li>Giúp bạn Lào xây dựng <strong>sân bay dã chiến Na Cay</strong></li>
+                      <li>Cùng với các Trung đoàn Công binh Công trình 229, 259, 289 tổ chức thi công <strong>sân bay Nội Bài</strong></li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-red-100 p-4 rounded-lg">
+                    <h5 className="font-bold text-red-800 mb-2">🏰 Xây dựng công trình phòng thủ:</h5>
+                    <ul className="list-disc pl-6 space-y-1 text-red-700">
+                      <li>Khu vực biên giới phía Bắc: xây dựng <strong>công trình chiến đấu, hầm trú ẩn</strong></li>
+                      <li>Làm đường, bố trí vật cản trên các địa bàn <strong>Hoàng Liên Sơn, Lạng Sơn</strong></li>
+                      <li>Trên đảo tiền tiêu thuộc <strong>Đặc khu Quảng Ninh</strong></li>
+                      <li>Nhiệm vụ <strong>quai đê lấn biển Cồn Thoi</strong> nay là xã Kim Trung, huyện Kim Sơn, tỉnh Ninh Bình</li>
+                    </ul>
+                  </div>
+                </div>
                 <p className="text-red-700 mt-3 font-medium">
                   ✅ <strong>Hoàn thành xuất sắc mọi nhiệm vụ được giao, góp phần quan trọng vào thắng lợi của dân tộc.</strong>
                 </p>
@@ -148,15 +190,50 @@ export function IntroductionContent() {
               </p>
 
               <div className="bg-yellow-50 p-6 rounded-lg mb-6">
-                <h4 className="font-bold text-yellow-800 mb-3">🏆 Danh hiệu và tài sản tinh thần:</h4>
-                <p className="text-yellow-700 mb-3">
-                  Với những thành tích lớn đã đạt được, <strong>Lữ đoàn Công binh hỗn hợp 279</strong> đã được Đảng, Nhà nước tặng thưởng nhiều:
+                <h4 className="font-bold text-yellow-800 mb-3">🏆 Danh hiệu và huân chương cao quý:</h4>
+                <p className="text-yellow-700 mb-4">
+                  Với những thành tích xuất sắc và cống hiến to lớn trong các thời kỳ lịch sử, <strong>Lữ đoàn Công binh hỗn hợp 279</strong> đã được Đảng, Nhà nước tặng thưởng:
                 </p>
-                <ul className="list-disc pl-6 space-y-2 text-yellow-700">
-                  <li><strong>Huân chương cao quý</strong> - Ghi nhận những cống hiến to lớn</li>
-                  <li><strong>Danh hiệu Anh hùng Lực lượng vũ trang nhân dân</strong> - Vinh dự cao nhất</li>
-                  <li><strong>Nhiều bằng khen, giấy khen</strong> của các cấp chính quyền</li>
-                </ul>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-yellow-100 p-4 rounded-lg">
+                    <h5 className="font-bold text-yellow-800 mb-2">🥇 Danh hiệu cao quý:</h5>
+                    <ul className="space-y-1 text-yellow-700">
+                      <li className="flex items-center gap-2">
+                        <span className="text-red-600">⭐</span>
+                        <span><strong>Danh hiệu Anh hùng Lực lượng vũ trang nhân dân</strong></span>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-yellow-100 p-4 rounded-lg">
+                    <h5 className="font-bold text-yellow-800 mb-2">🎖️ Huân chương Quân công:</h5>
+                    <ul className="space-y-1 text-yellow-700">
+                      <li className="flex items-center gap-2">
+                        <span className="text-bronze-600">🏅</span>
+                        <span>01 Huân chương Quân công hạng Ba</span>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-yellow-100 p-4 rounded-lg">
+                    <h5 className="font-bold text-yellow-800 mb-2">🏅 Huân chương Chiến công:</h5>
+                    <ul className="space-y-1 text-yellow-700">
+                      <li>05 Huân chương Chiến công hạng Nhất</li>
+                      <li>01 Huân chương Chiến công hạng Nhì</li>
+                      <li>17 Huân chương Chiến công hạng Ba</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-yellow-100 p-4 rounded-lg">
+                    <h5 className="font-bold text-yellow-800 mb-2">🛡️ Huân chương Bảo vệ Tổ quốc:</h5>
+                    <ul className="space-y-1 text-yellow-700">
+                      <li>01 Huân chương Bảo vệ Tổ quốc hạng Nhất</li>
+                      <li>02 Huân chương Bảo vệ Tổ quốc hạng Ba</li>
+                    </ul>
+                  </div>
+                </div>
+                
                 <div className="bg-yellow-100 p-4 rounded-lg mt-4">
                   <p className="text-yellow-800 font-semibold text-center">
                     🎖️ <strong>"MỞ ĐƯỜNG THẮNG LỢI"</strong> 🎖️<br/>
@@ -211,8 +288,8 @@ export function IntroductionContent() {
                   <li><strong>Rèn luyện bộ đội tinh nhuệ</strong>, sẵn sàng chiến đấu</li>
                   <li><strong>Đổi mới phương pháp huấn luyện</strong> phù hợp với yêu cầu mới</li>
                   <li><strong>Sẵn sàng hoàn thành mọi nhiệm vụ</strong> được Đảng và Nhà nước giao</li>
-          </ul>
-        </div>
+                </ul>
+              </div>
 
               <blockquote className="border-l-4 border-blue-500 pl-6 my-6 bg-blue-50 p-4 rounded-r-lg">
                 <p className="italic text-blue-800 text-lg font-semibold leading-relaxed">
