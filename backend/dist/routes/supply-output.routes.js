@@ -11,9 +11,13 @@ const router = express_1.default.Router();
 router.use(auth_middleware_1.protect);
 // Routes for all authenticated users
 router.get("/", supply_output_controller_1.getAllSupplyOutputs);
+router.get("/planned-vs-actual", supply_output_controller_1.getPlannedVsActual);
 router.get("/:id", supply_output_controller_1.getSupplyOutputById);
-// Routes for admin only
-router.post("/", (0, auth_middleware_1.authorize)("admin"), supply_output_controller_1.createSupplyOutput);
-router.patch("/:id", (0, auth_middleware_1.authorize)("admin"), supply_output_controller_1.updateSupplyOutput);
-router.delete("/:id", (0, auth_middleware_1.authorize)("admin"), supply_output_controller_1.deleteSupplyOutput);
+// Routes for brigade assistant (for planned outputs)
+router.post("/generate-planned", (0, auth_middleware_1.authorize)("brigadeAssistant"), supply_output_controller_1.generatePlannedOutputs);
+router.patch("/planned/:id", (0, auth_middleware_1.authorize)("brigadeAssistant"), supply_output_controller_1.updatePlannedOutput);
+// Routes for admin/station manager (for actual outputs)
+router.post("/", (0, auth_middleware_1.authorize)("admin", "stationManager"), supply_output_controller_1.createSupplyOutput);
+router.patch("/:id", (0, auth_middleware_1.authorize)("admin", "stationManager"), supply_output_controller_1.updateSupplyOutput);
+router.delete("/:id", (0, auth_middleware_1.authorize)("admin", "stationManager"), supply_output_controller_1.deleteSupplyOutput);
 exports.default = router;

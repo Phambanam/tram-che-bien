@@ -1230,7 +1230,7 @@ export function MenuReportContent() {
                     )}
                   </div>
                   
-                  <div className="flex gap-2">
+                  {/* <div className="flex gap-2">
                     <Button variant="outline" className="flex items-center gap-2" onClick={handleExportIngredientsToExcel}>
                       <FileDown className="h-4 w-4" />
                       Xuất danh sách nguyên liệu
@@ -1239,7 +1239,7 @@ export function MenuReportContent() {
                       <Printer className="h-4 w-4" />
                       In danh sách
                                 </Button>
-                              </div>
+                              </div> */}
                       </div>
 
                 {loadingIngredients ? (

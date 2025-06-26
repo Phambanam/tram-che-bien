@@ -113,17 +113,33 @@ export function SupplyManagementContent() {
       console.log("Raw API Response:", response) // Debug log
         
         // Handle different response formats
+        let processedSupplies: any[] = []
         if (Array.isArray(response)) {
         console.log("Response is array, setting supplies:", response.length, "items")
-        setSupplies(response)
+        processedSupplies = response
       } else if (response && Array.isArray((response as any).data)) {
         console.log("Response has data array, setting supplies:", (response as any).data.length, "items")
-        setSupplies((response as any).data)
+        processedSupplies = (response as any).data
         } else {
         console.warn("Unexpected response format:", response)
-        setSupplies([])
+        processedSupplies = []
       }
       
+      // Debug log specific fields for approved supplies
+      const approvedSupplies = processedSupplies.filter(s => s.status === "approved")
+      if (approvedSupplies.length > 0) {
+        console.log("Approved supplies debug:", approvedSupplies.map(s => ({
+          id: s.id,
+          productName: s.product?.name,
+          status: s.status,
+          requestedQuantity: s.requestedQuantity,
+          unitPrice: s.unitPrice,
+          actualQuantity: s.actualQuantity,
+          stationEntryDate: s.stationEntryDate
+        })))
+      }
+      
+      setSupplies(processedSupplies)
       console.log("Supplies state updated")
       } catch (error) {
         console.error("Error fetching supplies:", error)
@@ -422,7 +438,9 @@ export function SupplyManagementContent() {
 
     setIsApproving(true)
     try {
+      console.log("Sending approval data:", approvalData)
       const response = await suppliesApi.approveSupply(supplyToApprove.id, approvalData)
+      console.log("Approval response:", response)
       
       if (response.success) {
         toast({
@@ -430,8 +448,10 @@ export function SupplyManagementContent() {
           description: "Đã phê duyệt nguồn nhập thành công! Thông tin đã được cập nhật vào hệ thống trạm chế biến",
         })
         
-        // Refresh supplies list
-        fetchSupplies()
+        // Refresh supplies list and wait for completion
+        console.log("Refreshing supplies list after approval...")
+        await fetchSupplies()
+        console.log("Supplies list refreshed")
       }
     } catch (error) {
       console.error("Error approving supply:", error)
@@ -753,10 +773,10 @@ export function SupplyManagementContent() {
             <div className="flex justify-between items-center">
               <div></div>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex items-center gap-2">
+                {/* <Button variant="outline" className="flex items-center gap-2">
                   <FileUp className="h-4 w-4" />
                   Nhập Excel
-                </Button>
+                </Button> */}
               </div>
             </div>
 

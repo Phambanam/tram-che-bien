@@ -85,7 +85,7 @@ const FOOD_PRODUCTS = {
 // @access  Private
 const getSupplies = async (req, res) => {
     try {
-        const { unit, category, status, fromDate, toDate, stationEntryFromDate, stationEntryToDate, createdFromDate, createdToDate } = req.query;
+        const { unit, category, status, product, fromDate, toDate, stationEntryFromDate, stationEntryToDate, createdFromDate, createdToDate, expiryToDate } = req.query;
         // Make sure the database is connected
         await (0, database_2.connectToDatabase)();
         // Log user info for debugging
@@ -165,6 +165,28 @@ const getSupplies = async (req, res) => {
             }
             if (createdToDate) {
                 query.createdAt.$lte = new Date(createdToDate);
+            }
+        }
+        // Filter by expiry date if specified
+        if (expiryToDate) {
+            query.expiryDate = {
+                $lte: new Date(expiryToDate)
+            };
+        }
+        // Filter by product name if specified (text search)
+        if (product && typeof product === 'string' && product.trim() !== '') {
+            // Search for products by name using regex
+            const searchTerm = product.trim();
+            const allProducts = Object.values(FOOD_PRODUCTS).flat();
+            const matchingProductIds = allProducts
+                .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map(p => p.id);
+            if (matchingProductIds.length > 0) {
+                query.product = { $in: matchingProductIds };
+            }
+            else {
+                // If no products match, return empty result
+                query.product = { $in: [] };
             }
         }
         console.log("DEBUG - Final query:", JSON.stringify(query, null, 2));

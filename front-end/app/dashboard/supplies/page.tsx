@@ -33,7 +33,7 @@ export default function SuppliesPage() {
         <SupplyAddButton />
       </DashboardHeader>
       <div className="space-y-4">
-        <SuppliesFilter onFilterChange={handleFilterChange} />
+        {/* <SuppliesFilter onFilterChange={handleFilterChange} /> */}
         <SuppliesTable filters={filters} />
       </div>
     </DashboardShell>

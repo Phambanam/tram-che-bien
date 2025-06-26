@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteSupplyOutput = exports.updateSupplyOutput = exports.createSupplyOutput = exports.getSupplyOutputById = exports.getAllSupplyOutputs = void 0;
+exports.updatePlannedOutput = exports.getPlannedVsActual = exports.generatePlannedOutputs = exports.deleteSupplyOutput = exports.updateSupplyOutput = exports.createSupplyOutput = exports.getSupplyOutputById = exports.getAllSupplyOutputs = void 0;
 const mongodb_1 = require("mongodb");
 const database_1 = require("../config/database");
 // @desc    Get all supply outputs
@@ -8,23 +8,32 @@ const database_1 = require("../config/database");
 // @access  Private
 const getAllSupplyOutputs = async (req, res) => {
     try {
-        const { receivingUnit, productId, startDate, endDate } = req.query;
+        const { receivingUnit, productId, startDate, endDate, type, week, year } = req.query;
         const db = await (0, database_1.getDb)();
         let query = {};
         if (receivingUnit && mongodb_1.ObjectId.isValid(receivingUnit)) {
-            query = { ...query, receivingUnit: new mongodb_1.ObjectId(receivingUnit) };
+            query.receivingUnit = new mongodb_1.ObjectId(receivingUnit);
         }
         if (productId && mongodb_1.ObjectId.isValid(productId)) {
-            query = { ...query, productId: new mongodb_1.ObjectId(productId) };
+            query.productId = new mongodb_1.ObjectId(productId);
         }
         if (startDate || endDate) {
-            query = { ...query, outputDate: {} };
+            query.outputDate = {};
             if (startDate) {
-                query.outputDate = { ...query.outputDate, $gte: new Date(startDate) };
+                query.outputDate.$gte = new Date(startDate);
             }
             if (endDate) {
-                query.outputDate = { ...query.outputDate, $lte: new Date(endDate) };
+                query.outputDate.$lte = new Date(endDate);
             }
+        }
+        // Filter by type (planned or actual)
+        if (type) {
+            query.type = type;
+        }
+        // Filter by planning week/year
+        if (week && year) {
+            query.planningWeek = Number(week);
+            query.planningYear = Number(year);
         }
         // Get supply outputs with related information
         const supplyOutputs = await db
@@ -323,6 +332,7 @@ const createSupplyOutput = async (req, res) => {
         }
         // Create new supply output
         const result = await db.collection("supplyOutputs").insertOne({
+            type: "actual", // Mark as actual output (vs planned)
             receivingUnit: new mongodb_1.ObjectId(receivingUnit),
             productId: new mongodb_1.ObjectId(productId),
             quantity: Number(quantity),
@@ -568,3 +578,338 @@ const deleteSupplyOutput = async (req, res) => {
     }
 };
 exports.deleteSupplyOutput = deleteSupplyOutput;
+// @desc    Generate and save planned supply outputs from menu planning
+// @route   POST /api/supply-outputs/generate-planned
+// @access  Private (Brigade Assistant only)
+const generatePlannedOutputs = async (req, res) => {
+    try {
+        const { week, year, overwriteExisting = false } = req.body;
+        if (!week || !year) {
+            return res.status(400).json({
+                success: false,
+                message: "Vui lòng cung cấp tuần và năm"
+            });
+        }
+        const db = await (0, database_1.getDb)();
+        // Get menu planning data for the week
+        const menuPlanningResponse = await fetch(`${process.env.API_BASE_URL || 'http://localhost:5001'}/api/menu-planning/ingredient-summaries?week=${week}&year=${year}&showAllDays=true`);
+        const menuData = await menuPlanningResponse.json();
+        if (!menuData.success || !menuData.data || menuData.data.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Không có dữ liệu thực đơn cho tuần này"
+            });
+        }
+        // Get units and their personnel data
+        const units = await db.collection("units").find({}).toArray();
+        const unitsPersonnel = {};
+        for (const unit of units) {
+            unitsPersonnel[unit._id.toString()] = unit.personnel || 100; // Default 100 if not set
+        }
+        // Get personnel by day data
+        const startDate = new Date(year, 0, 1 + (week - 1) * 7);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        const personnelByDayResponse = await fetch(`${process.env.API_BASE_URL || 'http://localhost:5001'}/api/unit-personnel-daily/week?startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}`);
+        let personnelByDay = {};
+        try {
+            const personnelData = await personnelByDayResponse.json();
+            if (personnelData.success) {
+                personnelByDay = personnelData.data;
+            }
+        }
+        catch (e) {
+            console.log("Using default personnel data");
+        }
+        const plannedOutputs = [];
+        // Process each day's ingredients
+        for (const dailySummary of menuData.data) {
+            const dayPersonnelData = personnelByDay[dailySummary.date] || {};
+            for (const ingredient of dailySummary.ingredients) {
+                // Find matching product in database
+                const product = await db.collection("products").findOne({
+                    $or: [
+                        { name: { $regex: ingredient.lttpName, $options: 'i' } },
+                        { lttpId: ingredient.lttpId }
+                    ]
+                });
+                if (!product) {
+                    console.log(`Product not found for ingredient: ${ingredient.lttpName}`);
+                    continue;
+                }
+                // Calculate requirements for each unit
+                for (const unit of units) {
+                    const unitPersonnel = dayPersonnelData[unit._id.toString()] || unitsPersonnel[unit._id.toString()];
+                    if (unitPersonnel > 0) {
+                        // Calculate requirement: (personnel * quantity per 100 people) / 100
+                        const plannedQuantity = (unitPersonnel * ingredient.totalQuantity) / 100;
+                        if (plannedQuantity > 0) {
+                            // Check if planned output already exists for this combination
+                            const existingPlanned = await db.collection("supplyOutputs").findOne({
+                                type: "planned",
+                                receivingUnit: unit._id,
+                                productId: product._id,
+                                outputDate: new Date(dailySummary.date),
+                                planningWeek: week,
+                                planningYear: year
+                            });
+                            if (existingPlanned && !overwriteExisting) {
+                                continue; // Skip if already exists and not overwriting
+                            }
+                            const plannedOutput = {
+                                type: "planned", // New field to distinguish from actual outputs
+                                receivingUnit: unit._id,
+                                productId: product._id,
+                                quantity: Number(plannedQuantity.toFixed(2)),
+                                outputDate: new Date(dailySummary.date),
+                                receiver: `${unit.name} - Kế hoạch`,
+                                status: "planned",
+                                note: `Tự động tạo từ thực đơn tuần ${week}/${year}. Dùng trong: ${ingredient.usedInDishes.join(', ')}`,
+                                planningWeek: week,
+                                planningYear: year,
+                                planningSource: "menu", // Could be "menu" or "rations"
+                                sourceIngredient: {
+                                    lttpId: ingredient.lttpId,
+                                    lttpName: ingredient.lttpName,
+                                    category: ingredient.category,
+                                    usedInDishes: ingredient.usedInDishes
+                                },
+                                unitPersonnel: unitPersonnel,
+                                createdBy: new mongodb_1.ObjectId(req.user.id),
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                            };
+                            if (existingPlanned && overwriteExisting) {
+                                // Update existing
+                                await db.collection("supplyOutputs").updateOne({ _id: existingPlanned._id }, {
+                                    $set: {
+                                        ...plannedOutput,
+                                        updatedAt: new Date()
+                                    }
+                                });
+                            }
+                            else {
+                                // Insert new
+                                plannedOutputs.push(plannedOutput);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Bulk insert new planned outputs
+        if (plannedOutputs.length > 0) {
+            await db.collection("supplyOutputs").insertMany(plannedOutputs);
+        }
+        res.status(201).json({
+            success: true,
+            message: `Đã tạo ${plannedOutputs.length} kế hoạch xuất cho tuần ${week}/${year}`,
+            data: {
+                createdCount: plannedOutputs.length,
+                week,
+                year,
+                days: menuData.data.length
+            }
+        });
+    }
+    catch (error) {
+        console.error("Error generating planned outputs:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Đã xảy ra lỗi khi tạo kế hoạch xuất"
+        });
+    }
+};
+exports.generatePlannedOutputs = generatePlannedOutputs;
+// @desc    Get planned vs actual comparison
+// @route   GET /api/supply-outputs/planned-vs-actual
+// @access  Private
+const getPlannedVsActual = async (req, res) => {
+    try {
+        const { week, year, unitId, productId } = req.query;
+        if (!week || !year) {
+            return res.status(400).json({
+                success: false,
+                message: "Vui lòng cung cấp tuần và năm"
+            });
+        }
+        const db = await (0, database_1.getDb)();
+        let matchQuery = {
+            planningWeek: Number(week),
+            planningYear: Number(year)
+        };
+        if (unitId && mongodb_1.ObjectId.isValid(unitId)) {
+            matchQuery.receivingUnit = new mongodb_1.ObjectId(unitId);
+        }
+        if (productId && mongodb_1.ObjectId.isValid(productId)) {
+            matchQuery.productId = new mongodb_1.ObjectId(productId);
+        }
+        // Get planned and actual outputs
+        const comparison = await db
+            .collection("supplyOutputs")
+            .aggregate([
+            {
+                $match: matchQuery
+            },
+            {
+                $lookup: {
+                    from: "units",
+                    localField: "receivingUnit",
+                    foreignField: "_id",
+                    as: "unitInfo"
+                }
+            },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "productId",
+                    foreignField: "_id",
+                    as: "productInfo"
+                }
+            },
+            {
+                $unwind: "$unitInfo"
+            },
+            {
+                $unwind: "$productInfo"
+            },
+            {
+                $group: {
+                    _id: {
+                        date: { $dateToString: { format: "%Y-%m-%d", date: "$outputDate" } },
+                        unitId: "$receivingUnit",
+                        unitName: "$unitInfo.name",
+                        productId: "$productId",
+                        productName: "$productInfo.name"
+                    },
+                    plannedQuantity: {
+                        $sum: {
+                            $cond: [{ $eq: ["$type", "planned"] }, "$quantity", 0]
+                        }
+                    },
+                    actualQuantity: {
+                        $sum: {
+                            $cond: [{ $eq: ["$type", "actual"] }, "$quantity", 0]
+                        }
+                    },
+                    plannedCount: {
+                        $sum: {
+                            $cond: [{ $eq: ["$type", "planned"] }, 1, 0]
+                        }
+                    },
+                    actualCount: {
+                        $sum: {
+                            $cond: [{ $eq: ["$type", "actual"] }, 1, 0]
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    date: "$_id.date",
+                    unit: {
+                        id: { $toString: "$_id.unitId" },
+                        name: "$_id.unitName"
+                    },
+                    product: {
+                        id: { $toString: "$_id.productId" },
+                        name: "$_id.productName"
+                    },
+                    plannedQuantity: 1,
+                    actualQuantity: 1,
+                    variance: { $subtract: ["$actualQuantity", "$plannedQuantity"] },
+                    variancePercent: {
+                        $cond: [
+                            { $gt: ["$plannedQuantity", 0] },
+                            {
+                                $multiply: [
+                                    { $divide: [{ $subtract: ["$actualQuantity", "$plannedQuantity"] }, "$plannedQuantity"] },
+                                    100
+                                ]
+                            },
+                            null
+                        ]
+                    },
+                    hasPlanned: { $gt: ["$plannedCount", 0] },
+                    hasActual: { $gt: ["$actualCount", 0] }
+                }
+            },
+            {
+                $sort: { date: 1, "unit.name": 1, "product.name": 1 }
+            }
+        ])
+            .toArray();
+        res.status(200).json({
+            success: true,
+            data: comparison,
+            summary: {
+                totalItems: comparison.length,
+                withPlanned: comparison.filter(item => item.hasPlanned).length,
+                withActual: comparison.filter(item => item.hasActual).length,
+                withBoth: comparison.filter(item => item.hasPlanned && item.hasActual).length
+            }
+        });
+    }
+    catch (error) {
+        console.error("Error getting planned vs actual:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Đã xảy ra lỗi khi lấy dữ liệu so sánh"
+        });
+    }
+};
+exports.getPlannedVsActual = getPlannedVsActual;
+// @desc    Update planned supply output
+// @route   PATCH /api/supply-outputs/planned/:id
+// @access  Private (Brigade Assistant only)
+const updatePlannedOutput = async (req, res) => {
+    try {
+        const outputId = req.params.id;
+        const { quantity, note, status } = req.body;
+        if (!mongodb_1.ObjectId.isValid(outputId)) {
+            return res.status(400).json({
+                success: false,
+                message: "ID không hợp lệ"
+            });
+        }
+        const db = await (0, database_1.getDb)();
+        // Find planned output
+        const plannedOutput = await db.collection("supplyOutputs").findOne({
+            _id: new mongodb_1.ObjectId(outputId),
+            type: "planned"
+        });
+        if (!plannedOutput) {
+            return res.status(404).json({
+                success: false,
+                message: "Không tìm thấy kế hoạch xuất"
+            });
+        }
+        // Update planned output
+        const updateData = {
+            updatedAt: new Date(),
+            updatedBy: new mongodb_1.ObjectId(req.user.id)
+        };
+        if (quantity !== undefined) {
+            updateData.quantity = Number(quantity);
+        }
+        if (note !== undefined) {
+            updateData.note = note;
+        }
+        if (status !== undefined) {
+            updateData.status = status;
+        }
+        await db.collection("supplyOutputs").updateOne({ _id: new mongodb_1.ObjectId(outputId) }, { $set: updateData });
+        res.status(200).json({
+            success: true,
+            message: "Cập nhật kế hoạch xuất thành công"
+        });
+    }
+    catch (error) {
+        console.error("Error updating planned output:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Đã xảy ra lỗi khi cập nhật kế hoạch xuất"
+        });
+    }
+};
+exports.updatePlannedOutput = updatePlannedOutput;
