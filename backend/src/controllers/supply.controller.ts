@@ -88,12 +88,14 @@ export const getSupplies = async (req: Request, res: Response) => {
       unit, 
       category, 
       status, 
+      product,
       fromDate, 
       toDate, 
       stationEntryFromDate, 
       stationEntryToDate,
       createdFromDate,
-      createdToDate
+      createdToDate,
+      expiryToDate
     } = req.query
 
     // Make sure the database is connected
@@ -181,6 +183,30 @@ export const getSupplies = async (req: Request, res: Response) => {
       }
       if (createdToDate) {
         query.createdAt.$lte = new Date(createdToDate as string)
+      }
+    }
+
+    // Filter by expiry date if specified
+    if (expiryToDate) {
+      query.expiryDate = {
+        $lte: new Date(expiryToDate as string)
+      }
+    }
+
+    // Filter by product name if specified (text search)
+    if (product && typeof product === 'string' && product.trim() !== '') {
+      // Search for products by name using regex
+      const searchTerm = product.trim()
+      const allProducts = Object.values(FOOD_PRODUCTS).flat()
+      const matchingProductIds = allProducts
+        .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        .map(p => p.id)
+      
+      if (matchingProductIds.length > 0) {
+        query.product = { $in: matchingProductIds }
+      } else {
+        // If no products match, return empty result
+        query.product = { $in: [] }
       }
     }
 
