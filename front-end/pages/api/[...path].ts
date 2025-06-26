@@ -49,11 +49,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error(`Backend responded with status: ${response.status}`);
     }
     
-    // Get the response data
-    const data = await response.json();
+    // Check content type to handle different response types
+    const contentType = response.headers.get('content-type');
     
-    // Forward the status and data to the client
-    res.status(response.status).json(data);
+    if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+      // Handle Excel file download
+      const buffer = await response.arrayBuffer();
+      
+      // Set appropriate headers for file download
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', response.headers.get('Content-Disposition') || 'attachment; filename="export.xlsx"');
+      res.status(response.status).send(Buffer.from(buffer));
+    } else {
+      // Handle JSON response
+      const data = await response.json();
+      res.status(response.status).json(data);
+    }
   } catch (error) {
     console.error('API proxy error:', error);
     res.status(500).json({ 

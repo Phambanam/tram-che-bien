@@ -399,11 +399,10 @@ export const suppliesApi = {
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     
     const token = getAuthToken()
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
-    const url = `${baseUrl}/api/supplies/export${query}`
     
     try {
-      const response = await fetch(url, {
+      // Use Next.js API proxy instead of direct backend call
+      const response = await fetch(`/api/supplies/export${query}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -411,7 +410,9 @@ export const suppliesApi = {
       })
       
       if (!response.ok) {
-        throw new Error("Failed to export Excel")
+        console.error("Export failed with status:", response.status)
+        console.error("Response headers:", [...response.headers.entries()])
+        throw new Error(`Failed to export Excel: ${response.status} ${response.statusText}`)
       }
       
       const blob = await response.blob()
