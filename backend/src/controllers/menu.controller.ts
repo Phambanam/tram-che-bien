@@ -375,7 +375,7 @@ export const createDailyMenu = async (req: Request, res: Response) => {
       menuId: new ObjectId(menuId),
       date: new Date(date),
       mealCount,
-      status: "active",
+      status: "pending", // Default to pending for approval workflow
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -816,7 +816,7 @@ export const copyDailyMenu = async (req: Request, res: Response) => {
       menuId: sourceDailyMenu.menuId,
       date: new Date(targetDate),
       mealCount: mealCount || sourceDailyMenu.mealCount,
-      status: "active",
+      status: "pending", // Default to pending for approval workflow
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -848,6 +848,126 @@ export const copyDailyMenu = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Đã xảy ra lỗi khi sao chép thực đơn ngày"
+    })
+  }
+}
+
+// @desc    Approve daily menu
+// @route   POST /api/menus/daily-menus/:id/approve
+// @access  Private (Commander only)
+export const approveDailyMenu = async (req: Request, res: Response) => {
+  try {
+    const dailyMenuId = req.params.id
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(dailyMenuId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn ngày không hợp lệ"
+      })
+    }
+
+    const db = await getDb()
+
+    // Check if daily menu exists
+    const dailyMenu = await db.collection("dailyMenus").findOne({ _id: new ObjectId(dailyMenuId) })
+    if (!dailyMenu) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
+    }
+
+    // Update daily menu status to approved
+    const result = await db.collection("dailyMenus").updateOne(
+      { _id: new ObjectId(dailyMenuId) },
+      {
+        $set: {
+          status: "approved",
+          approvedBy: req.user?.id,
+          approvedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Phê duyệt thực đơn ngày thành công",
+    })
+  } catch (error) {
+    console.error("Error approving daily menu:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi phê duyệt thực đơn ngày"
+    })
+  }
+}
+
+// @desc    Reject daily menu
+// @route   POST /api/menus/daily-menus/:id/reject
+// @access  Private (Commander only)
+export const rejectDailyMenu = async (req: Request, res: Response) => {
+  try {
+    const dailyMenuId = req.params.id
+    const { reason } = req.body
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(dailyMenuId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn ngày không hợp lệ"
+      })
+    }
+
+    const db = await getDb()
+
+    // Check if daily menu exists
+    const dailyMenu = await db.collection("dailyMenus").findOne({ _id: new ObjectId(dailyMenuId) })
+    if (!dailyMenu) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
+    }
+
+    // Update daily menu status to rejected
+    const result = await db.collection("dailyMenus").updateOne(
+      { _id: new ObjectId(dailyMenuId) },
+      {
+        $set: {
+          status: "rejected",
+          rejectedBy: req.user?.id,
+          rejectedAt: new Date(),
+          rejectionReason: reason || "Không có lý do cụ thể",
+          updatedAt: new Date(),
+        },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Từ chối thực đơn ngày thành công",
+    })
+  } catch (error) {
+    console.error("Error rejecting daily menu:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi từ chối thực đơn ngày"
     })
   }
 }
