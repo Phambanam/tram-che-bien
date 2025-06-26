@@ -247,6 +247,20 @@ export const getSupplies = async (req: Request, res: Response) => {
     console.log(`DEBUG - Found ${formattedSupplies.length} supplies`);
     if (formattedSupplies.length > 0) {
       console.log("DEBUG - First supply:", JSON.stringify(formattedSupplies[0], null, 2));
+      
+      // Debug specific approved supplies
+      const approvedSupplies = formattedSupplies.filter(s => s.status === "approved");
+      if (approvedSupplies.length > 0) {
+        console.log("DEBUG - Approved supply details:", JSON.stringify({
+          id: approvedSupplies[0].id,
+          status: approvedSupplies[0].status,
+          unitPrice: approvedSupplies[0].unitPrice,
+          requestedQuantity: approvedSupplies[0].requestedQuantity,
+          actualQuantity: approvedSupplies[0].actualQuantity,
+          totalPrice: approvedSupplies[0].totalPrice,
+          stationEntryDate: approvedSupplies[0].stationEntryDate
+        }, null, 2));
+      }
     }
 
     res.status(200).json(formattedSupplies)
