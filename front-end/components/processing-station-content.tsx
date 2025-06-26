@@ -702,17 +702,36 @@ export function ProcessingStationContent() {
         console.log("No station data found for date, using defaults:", error)
       }
 
-      // Calculate expected tofu output needed from menu planning (thay vì lấy từ supply outputs)
-      const tofuOutputNeeded = await calculateTofuOutputNeeded(date)
+      // Get actual tofu output from supply outputs (thực tế đã xuất)
+      let actualTofuOutput = 0
+      try {
+        const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+          date: dateStr
+        })
+        const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        
+        // Calculate actual tofu outputs for this date
+        actualTofuOutput = outputs
+          .filter((output: any) => {
+            const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
+            return outputDate === dateStr && 
+                   output.product?.name?.toLowerCase().includes("đậu phụ")
+          })
+          .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+          
+        console.log(`Actual tofu output for ${dateStr}:`, actualTofuOutput)
+      } catch (error) {
+        console.log("No tofu output data found, using 0:", error)
+      }
 
       // Calculate remaining tofu
-      const tofuRemaining = stationData.tofuInput - tofuOutputNeeded
+      const tofuRemaining = stationData.tofuInput - actualTofuOutput
 
       const processingData: DailyTofuProcessing = {
         date: dateStr,
         soybeanInput: stationData.soybeanInput,
         tofuInput: stationData.tofuInput,
-        tofuOutput: tofuOutputNeeded, // Dự kiến cần xuất (từ thực đơn)
+        tofuOutput: actualTofuOutput, // Thực tế đã xuất (từ quản lý nguồn xuất)
         tofuRemaining: Math.max(0, tofuRemaining),
         note: stationData.note
       }
@@ -770,16 +789,32 @@ export function ProcessingStationContent() {
           // Use default values
         }
 
-        // Calculate expected tofu output needed from menu planning (thay vì từ supply outputs)
-        const tofuOutputNeeded = await calculateTofuOutputNeeded(date)
+        // Get actual tofu output from supply outputs (thực tế đã xuất)
+        let actualTofuOutput = 0
+        try {
+          const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+            date: dateStr
+          })
+          const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+          
+          actualTofuOutput = outputs
+            .filter((output: any) => {
+              const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
+              return outputDate === dateStr && 
+                     output.product?.name?.toLowerCase().includes("đậu phụ")
+            })
+            .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        } catch (error) {
+          // Use default 0
+        }
 
         weeklyData.push({
           date: dateStr,
           dayOfWeek: getDayName(date.getDay()),
           soybeanInput: stationData.soybeanInput,
           tofuInput: stationData.tofuInput,
-          tofuOutput: tofuOutputNeeded, // Dự kiến cần xuất (từ thực đơn)
-          tofuRemaining: Math.max(0, stationData.tofuInput - tofuOutputNeeded)
+          tofuOutput: actualTofuOutput, // Thực tế đã xuất (từ quản lý nguồn xuất)
+          tofuRemaining: Math.max(0, stationData.tofuInput - actualTofuOutput)
         })
       }
 
@@ -1411,16 +1446,24 @@ export function ProcessingStationContent() {
                           <div className="text-lg font-bold text-blue-700 mb-2">🏆 LÃI TRONG NGÀY:</div>
                           <div className="text-3xl font-bold text-blue-900">
                             {(() => {
-                              // Tính toán lãi trong ngày
-                              const tofuRevenue = dailyTofuProcessing.tofuInput * 15000 // 15k/kg đậu phụ
-                              const byProductRevenue = Math.round(dailyTofuProcessing.tofuInput * 0.1 * 5000) // Sản phẩm phụ: 10% đậu phụ x 5k/kg
-                              const totalRevenue = tofuRevenue + byProductRevenue
+                              // Tính toán lãi trong ngày - không fix cứng giá
+                              // Cần lấy giá từ sản phẩm hoặc cấu hình, tạm thời để 0 để không tính sai
+                              const tofuPrice = 0 // TODO: Lấy giá đậu phụ từ product hoặc setting
+                              const soybeanPrice = 0 // TODO: Lấy giá đậu tương từ product hoặc setting
                               
-                              const soybeanCost = dailyTofuProcessing.soybeanInput * 12000 // 12k/kg đậu tương
-                              const otherCosts = Math.round(dailyTofuProcessing.soybeanInput * 0.02 * 1000) // Chi phí khác: 2% x 1000
-                              const totalCost = soybeanCost + otherCosts
+                              const tofuRevenue = dailyTofuProcessing.tofuInput * tofuPrice
+                              const soybeanCost = dailyTofuProcessing.soybeanInput * soybeanPrice
                               
-                              const dailyProfit = totalRevenue - totalCost
+                              const dailyProfit = tofuRevenue - soybeanCost
+                              
+                              // Nếu chưa có giá, hiển thị thông báo
+                              if (tofuPrice === 0 || soybeanPrice === 0) {
+                                return (
+                                  <span className="text-gray-500 text-xl">
+                                    Chưa cấu hình giá
+                                  </span>
+                                )
+                              }
                               
                               return (
                                 <span className={dailyProfit >= 0 ? "text-green-600" : "text-red-600"}>
@@ -1431,11 +1474,7 @@ export function ProcessingStationContent() {
                             <span className="text-lg ml-1">đ</span>
                           </div>
                           <div className="text-xs text-blue-600 mt-1">
-                            (Thu - Chi = {(() => {
-                              const revenue = (dailyTofuProcessing.tofuInput * 15000) + Math.round(dailyTofuProcessing.tofuInput * 0.1 * 5000)
-                              const cost = (dailyTofuProcessing.soybeanInput * 12000) + Math.round(dailyTofuProcessing.soybeanInput * 0.02 * 1000)
-                              return `${revenue.toLocaleString()} - ${cost.toLocaleString()}`
-                            })()})
+                            (Cần cấu hình giá đậu phụ và đậu tương)
                           </div>
                         </div>
                       </div>
@@ -1505,7 +1544,7 @@ export function ProcessingStationContent() {
                               <span className="text-lg ml-1">kg</span>
                             </div>
                             <div className="text-xs text-red-600 mt-1">
-                              (Từ quản lý nguồn xuất)
+                              (Thực tế đã xuất trong ngày)
                             </div>
                           </div>
                         </div>
@@ -1620,7 +1659,7 @@ export function ProcessingStationContent() {
                                 Đậu phụ thu<br/><span className="text-xs font-normal">(kg)</span>
                               </th>
                               <th className="border border-gray-300 p-3 text-center font-bold bg-red-50">
-                                Dự kiến cần xuất<br/><span className="text-xs font-normal">(kg)</span>
+                                Đậu phụ đã xuất<br/><span className="text-xs font-normal">(kg)</span>
                               </th>
                               <th className="border border-gray-300 p-3 text-center font-bold bg-purple-50">
                                 Đậu phụ tồn<br/><span className="text-xs font-normal">(kg)</span>
@@ -1707,8 +1746,8 @@ export function ProcessingStationContent() {
                             {weeklyTracking.reduce((sum, day) => sum + day.tofuInput, 0).toLocaleString()} kg
                           </div>
                         </div>
-                        <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                                                      <div className="text-xs text-red-600">Tổng dự kiến cần xuất</div>
+                                                <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                          <div className="text-xs text-red-600">Tổng đậu phụ đã xuất</div>
                           <div className="text-lg font-bold text-red-700">
                             {weeklyTracking.reduce((sum, day) => sum + day.tofuOutput, 0).toLocaleString()} kg
                           </div>
