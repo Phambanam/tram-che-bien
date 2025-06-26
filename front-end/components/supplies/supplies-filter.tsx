@@ -2,11 +2,10 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Search, X, Calendar, Filter } from "lucide-react"
+import { Search, FileDown } from "lucide-react"
 import { format } from "date-fns"
 import { unitsApi, suppliesApi } from "@/lib/api-client"
 import { Unit, ProductCategory } from "@/types"
@@ -17,30 +16,25 @@ interface SuppliesFilterProps {
     category?: string
     status?: string
     product?: string
-    stationEntryFromDate?: string
-    stationEntryToDate?: string
-    createdFromDate?: string
-    createdToDate?: string
+    searchText?: string
+    stationEntryDate?: string
     expiryFromDate?: string
     expiryToDate?: string
   }) => void
+  onExportExcel?: () => void
 }
 
-export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
-  const [expanded, setExpanded] = useState(false)
+export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilterProps) {
   const [units, setUnits] = useState<Unit[]>([])
   const [categories, setCategories] = useState<ProductCategory[]>([])
   const [filters, setFilters] = useState({
-    unit: "all",
-    category: "all",
-    status: "all",
-    product: "",
-    stationEntryFromDate: format(new Date(), "yyyy-MM-dd"), // Default to today
-    stationEntryToDate: format(new Date(), "yyyy-MM-dd"),
-    createdFromDate: "",
-    createdToDate: "",
-    expiryFromDate: "",
-    expiryToDate: "",
+    stationEntryDate: format(new Date(), "yyyy-MM-dd"), // Ô 1: Ngày nhập trạm mặc định hôm nay
+    unit: "all", // Ô 2: Lọc theo đơn vị
+    expiryFromDate: "", // Ô 3a: Hạn sử dụng từ ngày
+    expiryToDate: "", // Ô 3b: Hạn sử dụng đến ngày
+    category: "all", // Ô 4: Tất cả các LTTP
+    searchText: "", // Ô 5: Tìm kiếm theo tên LTTP
+    status: "rejected", // Ô 6: Trạng thái từ chối
   })
 
   // Fetch units and categories on mount
@@ -48,6 +42,11 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
     fetchUnits()
     fetchCategories()
   }, [])
+
+  // Auto trigger filter when stationEntryDate changes (default behavior for tracking today's entries)
+  useEffect(() => {
+    handleSearch()
+  }, [filters.stationEntryDate])
 
   const fetchUnits = async () => {
     try {
@@ -80,7 +79,16 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
   const handleSearch = useCallback(() => {
     const activeFilters = Object.entries(filters).reduce((acc, [key, value]) => {
       if (value && value !== "all" && value !== "") {
-        acc[key] = value
+        if (key === "searchText") {
+          // For search text, use it as product filter
+          acc["product"] = value
+        } else if (key === "stationEntryDate") {
+          // For station entry date, use both from and to date
+          acc["stationEntryFromDate"] = value
+          acc["stationEntryToDate"] = value
+        } else {
+          acc[key] = value
+        }
       }
       return acc
     }, {} as any)
@@ -88,61 +96,35 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
     onFilterChange?.(activeFilters)
   }, [filters, onFilterChange])
 
-  const handleReset = useCallback(() => {
-    const resetFilters = {
-      unit: "all",
-      category: "all",
-      status: "all",
-      product: "",
-      stationEntryFromDate: "",
-      stationEntryToDate: "",
-      createdFromDate: "",
-      createdToDate: "",
-      expiryFromDate: "",
-      expiryToDate: "",
-    }
-    setFilters(resetFilters)
-    onFilterChange?.({})
-  }, [onFilterChange])
-
-  // Auto search when station entry date changes
-  useEffect(() => {
-    if (filters.stationEntryFromDate || filters.stationEntryToDate) {
-      handleSearch()
-    }
-  }, [filters.stationEntryFromDate, filters.stationEntryToDate])
-
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          Tìm kiếm nguồn nhập
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-4">
-          {/* Primary filters - always visible */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {/* 1. Ngày nhập trạm (mặc định hôm nay) */}
-            <div className="grid gap-2">
-              <Label htmlFor="station-date">Ngày nhập trạm</Label>
+    <Card className="mb-4">
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-4">
+          {/* Ô 1: Ngày nhập trạm */}
+          <div className="relative">
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              1
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Ngày nhập trạm</label>
               <Input 
-                id="station-date" 
                 type="date" 
-                value={filters.stationEntryFromDate}
-                onChange={(e) => {
-                  handleFilterChange("stationEntryFromDate", e.target.value)
-                  handleFilterChange("stationEntryToDate", e.target.value)
-                }}
+                value={filters.stationEntryDate}
+                onChange={(e) => handleFilterChange("stationEntryDate", e.target.value)}
+                className="text-sm"
               />
             </div>
+          </div>
 
-            {/* 2. Lọc theo đơn vị */}
-            <div className="grid gap-2">
-              <Label htmlFor="unit">Đơn vị</Label>
+          {/* Ô 2: Lọc theo đơn vị */}
+          <div className="relative">
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              2
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Đơn vị</label>
               <Select value={filters.unit} onValueChange={(value) => handleFilterChange("unit", value)}>
-                <SelectTrigger id="unit">
+                <SelectTrigger className="text-sm">
                   <SelectValue placeholder="Tất cả đơn vị" />
                 </SelectTrigger>
                 <SelectContent>
@@ -155,12 +137,34 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            {/* 4. Tất cả LTTP */}
-            <div className="grid gap-2">
-              <Label htmlFor="category">Phân loại LTTP</Label>
+          {/* Ô 3: Lọc theo hạn sử dụng */}
+          <div className="relative">
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              3
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Hạn sử dụng từ</label>
+              <Input 
+                type="date" 
+                value={filters.expiryFromDate}
+                onChange={(e) => handleFilterChange("expiryFromDate", e.target.value)}
+                className="text-sm"
+                placeholder="Từ ngày"
+              />
+            </div>
+          </div>
+
+          {/* Ô 4: Tất cả các LTTP */}
+          <div className="relative">
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              4
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Phân loại LTTP</label>
               <Select value={filters.category} onValueChange={(value) => handleFilterChange("category", value)}>
-                <SelectTrigger id="category">
+                <SelectTrigger className="text-sm">
                   <SelectValue placeholder="Tất cả LTTP" />
                 </SelectTrigger>
                 <SelectContent>
@@ -173,124 +177,84 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            {/* 5. Tìm kiếm theo tên LTTP */}
-            <div className="grid gap-2">
-              <Label htmlFor="product">Tên LTTP</Label>
+          {/* Ô 5: Tìm kiếm theo tên LTTP */}
+          <div className="relative">
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              5
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Tìm kiếm</label>
               <Input 
-                id="product" 
                 placeholder="Tìm theo tên LTTP" 
-                value={filters.product}
-                onChange={(e) => handleFilterChange("product", e.target.value)}
+                value={filters.searchText}
+                onChange={(e) => handleFilterChange("searchText", e.target.value)}
+                className="text-sm"
               />
             </div>
           </div>
 
-          {expanded && (
-            <>
-              {/* 3. Lọc theo hạn sử dụng */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Hạn sử dụng
-                </h4>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="expiry-from-date" className="text-sm">Từ ngày</Label>
-                    <Input 
-                      id="expiry-from-date" 
-                      type="date" 
-                      value={filters.expiryFromDate}
-                      onChange={(e) => handleFilterChange("expiryFromDate", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="expiry-to-date" className="text-sm">Đến ngày</Label>
-                    <Input 
-                      id="expiry-to-date" 
-                      type="date" 
-                      value={filters.expiryToDate}
-                      onChange={(e) => handleFilterChange("expiryToDate", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
+          {/* Ô 6: Trạng thái từ chối */}
+          <div className="relative">
+            <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+              6
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">Từ chối</label>
+              <Select value={filters.status} onValueChange={(value) => handleFilterChange("status", value)}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="pending">Chờ duyệt</SelectItem>
+                  <SelectItem value="approved">Đã duyệt</SelectItem>
+                  <SelectItem value="rejected">Từ chối</SelectItem>
+                  <SelectItem value="received">Đã nhận</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
 
-              {/* Other filters */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="status">Trạng thái</Label>
-                  <Select value={filters.status} onValueChange={(value) => handleFilterChange("status", value)}>
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Tất cả trạng thái" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                      <SelectItem value="pending">Chờ duyệt</SelectItem>
-                      <SelectItem value="approved">Đã duyệt</SelectItem>
-                      <SelectItem value="rejected">Từ chối</SelectItem>
-                      <SelectItem value="received">Đã nhận</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+        {/* Dòng thứ 2: Hạn sử dụng đến ngày và các nút chức năng */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          {/* Hạn sử dụng đến ngày (bổ sung cho ô 3) */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Hạn sử dụng đến</label>
+            <Input 
+              type="date" 
+              value={filters.expiryToDate}
+              onChange={(e) => handleFilterChange("expiryToDate", e.target.value)}
+              className="text-sm"
+              placeholder="Đến ngày"
+            />
+          </div>
 
-              {/* Filter theo ngày tạo */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Ngày tạo
-                </h4>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="created-from-date" className="text-sm">Từ ngày</Label>
-                    <Input 
-                      id="created-from-date" 
-                      type="date" 
-                      value={filters.createdFromDate}
-                      onChange={(e) => handleFilterChange("createdFromDate", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="created-to-date" className="text-sm">Đến ngày</Label>
-                    <Input 
-                      id="created-to-date" 
-                      type="date" 
-                      value={filters.createdToDate}
-                      onChange={(e) => handleFilterChange("createdToDate", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+          {/* Spacer */}
+          <div></div>
+
+          {/* Nút tìm kiếm */}
+          <Button 
+            onClick={handleSearch} 
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <Search className="h-4 w-4" />
+            Tìm kiếm
+          </Button>
+
+          {/* Nút xuất Excel */}
+          <Button 
+            variant="outline" 
+            onClick={onExportExcel}
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <FileDown className="h-4 w-4" />
+            Xuất Excel
+          </Button>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
-            {expanded ? (
-              <>
-                <X className="mr-2 h-4 w-4" />
-                Thu gọn
-              </>
-            ) : (
-              <>
-                <Filter className="mr-2 h-4 w-4" />
-                Mở rộng
-              </>
-            )}
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            <X className="mr-2 h-4 w-4" />
-            Đặt lại
-          </Button>
-        </div>
-        <Button size="sm" onClick={handleSearch}>
-          <Search className="mr-2 h-4 w-4" />
-          Áp dụng lọc
-        </Button>
-      </CardFooter>
     </Card>
   )
 }

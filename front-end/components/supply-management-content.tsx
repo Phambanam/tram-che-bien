@@ -745,19 +745,14 @@ export function SupplyManagementContent() {
 
           <TabsContent value="list" className="space-y-4">
             {/* Filter Component */}
-            <SuppliesFilter onFilterChange={handleFilterChange} />
+            <SuppliesFilter 
+              onFilterChange={handleFilterChange} 
+              onExportExcel={handleExportExcel}
+            />
             
             <div className="flex justify-between items-center">
               <div></div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex items-center gap-2"
-                  onClick={handleExportExcel}
-                >
-                  <FileDown className="h-4 w-4" />
-                  Xuất Excel
-                </Button>
                 <Button variant="outline" className="flex items-center gap-2">
                   <FileUp className="h-4 w-4" />
                   Nhập Excel
