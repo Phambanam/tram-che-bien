@@ -818,7 +818,21 @@ export function SupplyManagementContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {supplies.map((supply, index) => (
+                      {supplies.map((supply, index) => {
+                        // Debug log for each supply row
+                        if (supply.status === "approved") {
+                          console.log(`DEBUG - Rendering approved supply ${index}:`, {
+                            productName: supply.product?.name,
+                            status: supply.status,
+                            unitPrice: supply.unitPrice,
+                            requestedQuantity: supply.requestedQuantity,
+                            actualQuantity: supply.actualQuantity,
+                            shouldShowDetails: shouldShowSupplyDetails(supply),
+                            userRole: user?.role
+                          })
+                        }
+                        
+                        return (
                         <TableRow key={supply.id}>
                           <TableCell>{index + 1}</TableCell>
                           <TableCell>{supply.product?.name}</TableCell>
@@ -969,7 +983,8 @@ export function SupplyManagementContent() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        )
+                      })}
                     </TableBody>
                   </Table>
                   </div>
