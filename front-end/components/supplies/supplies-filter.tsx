@@ -41,12 +41,9 @@ export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilter
   useEffect(() => {
     fetchUnits()
     fetchCategories()
-  }, [])
-
-  // Auto trigger filter when stationEntryDate changes (default behavior for tracking today's entries)
-  useEffect(() => {
+    // Trigger initial search with default date
     handleSearch()
-  }, [filters.stationEntryDate])
+  }, [])
 
   const fetchUnits = async () => {
     try {
@@ -99,7 +96,7 @@ export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilter
   return (
     <Card className="mb-4">
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9 gap-4 items-end">
           {/* Ngày nhập trạm */}
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700">Ngày nhập trạm</label>
@@ -197,9 +194,21 @@ export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilter
             </Select>
           </div>
 
+          {/* Nút tìm kiếm */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700 invisible">Search</label>
+            <Button 
+              onClick={handleSearch}
+              className="w-full flex items-center justify-center gap-2 text-sm"
+            >
+              <Search className="h-4 w-4" />
+              Tìm kiếm
+            </Button>
+          </div>
+
           {/* Nút xuất Excel */}
           <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700 invisible">Action</label>
+            <label className="text-sm font-medium text-gray-700 invisible">Export</label>
             <Button 
               variant="outline" 
               onClick={onExportExcel}
