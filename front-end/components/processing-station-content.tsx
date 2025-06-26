@@ -615,7 +615,7 @@ export function ProcessingStationContent() {
       for (const dailySummary of response.data) {
         for (const ingredient of dailySummary.ingredients) {
           // Check if this ingredient is tofu-related
-          if (ingredient.lttpName.toLowerCase().includes("đậu phủ") ||
+          if (
               ingredient.lttpName.toLowerCase().includes("đậu phụ") ||
               ingredient.lttpName.toLowerCase().includes("tofu")) {
             

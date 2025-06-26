@@ -104,7 +104,7 @@ export function IntroductionContent() {
         {/* Main Content */}
         <div className="max-w-6xl mx-auto">
           {/* Nội dung chi tiết với layout 2 cột */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid  gap-8">
             {/* Cột nội dung chính (2/3 chiều rộng) */}
             <div className="lg:col-span-2 space-y-6">
               <h2 className="text-3xl font-bold text-gray-800 mb-6">Quá trình hình thành và phát triển</h2>
@@ -276,7 +276,7 @@ export function IntroductionContent() {
                 </div>
               </div>
 
-              <h3 className="text-2xl font-bold text-gray-800 mb-4 mt-8">Hướng tới tương lai</h3>
+              {/* <h3 className="text-2xl font-bold text-gray-800 mb-4 mt-8">Hướng tới tương lai</h3>
 
               <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-lg border-l-4 border-purple-500">
                 <h4 className="font-bold text-purple-800 mb-3">🚀 Nhiệm vụ trong thời kỳ mới:</h4>
@@ -300,9 +300,9 @@ export function IntroductionContent() {
                 <footer className="text-blue-600 mt-3 font-medium">
                   - Phương hướng phát triển của Lữ đoàn 279
                 </footer>
-              </blockquote>
+              </blockquote> */}
 
-              <div className="bg-gradient-to-r from-red-50 to-yellow-50 p-6 rounded-lg border border-red-200">
+              {/* <div className="bg-gradient-to-r from-red-50 to-yellow-50 p-6 rounded-lg border border-red-200">
                 <div className="text-center">
                   <h4 className="text-2xl font-bold text-red-800 mb-2">🇻🇳 VINH QUANG LỮĐOÀN 279 🇻🇳</h4>
                   <p className="text-red-700 font-semibold text-lg">
@@ -312,13 +312,13 @@ export function IntroductionContent() {
                     "Mở đường thắng lợi - Truyền thống bất diệt"
                   </p>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Sidebar bên phải (1/3 chiều rộng) */}
             <div className="space-y-6">
               {/* Thông tin nhanh */}
-              <div className="bg-gray-50 p-6 rounded-lg sticky top-4">
+              {/* <div className="bg-gray-50 p-6 rounded-lg sticky top-4">
                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <span className="text-blue-600">ℹ️</span>
                   Thông tin cơ bản
@@ -341,10 +341,10 @@ export function IntroductionContent() {
                     <span className="font-medium">"Mở đường thắng lợi"</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Ảnh bổ sung */}
-              <div className="space-y-4">
+              {/* <div className="space-y-4">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
                   <span className="text-green-600">🛡️</span>
                   Biểu tượng và Truyền thống
@@ -375,10 +375,10 @@ export function IntroductionContent() {
                     <p className="text-white text-xs">Xây dựng và bảo vệ Tổ quốc</p>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Thống kê */}
-              <div className="bg-amber-50 p-6 rounded-lg">
+              {/* <div className="bg-amber-50 p-6 rounded-lg">
                 <h3 className="font-bold text-amber-800 mb-4 flex items-center gap-2">
                   <span>🏆</span>
                   Thành tích nổi bật
@@ -401,8 +401,9 @@ export function IntroductionContent() {
                     <span className="bg-blue-200 px-2 py-1 rounded text-blue-800 font-bold">Xây dựng & Bảo vệ</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
+         
           </div>
         </div>
 
