@@ -1405,6 +1405,41 @@ export function ProcessingStationContent() {
                     <div className="text-center py-8">Đang tải dữ liệu...</div>
                   ) : (
                     <div className="space-y-4">
+                      {/* Lãi trong ngày - Position 1 as requested */}
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg p-4">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-blue-700 mb-2">🏆 LÃI TRONG NGÀY:</div>
+                          <div className="text-3xl font-bold text-blue-900">
+                            {(() => {
+                              // Tính toán lãi trong ngày
+                              const tofuRevenue = dailyTofuProcessing.tofuInput * 15000 // 15k/kg đậu phụ
+                              const byProductRevenue = Math.round(dailyTofuProcessing.tofuInput * 0.1 * 5000) // Sản phẩm phụ: 10% đậu phụ x 5k/kg
+                              const totalRevenue = tofuRevenue + byProductRevenue
+                              
+                              const soybeanCost = dailyTofuProcessing.soybeanInput * 12000 // 12k/kg đậu tương
+                              const otherCosts = Math.round(dailyTofuProcessing.soybeanInput * 0.02 * 1000) // Chi phí khác: 2% x 1000
+                              const totalCost = soybeanCost + otherCosts
+                              
+                              const dailyProfit = totalRevenue - totalCost
+                              
+                              return (
+                                <span className={dailyProfit >= 0 ? "text-green-600" : "text-red-600"}>
+                                  {dailyProfit >= 0 ? "+" : ""}{dailyProfit.toLocaleString()}
+                                </span>
+                              )
+                            })()}
+                            <span className="text-lg ml-1">đ</span>
+                          </div>
+                          <div className="text-xs text-blue-600 mt-1">
+                            (Thu - Chi = {(() => {
+                              const revenue = (dailyTofuProcessing.tofuInput * 15000) + Math.round(dailyTofuProcessing.tofuInput * 0.1 * 5000)
+                              const cost = (dailyTofuProcessing.soybeanInput * 12000) + Math.round(dailyTofuProcessing.soybeanInput * 0.02 * 1000)
+                              return `${revenue.toLocaleString()} - ${cost.toLocaleString()}`
+                            })()})
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Four box layout as per requirement */}
                       <div className="grid grid-cols-2 gap-6">
                         {/* Đậu tương chi */}
