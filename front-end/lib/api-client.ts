@@ -1,5 +1,5 @@
 // API client for communicating with the backend server
-const API_BASE_URL =  "http://localhost:5001/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api"
 
 // Helper function to get auth token
 const getAuthToken = () => {
@@ -125,12 +125,27 @@ export const authApi = {
   },
 
   register: async (userData: any) => {
+    console.log('🚀 API client register called with:', userData)
+    
     try {
-      return await apiRequest<{ success: boolean; message: string }>("/auth/register", {
+      const response = await apiRequest<{ success: boolean; message: string }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(userData),
       })
+      
+      console.log('✅ API client register response:', response)
+      return response
     } catch (error: any) {
+      console.error('🔥 API client register error:', error)
+      
+      // Check if it's a network error
+      if (error.message.includes('Failed to fetch') || error.message.includes('Unable to connect')) {
+        return {
+          success: false,
+          message: "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại."
+        }
+      }
+      
       return {
         success: false,
         message: error.message || "Đã xảy ra lỗi khi đăng ký"
