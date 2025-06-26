@@ -756,6 +756,18 @@ export const menusApi = {
       method: "DELETE",
     })
   },
+
+  approveDailyMenu: async (dailyMenuId: string) => {
+    return apiRequest<{ success: boolean; message: string }>(`/menus/daily-menus/${dailyMenuId}/approve`, {
+      method: "POST",
+    })
+  },
+
+  rejectDailyMenu: async (dailyMenuId: string) => {
+    return apiRequest<{ success: boolean; message: string }>(`/menus/daily-menus/${dailyMenuId}/reject`, {
+      method: "POST",
+    })
+  },
 }
 
 // Processing Station API
