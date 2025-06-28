@@ -144,6 +144,97 @@ export function TofuProcessing() {
     }
   }
 
+  // Improved function to check for tofu ingredients with better pattern matching
+  const findTofuInIngredients = (ingredients: any[]) => {
+    // Multiple patterns to match tofu-related ingredients
+    const tofuPatterns = [
+      /đậu\s*phụ/i,           // "đậu phụ", "đậu  phụ"
+      /tofu/i,                // "tofu", "TOFU"
+      /dau\s*phu/i,           // "dau phu" (no diacritics)
+      /đậu\s*hũ/i,            // "đậu hũ" (alternative name)
+      /tau\s*hu/i             // "tau hu" (Chinese-Vietnamese)
+    ]
+    
+    return ingredients.filter(ingredient => {
+      const name = ingredient.lttpName || ""
+      return tofuPatterns.some(pattern => pattern.test(name))
+    })
+  }
+
+  // Enhanced tofu calculation with multiple ingredient support
+  const calculateTofuOutputFromIngredients = async (dateStr: string) => {
+    try {
+      console.log("🔍 Calculating tofu output from ingredients for:", dateStr)
+      
+      const week = Math.ceil(new Date(dateStr).getDate() / 7)
+      const year = new Date(dateStr).getFullYear()
+      
+      const ingredientResponse = await menuPlanningApi.getDailyIngredientSummaries({
+        week: week,
+        year: year,
+        showAllDays: true
+      })
+      
+      if (!ingredientResponse.success || !ingredientResponse.data) {
+        console.log("❌ No ingredient data available")
+        return 0
+      }
+      
+      const dayData = ingredientResponse.data.find((day: any) => day.date === dateStr)
+      if (!dayData) {
+        console.log("❌ No data found for specific date:", dateStr)
+        return 0
+      }
+      
+      // Find all tofu-related ingredients using improved pattern matching
+      const tofuIngredients = findTofuInIngredients(dayData.ingredients)
+      
+      if (tofuIngredients.length === 0) {
+        console.log("❌ No tofu ingredients found in menu")
+        return 0
+      }
+      
+      console.log("✅ Found tofu ingredients:", {
+        count: tofuIngredients.length,
+        ingredients: tofuIngredients.map(ing => ({
+          name: ing.lttpName,
+          quantity: ing.totalQuantity,
+          dishes: ing.usedInDishes
+        }))
+      })
+      
+      // Get total personnel for this date
+      const personnelResponse = await unitPersonnelDailyApi.getPersonnelByWeek(dateStr, dateStr)
+      const totalPersonnel = personnelResponse.success ? 
+        Object.values(personnelResponse.data[dateStr] || {}).reduce((sum: number, count: any) => sum + count, 0) : 100
+      
+      // Calculate total tofu needed (sum all tofu ingredients)
+      const totalTofuQuantity = tofuIngredients.reduce((sum, ingredient) => 
+        sum + (ingredient.totalQuantity || 0), 0
+      )
+      
+      // Calculate: (personnel * total quantity per 100 people) / 100
+      const plannedTofuOutput = (totalPersonnel * totalTofuQuantity) / 100
+      
+      console.log("📊 Tofu calculation result:", {
+        totalPersonnel,
+        totalTofuQuantity,
+        plannedOutput: plannedTofuOutput,
+        ingredientBreakdown: tofuIngredients.map(ing => ({
+          name: ing.lttpName,
+          quantityPer100: ing.totalQuantity,
+          dishes: ing.usedInDishes.join(", ")
+        }))
+      })
+      
+      return plannedTofuOutput
+      
+    } catch (error) {
+      console.error("❌ Error calculating tofu from ingredients:", error)
+      return 0
+    }
+  }
+
   // Fetch daily tofu processing data
   const fetchDailyTofuProcessing = async (date: Date) => {
     try {
@@ -236,37 +327,7 @@ export function TofuProcessing() {
         if (plannedTofuOutput === 0) {
           console.log("🔍 No planned outputs found, trying to calculate from ingredient summaries...")
           try {
-            const week = Math.ceil(new Date(dateStr).getDate() / 7)
-            const year = new Date(dateStr).getFullYear()
-            const ingredientResponse = await menuPlanningApi.getDailyIngredientSummaries({
-              week: week,
-              year: year,
-              showAllDays: true
-            })
-            
-            if (ingredientResponse.success && ingredientResponse.data) {
-              const dayData = ingredientResponse.data.find((day: any) => day.date === dateStr)
-              if (dayData) {
-                const tofuIngredient = dayData.ingredients.find((ing: any) => 
-                  ing.lttpName?.toLowerCase().includes("đậu phụ") ||
-                  ing.lttpName?.toLowerCase().includes("tofu")
-                )
-                if (tofuIngredient) {
-                                     // Get total personnel for this date
-                   const personnelResponse = await unitPersonnelDailyApi.getPersonnelByWeek(dateStr, dateStr)
-                   const totalPersonnel = personnelResponse.success ? 
-                     Object.values(personnelResponse.data[dateStr] || {}).reduce((sum: number, count: any) => sum + count, 0) : 100
-                  
-                  // Calculate: (personnel * quantity per 100 people) / 100
-                  plannedTofuOutput = (totalPersonnel * tofuIngredient.totalQuantity) / 100
-                  console.log("📊 Calculated from ingredients:", {
-                    totalPersonnel,
-                    quantityPer100: tofuIngredient.totalQuantity,
-                    calculatedOutput: plannedTofuOutput
-                  })
-                }
-              }
-            }
+            plannedTofuOutput = await calculateTofuOutputFromIngredients(dateStr)
           } catch (calcError) {
             console.log("Could not calculate from ingredients:", calcError)
           }
@@ -384,6 +445,12 @@ export function TofuProcessing() {
               return outputDate === dateStr && isPlanned && nameMatch
             })
             .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+          
+          // If no planned outputs found, try to calculate from ingredient summaries
+          if (plannedTofuOutput === 0) {
+            console.log(`🔍 WEEKLY - No planned outputs for ${dateStr}, calculating from ingredients...`)
+            plannedTofuOutput = await calculateTofuOutputFromIngredients(dateStr)
+          }
         } catch (error) {
           console.log(`❌ WEEKLY - Error for ${dateStr}:`, error)
         }
@@ -512,6 +579,152 @@ export function TofuProcessing() {
     
     loadData()
   }, [])
+
+  // EXAMPLE: Comprehensive function demonstrating how to use getDailyIngredientSummaries API
+  // This shows the complete flow from API call to tofu detection and calculation
+  const exampleTofuDetectionFlow = async (targetDate: string) => {
+    console.log("📚 EXAMPLE: Complete tofu detection flow for date:", targetDate)
+    
+    try {
+      // Step 1: Prepare API parameters
+      const week = Math.ceil(new Date(targetDate).getDate() / 7)
+      const year = new Date(targetDate).getFullYear()
+      
+      console.log("📚 Step 1: API Parameters:", { week, year, targetDate })
+      
+      // Step 2: Call the API to get ingredient summaries
+      const response = await menuPlanningApi.getDailyIngredientSummaries({
+        week: week,
+        year: year,
+        showAllDays: true // Get all days in the week
+      })
+      
+      console.log("📚 Step 2: API Response:", {
+        success: response.success,
+        dataLength: response.data?.length || 0,
+        message: response.message
+      })
+      
+      if (!response.success || !response.data) {
+        console.log("📚 ❌ No data available from API")
+        return { found: false, reason: "No API data" }
+      }
+      
+      // Step 3: Find data for specific date
+      const dayData = response.data.find((day: any) => day.date === targetDate)
+      
+      console.log("📚 Step 3: Day Data Search:", {
+        targetDate,
+        foundDay: !!dayData,
+        dayData: dayData ? {
+          date: dayData.date,
+          dayName: dayData.dayName,
+          mealCount: dayData.mealCount,
+          totalIngredients: dayData.ingredients.length
+        } : null
+      })
+      
+      if (!dayData) {
+        console.log("📚 ❌ No menu data for specific date")
+        return { found: false, reason: "No menu for date" }
+      }
+      
+      // Step 4: Search for tofu ingredients
+      console.log("📚 Step 4: Searching for tofu ingredients...")
+      console.log("📚 All ingredients for the day:", 
+        dayData.ingredients.map((ing: any) => ({
+          name: ing.lttpName,
+          quantity: ing.totalQuantity,
+          unit: ing.unit,
+          category: ing.category
+        }))
+      )
+      
+      // Method 1: Simple search (original method)
+      const simpleTofuSearch = dayData.ingredients.find((ing: any) => 
+        ing.lttpName?.toLowerCase().includes("đậu phụ") ||
+        ing.lttpName?.toLowerCase().includes("tofu")
+      )
+      
+      // Method 2: Advanced pattern matching (improved method)
+      const advancedTofuSearch = findTofuInIngredients(dayData.ingredients)
+      
+      console.log("📚 Step 4 Results:", {
+        simpleTofuFound: !!simpleTofuSearch,
+        simpleTofuName: simpleTofuSearch?.lttpName,
+        advancedTofuCount: advancedTofuSearch.length,
+        advancedTofuNames: advancedTofuSearch.map(t => t.lttpName)
+      })
+      
+      if (advancedTofuSearch.length === 0) {
+        console.log("📚 ❌ No tofu ingredients found in menu")
+        return { found: false, reason: "No tofu in menu" }
+      }
+      
+      // Step 5: Calculate tofu requirements
+      console.log("📚 Step 5: Calculating tofu requirements...")
+      
+      // Get personnel data for the date
+      const personnelResponse = await unitPersonnelDailyApi.getPersonnelByWeek(targetDate, targetDate)
+      const totalPersonnel = personnelResponse.success ? 
+        Object.values(personnelResponse.data[targetDate] || {}).reduce((sum: number, count: any) => sum + count, 0) : 100
+      
+      // Calculate total tofu quantity needed
+      const totalTofuQuantity = advancedTofuSearch.reduce((sum, ingredient) => 
+        sum + (ingredient.totalQuantity || 0), 0
+      )
+      
+      // Final calculation: (personnel * quantity per 100 people) / 100
+      const finalTofuOutput = (totalPersonnel * totalTofuQuantity) / 100
+      
+      console.log("📚 Step 5: Final Calculation:", {
+        totalPersonnel,
+        totalTofuQuantityPer100: totalTofuQuantity,
+        finalTofuOutputKg: finalTofuOutput,
+        formula: `(${totalPersonnel} người × ${totalTofuQuantity} kg/100 người) ÷ 100 = ${finalTofuOutput} kg`
+      })
+      
+      // Step 6: Detailed breakdown by ingredient
+      console.log("📚 Step 6: Detailed Ingredient Breakdown:")
+      advancedTofuSearch.forEach((ingredient, index) => {
+        const ingredientOutput = (totalPersonnel * ingredient.totalQuantity) / 100
+        console.log(`📚 Ingredient ${index + 1}:`, {
+          name: ingredient.lttpName,
+          quantityPer100: ingredient.totalQuantity,
+          unit: ingredient.unit,
+          category: ingredient.category,
+          usedInDishes: ingredient.usedInDishes,
+          calculatedOutputForThisIngredient: ingredientOutput
+        })
+      })
+      
+      return {
+        found: true,
+        ingredients: advancedTofuSearch,
+        totalPersonnel,
+        totalTofuQuantity,
+        finalOutput: finalTofuOutput,
+        breakdown: advancedTofuSearch.map(ing => ({
+          name: ing.lttpName,
+          output: (totalPersonnel * ing.totalQuantity) / 100,
+          dishes: ing.usedInDishes
+        }))
+      }
+      
+    } catch (error) {
+      console.error("📚 ❌ Example flow error:", error)
+      return { found: false, reason: "Error occurred", error }
+    }
+  }
+
+  // Usage example function (can be called for testing)
+  const runTofuDetectionExample = async () => {
+    const today = format(new Date(), "yyyy-MM-dd")
+    console.log("🚀 Running tofu detection example for today:", today)
+    const result = await exampleTofuDetectionFlow(today)
+    console.log("🎯 Example Result:", result)
+    return result
+  }
 
   return (
     <div className="space-y-6">
