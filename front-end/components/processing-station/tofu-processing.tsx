@@ -1087,6 +1087,63 @@ export function TofuProcessing() {
           <p className="text-sm text-gray-600 text-center">
             Ngày hôm nay: {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })}
           </p>
+          
+          {/* Week Filter */}
+          <div className="flex items-center justify-center gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Tuần:</label>
+              <select
+                value={selectedWeek}
+                onChange={(e) => {
+                  const newWeek = parseInt(e.target.value)
+                  setSelectedWeek(newWeek)
+                  fetchWeeklyTracking(newWeek, selectedYear)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                {Array.from({ length: 53 }, (_, i) => i + 1).map((week) => (
+                  <option key={week} value={week}>
+                    Tuần {week}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Năm:</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  const newYear = parseInt(e.target.value)
+                  setSelectedYear(newYear)
+                  fetchWeeklyTracking(selectedWeek, newYear)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const now = new Date()
+                const currentWeek = Math.ceil(now.getDate() / 7)
+                const currentYear = now.getFullYear()
+                setSelectedWeek(currentWeek)
+                setSelectedYear(currentYear)
+                fetchWeeklyTracking(currentWeek, currentYear)
+              }}
+              className="text-blue-600 hover:text-blue-800"
+            >
+              📅 Tuần hiện tại
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading || weeklyTracking.length === 0 ? (
@@ -1220,6 +1277,79 @@ export function TofuProcessing() {
           <p className="text-sm text-gray-600 text-center">
             Bảng thu chi lãi theo từng tháng trong năm {new Date().getFullYear()}
           </p>
+          
+          {/* Month Filter */}
+          <div className="flex items-center justify-center gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Tháng kết thúc:</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  const newMonth = parseInt(e.target.value)
+                  setSelectedMonth(newMonth)
+                  fetchMonthlyTofuSummary(newMonth, selectedMonthYear)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                  <option key={month} value={month}>
+                    Tháng {month}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Năm:</label>
+              <select
+                value={selectedMonthYear}
+                onChange={(e) => {
+                  const newYear = parseInt(e.target.value)
+                  setSelectedMonthYear(newYear)
+                  fetchMonthlyTofuSummary(selectedMonth, newYear)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const now = new Date()
+                const currentMonth = now.getMonth() + 1
+                const currentYear = now.getFullYear()
+                setSelectedMonth(currentMonth)
+                setSelectedMonthYear(currentYear)
+                fetchMonthlyTofuSummary(currentMonth, currentYear)
+              }}
+              className="text-green-600 hover:text-green-800"
+            >
+              📊 Tháng hiện tại
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Hiển thị:</label>
+              <select
+                defaultValue="6"
+                onChange={(e) => {
+                  const monthCount = parseInt(e.target.value)
+                  fetchMonthlyTofuSummary(selectedMonth, selectedMonthYear, monthCount)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="3">3 tháng</option>
+                <option value="6">6 tháng</option>
+                <option value="12">12 tháng</option>
+              </select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {monthlyTofuSummary.length === 0 ? (
