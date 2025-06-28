@@ -74,18 +74,12 @@ export function TofuProcessing() {
     note: string
     soybeanPrice: number
     tofuPrice: number
-    byProductQuantity: number
-    byProductPrice: number
-    otherCosts: number
   }>({
     soybeanInput: 0,
     tofuInput: 0,
     note: "",
     soybeanPrice: 0,
-    tofuPrice: 0,
-    byProductQuantity: 0,
-    byProductPrice: 5000,
-    otherCosts: 0
+    tofuPrice: 0
   })
   
   // API test states (previously detection test)
@@ -345,10 +339,7 @@ export function TofuProcessing() {
           tofuInput: stationData.tofuInput,
           note: stationData.note,
           soybeanPrice: finalSoybeanPrice || 0,
-          tofuPrice: finalTofuPrice || 0,
-          byProductQuantity: apiData.byProductQuantity || 0,
-          byProductPrice: apiData.byProductPrice || 5000,
-          otherCosts: apiData.otherCosts || 0
+          tofuPrice: finalTofuPrice || 0
         })
       } catch (error) {
         console.log("Error loading by-products data, using defaults:", error)
@@ -357,10 +348,7 @@ export function TofuProcessing() {
           tofuInput: stationData.tofuInput,
           note: stationData.note,
           soybeanPrice: finalSoybeanPrice || 0,
-          tofuPrice: finalTofuPrice || 0,
-          byProductQuantity: 0,
-          byProductPrice: 5000,
-          otherCosts: 0
+          tofuPrice: finalTofuPrice || 0
         })
       }
 
@@ -386,10 +374,7 @@ export function TofuProcessing() {
         tofuInput: 0,
         note: "",
         soybeanPrice: 0,
-        tofuPrice: 0,
-        byProductQuantity: 0,
-        byProductPrice: 5000,
-        otherCosts: 0
+        tofuPrice: 0
       })
     }
   }
@@ -547,16 +532,17 @@ export function TofuProcessing() {
     try {
       setIsUpdating(true)
 
-      // Update station data via API (include all fields: prices, by-products, other costs)
+      // Update station data via API (byProductQuantity, byProductPrice, otherCosts get default values since not edited in daily view)
       await processingStationApi.updateDailyData(dailyTofuProcessing.date, {
         soybeanInput: dailyUpdateData.soybeanInput,
         tofuInput: dailyUpdateData.tofuInput,
         note: dailyUpdateData.note,
         soybeanPrice: dailyUpdateData.soybeanPrice,
         tofuPrice: dailyUpdateData.tofuPrice,
-        byProductQuantity: dailyUpdateData.byProductQuantity,
-        byProductPrice: dailyUpdateData.byProductPrice,
-        otherCosts: dailyUpdateData.otherCosts
+        // Set default values for fields only editable in weekly/monthly views
+        byProductQuantity: 0, // Default: no by-products in daily view
+        byProductPrice: 5000, // Default price when by-products are added later
+        otherCosts: 0 // Default: no other costs in daily view
       })
 
       // Refresh data
@@ -984,72 +970,7 @@ export function TofuProcessing() {
                 </div>
               </div>
 
-              {/* By-products and Other Costs section */}
-              {editingDailyData && (
-                <div className="grid grid-cols-2 gap-6 mt-6">
-                  {/* Sản phẩm phụ */}
-                  <div className="bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <div className="text-sm font-medium text-indigo-700 mb-2">Sản phẩm phụ:</div>
-                      <div className="text-xl font-bold text-indigo-800 flex items-center justify-center gap-2">
-                        <Input
-                          type="number"
-                          value={dailyUpdateData.byProductQuantity}
-                          onChange={(e) => setDailyUpdateData(prev => ({ 
-                            ...prev, 
-                            byProductQuantity: Number(e.target.value) || 0
-                          }))}
-                          className="w-20 h-10 text-center text-xl font-bold bg-white border-indigo-300"
-                          placeholder="0"
-                          step="0.1"
-                        />
-                        <span className="text-sm">kg</span>
-                        <span className="text-sm">×</span>
-                        <Input
-                          type="number"
-                          value={dailyUpdateData.byProductPrice}
-                          onChange={(e) => setDailyUpdateData(prev => ({ 
-                            ...prev, 
-                            byProductPrice: Number(e.target.value) || 0
-                          }))}
-                          className="w-24 h-10 text-center text-xl font-bold bg-white border-indigo-300"
-                          placeholder="5000"
-                        />
-                        <span className="text-sm">đ/kg</span>
-                      </div>
-                      <div className="text-xs text-indigo-600 mt-2">
-                        Thành tiền: {((dailyUpdateData.byProductQuantity || 0) * (dailyUpdateData.byProductPrice || 0)).toLocaleString('vi-VN')}đ
-                      </div>
-                      <div className="text-xs text-indigo-500 mt-1">
-                        (Vỏ đậu, nước đậu, v.v.)
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Chi phí khác */}
-                  <div className="bg-pink-50 border-2 border-pink-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <div className="text-sm font-medium text-pink-700 mb-2">Chi phí khác:</div>
-                      <div className="text-xl font-bold text-pink-800">
-                        <Input
-                          type="number"
-                          value={dailyUpdateData.otherCosts}
-                          onChange={(e) => setDailyUpdateData(prev => ({ 
-                            ...prev, 
-                            otherCosts: Number(e.target.value) || 0
-                          }))}
-                          className="w-32 h-10 text-center text-xl font-bold bg-white border-pink-300"
-                          placeholder="0"
-                        />
-                        <span className="text-sm ml-1">đ</span>
-                      </div>
-                      <div className="text-xs text-pink-600 mt-1">
-                        (Điện, nước, nhân công)
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Price section - 2 boxes for soybean and tofu prices */}
               <div className="grid grid-cols-2 gap-6 mt-6">
@@ -1161,10 +1082,7 @@ export function TofuProcessing() {
                             tofuInput: dailyTofuProcessing.tofuInput,
                             note: dailyTofuProcessing.note || "",
                             soybeanPrice: dailyTofuProcessing.soybeanPrice || 0,
-                            tofuPrice: dailyTofuProcessing.tofuPrice || 0,
-                            byProductQuantity: dailyTofuProcessing.byProductQuantity || 0,
-                            byProductPrice: dailyTofuProcessing.byProductPrice || 5000,
-                            otherCosts: dailyTofuProcessing.otherCosts || 0
+                            tofuPrice: dailyTofuProcessing.tofuPrice || 0
                           })
                         }}
                       >
