@@ -995,21 +995,42 @@ export const getWeeklyLivestockTracking = async (req: Request, res: Response) =>
         date: dateStr,
         dayOfWeek: getDayNameVi(date.getDay()),
         liveAnimalsInput: processingData.liveAnimalsInput || 0,
-        meatOutput: processingData.meatOutput || 0,
-        actualMeatOutput: processingData.actualMeatOutput || 0,
-        meatRemaining: Math.max(0, (processingData.meatOutput || 0) - (processingData.actualMeatOutput || 0)),
+        leanMeatOutput: processingData.leanMeatOutput || 0,
+        leanMeatActualOutput: processingData.leanMeatActualOutput || 0,
+        leanMeatRemaining: processingData.leanMeatRemaining || 0,
+        boneOutput: processingData.boneOutput || 0,
+        boneActualOutput: processingData.boneActualOutput || 0,
+        boneRemaining: processingData.boneRemaining || 0,
+        groundMeatOutput: processingData.groundMeatOutput || 0,
+        groundMeatActualOutput: processingData.groundMeatActualOutput || 0,
+        groundMeatRemaining: processingData.groundMeatRemaining || 0,
+        organsOutput: processingData.organsOutput || 0,
+        organsActualOutput: processingData.organsActualOutput || 0,
+        organsRemaining: processingData.organsRemaining || 0,
         // Price fields
         liveAnimalPrice: processingData.liveAnimalPrice || 70000,
-        meatPrice: processingData.meatPrice || 120000
+        leanMeatPrice: processingData.leanMeatPrice || 120000,
+        bonePrice: processingData.bonePrice || 30000,
+        groundMeatPrice: processingData.groundMeatPrice || 80000,
+        organsPrice: processingData.organsPrice || 50000
       })
     }
 
     // Calculate weekly totals
     const weeklyTotals = {
       totalLiveAnimalsInput: weeklyData.reduce((sum, day) => sum + day.liveAnimalsInput, 0),
-      totalMeatOutput: weeklyData.reduce((sum, day) => sum + day.meatOutput, 0),
-      totalActualMeatOutput: weeklyData.reduce((sum, day) => sum + day.actualMeatOutput, 0),
-      totalMeatRemaining: weeklyData.reduce((sum, day) => sum + day.meatRemaining, 0)
+      totalLeanMeatOutput: weeklyData.reduce((sum, day) => sum + day.leanMeatOutput, 0),
+      totalLeanMeatActualOutput: weeklyData.reduce((sum, day) => sum + day.leanMeatActualOutput, 0),
+      totalLeanMeatRemaining: weeklyData.reduce((sum, day) => sum + day.leanMeatRemaining, 0),
+      totalBoneOutput: weeklyData.reduce((sum, day) => sum + day.boneOutput, 0),
+      totalBoneActualOutput: weeklyData.reduce((sum, day) => sum + day.boneActualOutput, 0),
+      totalBoneRemaining: weeklyData.reduce((sum, day) => sum + day.boneRemaining, 0),
+      totalGroundMeatOutput: weeklyData.reduce((sum, day) => sum + day.groundMeatOutput, 0),
+      totalGroundMeatActualOutput: weeklyData.reduce((sum, day) => sum + day.groundMeatActualOutput, 0),
+      totalGroundMeatRemaining: weeklyData.reduce((sum, day) => sum + day.groundMeatRemaining, 0),
+      totalOrgansOutput: weeklyData.reduce((sum, day) => sum + day.organsOutput, 0),
+      totalOrgansActualOutput: weeklyData.reduce((sum, day) => sum + day.organsActualOutput, 0),
+      totalOrgansRemaining: weeklyData.reduce((sum, day) => sum + day.organsRemaining, 0)
     }
 
     res.json({
@@ -1075,43 +1096,70 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
           year: targetYear,
           monthNumber: targetMonth,
           totalLiveAnimalsInput: monthlyData.totalLiveAnimalsInput,
-          totalMeatOutput: monthlyData.totalMeatOutput,
-          totalActualMeatOutput: monthlyData.totalActualMeatOutput,
-          totalMeatRemaining: monthlyData.totalMeatRemaining,
+          totalLeanMeatOutput: monthlyData.totalLeanMeatOutput,
+          totalLeanMeatActualOutput: monthlyData.totalLeanMeatActualOutput,
+          totalBoneOutput: monthlyData.totalBoneOutput,
+          totalBoneActualOutput: monthlyData.totalBoneActualOutput,
+          totalGroundMeatOutput: monthlyData.totalGroundMeatOutput,
+          totalGroundMeatActualOutput: monthlyData.totalGroundMeatActualOutput,
+          totalOrgansOutput: monthlyData.totalOrgansOutput,
+          totalOrgansActualOutput: monthlyData.totalOrgansActualOutput,
           processingEfficiency: monthlyData.processingEfficiency,
           // Financial calculations (in thousands VND)
-          meatRevenue: Math.round(monthlyData.totalActualMeatOutput * 120), // 120k VND per kg
-          livestockCost: Math.round(monthlyData.totalLiveAnimalsInput * 70), // 70k VND per kg live weight
+          totalRevenue: Math.round(
+            (monthlyData.totalLeanMeatActualOutput * 120) + // Thịt nạc: 120k VND/kg
+            (monthlyData.totalBoneActualOutput * 30) + // Xương xổ: 30k VND/kg
+            (monthlyData.totalGroundMeatActualOutput * 80) + // Thịt xổ lọc: 80k VND/kg
+            (monthlyData.totalOrgansActualOutput * 50) // Lòng: 50k VND/kg
+          ),
+          livestockCost: Math.round(monthlyData.totalLiveAnimalsInput * 70), // 70k VND per animal
           otherCosts: Math.round(monthlyData.totalLiveAnimalsInput * 0.05), // 5% other costs
           netProfit: 0 // Will calculate below
         }
         
         // Calculate net profit
-        summary.netProfit = summary.meatRevenue - (summary.livestockCost + summary.otherCosts)
+        summary.netProfit = summary.totalRevenue - (summary.livestockCost + summary.otherCosts)
         
         monthlySummaries.push(summary)
       } catch (error) {
         // Fallback with estimated data if no real data available
         const estimatedLiveAnimals = 800 + Math.floor(Math.random() * 400)
-        const estimatedMeatOutput = Math.round(estimatedLiveAnimals * 0.6) // 60% yield
-        const estimatedActualMeatOutput = Math.round(estimatedMeatOutput * 0.95)
+        const estimatedLeanMeat = Math.round(estimatedLiveAnimals * 40) // 40kg lean meat per animal
+        const estimatedBone = Math.round(estimatedLiveAnimals * 15) // 15kg bone per animal
+        const estimatedGroundMeat = Math.round(estimatedLiveAnimals * 10) // 10kg ground meat per animal
+        const estimatedOrgans = Math.round(estimatedLiveAnimals * 5) // 5kg organs per animal
+        
+        const estimatedLeanMeatActual = Math.round(estimatedLeanMeat * 0.95)
+        const estimatedBoneActual = Math.round(estimatedBone * 0.95)
+        const estimatedGroundMeatActual = Math.round(estimatedGroundMeat * 0.95)
+        const estimatedOrgansActual = Math.round(estimatedOrgans * 0.95)
         
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
           monthNumber: targetMonth,
           totalLiveAnimalsInput: estimatedLiveAnimals,
-          totalMeatOutput: estimatedMeatOutput,
-          totalActualMeatOutput: estimatedActualMeatOutput,
-          totalMeatRemaining: estimatedMeatOutput - estimatedActualMeatOutput,
-          processingEfficiency: Math.round((estimatedMeatOutput / estimatedLiveAnimals) * 100),
-          meatRevenue: Math.round(estimatedActualMeatOutput * 120),
+          totalLeanMeatOutput: estimatedLeanMeat,
+          totalLeanMeatActualOutput: estimatedLeanMeatActual,
+          totalBoneOutput: estimatedBone,
+          totalBoneActualOutput: estimatedBoneActual,
+          totalGroundMeatOutput: estimatedGroundMeat,
+          totalGroundMeatActualOutput: estimatedGroundMeatActual,
+          totalOrgansOutput: estimatedOrgans,
+          totalOrgansActualOutput: estimatedOrgansActual,
+          processingEfficiency: Math.round(((estimatedLeanMeat + estimatedBone + estimatedGroundMeat + estimatedOrgans) / estimatedLiveAnimals) * 100),
+          totalRevenue: Math.round(
+            (estimatedLeanMeatActual * 120) + 
+            (estimatedBoneActual * 30) + 
+            (estimatedGroundMeatActual * 80) + 
+            (estimatedOrgansActual * 50)
+          ),
           livestockCost: Math.round(estimatedLiveAnimals * 70),
           otherCosts: Math.round(estimatedLiveAnimals * 0.05),
           netProfit: 0
         }
         
-        summary.netProfit = summary.meatRevenue - (summary.livestockCost + summary.otherCosts)
+        summary.netProfit = summary.totalRevenue - (summary.livestockCost + summary.otherCosts)
         monthlySummaries.push(summary)
       }
     }
@@ -1210,38 +1258,82 @@ async function getSausageProcessingData(db: any, dateStr: string) {
 
 async function getLivestockProcessingData(db: any, dateStr: string) {
   try {
-    // Get data from daily processing collection (uses general dailyProcessing collection)
-    const processingData = await db.collection("dailyProcessing").findOne({
+    // Get data from daily livestock processing collection (new structure)
+    const processingData = await db.collection("dailyLivestockProcessing").findOne({
       date: dateStr
     })
     
     if (processingData) {
       return {
         liveAnimalsInput: processingData.liveAnimalsInput || 0,
-        meatOutput: processingData.meatOutput || 0,
-        actualMeatOutput: processingData.actualMeatOutput || 0,
+        // Thịt nạc
+        leanMeatOutput: processingData.leanMeatOutput || 0,
+        leanMeatActualOutput: processingData.leanMeatActualOutput || 0,
+        leanMeatRemaining: Math.max(0, (processingData.leanMeatOutput || 0) - (processingData.leanMeatActualOutput || 0)),
+        // Xương xổ
+        boneOutput: processingData.boneOutput || 0,
+        boneActualOutput: processingData.boneActualOutput || 0,
+        boneRemaining: Math.max(0, (processingData.boneOutput || 0) - (processingData.boneActualOutput || 0)),
+        // Thịt xổ lọc
+        groundMeatOutput: processingData.groundMeatOutput || 0,
+        groundMeatActualOutput: processingData.groundMeatActualOutput || 0,
+        groundMeatRemaining: Math.max(0, (processingData.groundMeatOutput || 0) - (processingData.groundMeatActualOutput || 0)),
+        // Lòng
+        organsOutput: processingData.organsOutput || 0,
+        organsActualOutput: processingData.organsActualOutput || 0,
+        organsRemaining: Math.max(0, (processingData.organsOutput || 0) - (processingData.organsActualOutput || 0)),
+        // Prices
         liveAnimalPrice: processingData.liveAnimalPrice || 70000,
-        meatPrice: processingData.meatPrice || 120000,
+        leanMeatPrice: processingData.leanMeatPrice || 120000,
+        bonePrice: processingData.bonePrice || 30000,
+        groundMeatPrice: processingData.groundMeatPrice || 80000,
+        organsPrice: processingData.organsPrice || 50000,
         note: processingData.note || ""
       }
     }
     
     return {
       liveAnimalsInput: 0,
-      meatOutput: 0,
-      actualMeatOutput: 0,
+      leanMeatOutput: 0,
+      leanMeatActualOutput: 0,
+      leanMeatRemaining: 0,
+      boneOutput: 0,
+      boneActualOutput: 0,
+      boneRemaining: 0,
+      groundMeatOutput: 0,
+      groundMeatActualOutput: 0,
+      groundMeatRemaining: 0,
+      organsOutput: 0,
+      organsActualOutput: 0,
+      organsRemaining: 0,
       liveAnimalPrice: 70000,
-      meatPrice: 120000,
+      leanMeatPrice: 120000,
+      bonePrice: 30000,
+      groundMeatPrice: 80000,
+      organsPrice: 50000,
       note: ""
     }
   } catch (error) {
     console.log(`No livestock processing data for ${dateStr}`)
     return {
       liveAnimalsInput: 0,
-      meatOutput: 0,
-      actualMeatOutput: 0,
+      leanMeatOutput: 0,
+      leanMeatActualOutput: 0,
+      leanMeatRemaining: 0,
+      boneOutput: 0,
+      boneActualOutput: 0,
+      boneRemaining: 0,
+      groundMeatOutput: 0,
+      groundMeatActualOutput: 0,
+      groundMeatRemaining: 0,
+      organsOutput: 0,
+      organsActualOutput: 0,
+      organsRemaining: 0,
       liveAnimalPrice: 70000,
-      meatPrice: 120000,
+      leanMeatPrice: 120000,
+      bonePrice: 30000,
+      groundMeatPrice: 80000,
+      organsPrice: 50000,
       note: ""
     }
   }
@@ -1325,8 +1417,8 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
     const endDate = new Date(year, month, 0).toISOString().split('T')[0]
     
-    // Aggregate data from daily processing records
-    const monthlyData = await db.collection("dailyProcessing")
+    // Aggregate data from daily livestock processing records
+    const monthlyData = await db.collection("dailyLivestockProcessing")
       .aggregate([
         {
           $match: {
@@ -1337,8 +1429,14 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
           $group: {
             _id: null,
             totalLiveAnimalsInput: { $sum: "$liveAnimalsInput" },
-            totalMeatOutput: { $sum: "$meatOutput" },
-            totalActualMeatOutput: { $sum: "$actualMeatOutput" },
+            totalLeanMeatOutput: { $sum: "$leanMeatOutput" },
+            totalLeanMeatActualOutput: { $sum: "$leanMeatActualOutput" },
+            totalBoneOutput: { $sum: "$boneOutput" },
+            totalBoneActualOutput: { $sum: "$boneActualOutput" },
+            totalGroundMeatOutput: { $sum: "$groundMeatOutput" },
+            totalGroundMeatActualOutput: { $sum: "$groundMeatActualOutput" },
+            totalOrgansOutput: { $sum: "$organsOutput" },
+            totalOrgansActualOutput: { $sum: "$organsActualOutput" },
             count: { $sum: 1 }
           }
         }
@@ -1347,40 +1445,64 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
     
     if (monthlyData.length > 0) {
       const data = monthlyData[0]
+      const totalOutput = (data.totalLeanMeatOutput || 0) + (data.totalBoneOutput || 0) + 
+                         (data.totalGroundMeatOutput || 0) + (data.totalOrgansOutput || 0)
+      
       return {
         totalLiveAnimalsInput: data.totalLiveAnimalsInput || 0,
-        totalMeatOutput: data.totalMeatOutput || 0,
-        totalActualMeatOutput: data.totalActualMeatOutput || 0,
-        totalMeatRemaining: (data.totalMeatOutput || 0) - (data.totalActualMeatOutput || 0),
+        totalLeanMeatOutput: data.totalLeanMeatOutput || 0,
+        totalLeanMeatActualOutput: data.totalLeanMeatActualOutput || 0,
+        totalBoneOutput: data.totalBoneOutput || 0,
+        totalBoneActualOutput: data.totalBoneActualOutput || 0,
+        totalGroundMeatOutput: data.totalGroundMeatOutput || 0,
+        totalGroundMeatActualOutput: data.totalGroundMeatActualOutput || 0,
+        totalOrgansOutput: data.totalOrgansOutput || 0,
+        totalOrgansActualOutput: data.totalOrgansActualOutput || 0,
         processingEfficiency: data.totalLiveAnimalsInput > 0 
-          ? Math.round(((data.totalMeatOutput || 0) / data.totalLiveAnimalsInput) * 100) 
-          : 60
+          ? Math.round((totalOutput / data.totalLiveAnimalsInput) * 100) 
+          : 70
       }
     }
     
     // If no real data, return estimated data
     const baseLiveAnimals = 800 + Math.floor(Math.random() * 400)
-    const baseMeatOutput = Math.round(baseLiveAnimals * 0.6) // 60% yield
-    const baseActualMeatOutput = Math.round(baseMeatOutput * 0.95)
+    const baseLeanMeat = Math.round(baseLiveAnimals * 40) // 40kg lean meat per animal
+    const baseBone = Math.round(baseLiveAnimals * 15) // 15kg bone per animal
+    const baseGroundMeat = Math.round(baseLiveAnimals * 10) // 10kg ground meat per animal
+    const baseOrgans = Math.round(baseLiveAnimals * 5) // 5kg organs per animal
     
     return {
       totalLiveAnimalsInput: baseLiveAnimals,
-      totalMeatOutput: baseMeatOutput,
-      totalActualMeatOutput: baseActualMeatOutput,
-      totalMeatRemaining: baseMeatOutput - baseActualMeatOutput,
-      processingEfficiency: Math.round((baseMeatOutput / baseLiveAnimals) * 100)
+      totalLeanMeatOutput: baseLeanMeat,
+      totalLeanMeatActualOutput: Math.round(baseLeanMeat * 0.95),
+      totalBoneOutput: baseBone,
+      totalBoneActualOutput: Math.round(baseBone * 0.95),
+      totalGroundMeatOutput: baseGroundMeat,
+      totalGroundMeatActualOutput: Math.round(baseGroundMeat * 0.95),
+      totalOrgansOutput: baseOrgans,
+      totalOrgansActualOutput: Math.round(baseOrgans * 0.95),
+      processingEfficiency: Math.round(((baseLeanMeat + baseBone + baseGroundMeat + baseOrgans) / baseLiveAnimals) * 100)
     }
   } catch (error) {
     console.error(`Error getting monthly livestock data for ${year}-${month}:`, error)
     // Return default estimated data
     const baseLiveAnimals = 1000
-    const baseMeatOutput = Math.round(baseLiveAnimals * 0.6)
+    const baseLeanMeat = 40000 // 40kg per animal
+    const baseBone = 15000 // 15kg per animal
+    const baseGroundMeat = 10000 // 10kg per animal
+    const baseOrgans = 5000 // 5kg per animal
+    
     return {
       totalLiveAnimalsInput: baseLiveAnimals,
-      totalMeatOutput: baseMeatOutput,
-      totalActualMeatOutput: Math.round(baseMeatOutput * 0.95),
-      totalMeatRemaining: Math.round(baseMeatOutput * 0.05),
-      processingEfficiency: 60
+      totalLeanMeatOutput: baseLeanMeat,
+      totalLeanMeatActualOutput: Math.round(baseLeanMeat * 0.95),
+      totalBoneOutput: baseBone,
+      totalBoneActualOutput: Math.round(baseBone * 0.95),
+      totalGroundMeatOutput: baseGroundMeat,
+      totalGroundMeatActualOutput: Math.round(baseGroundMeat * 0.95),
+      totalOrgansOutput: baseOrgans,
+      totalOrgansActualOutput: Math.round(baseOrgans * 0.95),
+      processingEfficiency: 70
     }
   }
 }
