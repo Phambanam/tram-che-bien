@@ -213,11 +213,14 @@ export function SausageProcessing() {
         year: selectedYear
       })
 
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.dailyData) {
         setWeeklySausageTracking(response.data.dailyData)
+      } else {
+        setWeeklySausageTracking([])
       }
     } catch (error) {
       console.error("Error fetching weekly sausage tracking:", error)
+      setWeeklySausageTracking([])
       toast({
         title: "❌ Lỗi",
         description: "Không thể tải dữ liệu theo tuần",
@@ -235,11 +238,14 @@ export function SausageProcessing() {
         monthCount: 6
       })
 
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.monthlySummaries) {
         setMonthlySausageSummary(response.data.monthlySummaries)
+      } else {
+        setMonthlySausageSummary([])
       }
     } catch (error) {
       console.error("Error fetching monthly sausage summary:", error)
+      setMonthlySausageSummary([])
       toast({
         title: "❌ Lỗi", 
         description: "Không thể tải dữ liệu theo tháng",
@@ -413,7 +419,7 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-green-700 mb-1">Thịt nạc chi:</div>
                       <div className="text-lg font-bold text-green-800">
-                        <span>0</span>
+                        <span>{dailySausageProcessing.leanMeatInput}</span>
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -424,7 +430,7 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-orange-700 mb-1">Thịt mỡ chi:</div>
                       <div className="text-lg font-bold text-orange-800">
-                        <span>0</span>
+                        <span>{dailySausageProcessing.fatMeatInput}</span>
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -435,7 +441,7 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-blue-700 mb-1">Giò lụa thu:</div>
                       <div className="text-lg font-bold text-blue-800">
-                        <span>0</span>
+                        <span>{dailySausageProcessing.sausageInput}</span>
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -446,7 +452,7 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-red-700 mb-1">Giò lụa tồn:</div>
                       <div className="text-lg font-bold text-red-800">
-                        <span>0</span>
+                        <span>{dailySausageProcessing.sausageRemaining}</span>
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -566,7 +572,7 @@ export function SausageProcessing() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {weeklySausageTracking.length > 0 ? (
+                  {weeklySausageTracking && weeklySausageTracking.length > 0 ? (
                     weeklySausageTracking.map((day) => (
                       <TableRow key={day.date}>
                         <TableCell>{format(new Date(day.date), "dd/MM")}</TableCell>
@@ -651,7 +657,7 @@ export function SausageProcessing() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {monthlySausageSummary.length > 0 ? (
+                  {monthlySausageSummary && monthlySausageSummary.length > 0 ? (
                     monthlySausageSummary.map((month) => (
                       <TableRow key={month.month}>
                         <TableCell>{month.month}</TableCell>

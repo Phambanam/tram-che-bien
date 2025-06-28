@@ -196,11 +196,14 @@ export function LivestockProcessing() {
         year: selectedYear
       })
 
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.dailyData) {
         setWeeklyLivestockTracking(response.data.dailyData)
+      } else {
+        setWeeklyLivestockTracking([])
       }
     } catch (error) {
       console.error("Error fetching weekly livestock tracking:", error)
+      setWeeklyLivestockTracking([])
       toast({
         title: "❌ Lỗi",
         description: "Không thể tải dữ liệu theo tuần",
@@ -218,11 +221,14 @@ export function LivestockProcessing() {
         monthCount: 6
       })
 
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.monthlySummaries) {
         setMonthlyLivestockSummary(response.data.monthlySummaries)
+      } else {
+        setMonthlyLivestockSummary([])
       }
     } catch (error) {
       console.error("Error fetching monthly livestock summary:", error)
+      setMonthlyLivestockSummary([])
       toast({
         title: "❌ Lỗi", 
         description: "Không thể tải dữ liệu theo tháng",
@@ -502,7 +508,7 @@ export function LivestockProcessing() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {weeklyLivestockTracking.length > 0 ? (
+                  {weeklyLivestockTracking && weeklyLivestockTracking.length > 0 ? (
                     weeklyLivestockTracking.map((day) => (
                       <TableRow key={day.date}>
                         <TableCell>{format(new Date(day.date), "dd/MM")}</TableCell>
@@ -585,7 +591,7 @@ export function LivestockProcessing() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {monthlyLivestockSummary.length > 0 ? (
+                  {monthlyLivestockSummary && monthlyLivestockSummary.length > 0 ? (
                     monthlyLivestockSummary.map((month) => (
                       <TableRow key={month.month}>
                         <TableCell>{month.month}</TableCell>
