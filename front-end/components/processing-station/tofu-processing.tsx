@@ -235,6 +235,9 @@ export function TofuProcessing() {
   const fetchDailyTofuProcessing = async (date: Date) => {
     try {
       const dateStr = format(date, "yyyy-MM-dd")
+      const previousDate = new Date(date)
+      previousDate.setDate(date.getDate() - 1)
+      const previousDateStr = format(previousDate, "yyyy-MM-dd")
       
       // Get station manager input data from processing station API
       let stationData = {
@@ -245,19 +248,49 @@ export function TofuProcessing() {
         tofuPrice: 0
       }
       
+      // Get carry over from previous day
+      let carryOverAmount = 0
+      let carryOverNote = ""
+      
+      try {
+        console.log(`🔄 Checking tofu carry over from ${previousDateStr} to ${dateStr}`)
+        const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
+        if (previousStationResponse && previousStationResponse.data) {
+          const previousTofuInput = previousStationResponse.data.tofuInput || 0
+          const previousTofuOutput = previousStationResponse.data.tofuOutput || 0
+          carryOverAmount = Math.max(0, previousTofuInput - previousTofuOutput)
+          
+          if (carryOverAmount > 0) {
+            carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: +${carryOverAmount}kg đậu phụ`
+            console.log(`✅ Tofu carry over found: ${carryOverAmount}kg from ${previousDateStr}`)
+          }
+        }
+      } catch (error) {
+        console.log("No tofu carry over data from previous day:", error)
+      }
+      
       try {
         const stationResponse = await processingStationApi.getDailyData(dateStr)
         if (stationResponse && stationResponse.data) {
           stationData = {
             soybeanInput: stationResponse.data.soybeanInput || 0,
-            tofuInput: stationResponse.data.tofuInput || 0,
-            note: stationResponse.data.note || "",
+            tofuInput: (stationResponse.data.tofuInput || 0) + carryOverAmount, // Add carry over
+            note: (stationResponse.data.note || "") + carryOverNote, // Add carry over note
             soybeanPrice: stationResponse.data.soybeanPrice || 0,
             tofuPrice: stationResponse.data.tofuPrice || 0
           }
+        } else if (carryOverAmount > 0) {
+          // If no current data but have carry over, apply it to defaults
+          stationData.tofuInput = carryOverAmount
+          stationData.note = carryOverNote.trim()
         }
       } catch (error) {
         console.log("No station data found for date, using defaults:", error)
+        // Still apply carry over to defaults if available
+        if (carryOverAmount > 0) {
+          stationData.tofuInput = carryOverAmount
+          stationData.note = carryOverNote.trim()
+        }
       }
 
       // Get prices from supply management
@@ -884,6 +917,18 @@ export function TofuProcessing() {
                   </div>
                 </div>
               </div>
+
+              {/* Carry over info section */}
+              {dailyTofuProcessing?.note?.includes("📦 Chuyển từ") && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                  <div className="flex items-center">
+                    <div className="text-blue-800 text-sm">
+                      <strong>🔄 Chuyển kho từ ngày trước:</strong>
+                      {dailyTofuProcessing.note.split("📦 Chuyển từ")[1]?.split("\n")[0] || ""}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Four box layout */}
               <div className="grid grid-cols-2 gap-6">

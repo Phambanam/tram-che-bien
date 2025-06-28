@@ -234,6 +234,9 @@ export function BeanSproutsProcessing() {
   const fetchDailyBeanSproutsProcessing = async (date: Date) => {
     try {
       const dateStr = format(date, "yyyy-MM-dd")
+      const previousDate = new Date(date)
+      previousDate.setDate(date.getDate() - 1)
+      const previousDateStr = format(previousDate, "yyyy-MM-dd")
       
       // Get station manager input data from processing station API
       let stationData = {
@@ -244,19 +247,49 @@ export function BeanSproutsProcessing() {
         beanSproutsPrice: 0
       }
       
+      // Get carry over from previous day
+      let carryOverAmount = 0
+      let carryOverNote = ""
+      
+      try {
+        console.log(`🔄 Checking bean sprouts carry over from ${previousDateStr} to ${dateStr}`)
+        const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
+        if (previousStationResponse && previousStationResponse.data) {
+          const previousBeanSproutsInput = previousStationResponse.data.beanSproutsInput || 0
+          const previousBeanSproutsOutput = previousStationResponse.data.beanSproutsOutput || 0
+          carryOverAmount = Math.max(0, previousBeanSproutsInput - previousBeanSproutsOutput)
+          
+          if (carryOverAmount > 0) {
+            carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: +${carryOverAmount}kg giá đỗ`
+            console.log(`✅ Bean sprouts carry over found: ${carryOverAmount}kg from ${previousDateStr}`)
+          }
+        }
+      } catch (error) {
+        console.log("No bean sprouts carry over data from previous day:", error)
+      }
+      
       try {
         const stationResponse = await processingStationApi.getDailyData(dateStr)
         if (stationResponse && stationResponse.data) {
           stationData = {
             soybeansInput: stationResponse.data.soybeansInput || 0,
-            beanSproutsInput: stationResponse.data.beanSproutsInput || 0,
-            note: stationResponse.data.note || "",
+            beanSproutsInput: (stationResponse.data.beanSproutsInput || 0) + carryOverAmount, // Add carry over
+            note: (stationResponse.data.note || "") + carryOverNote, // Add carry over note
             soybeansPrice: stationResponse.data.soybeansPrice || 0,
             beanSproutsPrice: stationResponse.data.beanSproutsPrice || 0
           }
+        } else if (carryOverAmount > 0) {
+          // If no current data but have carry over, apply it to defaults
+          stationData.beanSproutsInput = carryOverAmount
+          stationData.note = carryOverNote.trim()
         }
       } catch (error) {
         console.log("No station data found for date, using defaults:", error)
+        // Still apply carry over to defaults if available
+        if (carryOverAmount > 0) {
+          stationData.beanSproutsInput = carryOverAmount
+          stationData.note = carryOverNote.trim()
+        }
       }
 
       // Get prices from supply management
@@ -723,6 +756,18 @@ export function BeanSproutsProcessing() {
                   </div>
                 </div>
               </div>
+
+              {/* Carry over info section */}
+              {dailyBeanSproutsProcessing?.note?.includes("📦 Chuyển từ") && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                  <div className="flex items-center">
+                    <div className="text-blue-800 text-sm">
+                      <strong>🔄 Chuyển kho từ ngày trước:</strong>
+                      {dailyBeanSproutsProcessing.note.split("📦 Chuyển từ")[1]?.split("\n")[0] || ""}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Four box layout */}
               <div className="grid grid-cols-2 gap-6">

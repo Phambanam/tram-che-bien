@@ -236,6 +236,9 @@ export function SaltProcessing() {
   const fetchDailySaltProcessing = async (date: Date) => {
     try {
       const dateStr = format(date, "yyyy-MM-dd")
+      const previousDate = new Date(date)
+      previousDate.setDate(date.getDate() - 1)
+      const previousDateStr = format(previousDate, "yyyy-MM-dd")
       
       // Get station manager input data from processing station API
       let stationData = {
@@ -246,19 +249,49 @@ export function SaltProcessing() {
         saltPrice: 0
       }
       
+      // Get carry over from previous day
+      let carryOverAmount = 0
+      let carryOverNote = ""
+      
+      try {
+        console.log(`🔄 Checking carry over from ${previousDateStr} to ${dateStr}`)
+        const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
+        if (previousStationResponse && previousStationResponse.data) {
+          const previousSaltInput = previousStationResponse.data.saltInput || 0
+          const previousSaltOutput = previousStationResponse.data.saltOutput || 0
+          carryOverAmount = Math.max(0, previousSaltInput - previousSaltOutput)
+          
+          if (carryOverAmount > 0) {
+            carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: +${carryOverAmount}kg dưa muối`
+            console.log(`✅ Carry over found: ${carryOverAmount}kg from ${previousDateStr}`)
+          }
+        }
+      } catch (error) {
+        console.log("No carry over data from previous day:", error)
+      }
+      
       try {
         const stationResponse = await processingStationApi.getDailyData(dateStr)
         if (stationResponse && stationResponse.data) {
           stationData = {
             cabbageInput: stationResponse.data.cabbageInput || 0,
-            saltInput: stationResponse.data.saltInput || 0,
-            note: stationResponse.data.note || "",
+            saltInput: (stationResponse.data.saltInput || 0) + carryOverAmount, // Add carry over
+            note: (stationResponse.data.note || "") + carryOverNote, // Add carry over note
             cabbagePrice: stationResponse.data.cabbagePrice || 0,
             saltPrice: stationResponse.data.saltPrice || 0
           }
+        } else if (carryOverAmount > 0) {
+          // If no current data but have carry over, apply it to defaults
+          stationData.saltInput = carryOverAmount
+          stationData.note = carryOverNote.trim()
         }
       } catch (error) {
         console.log("No station data found for date, using defaults:", error)
+        // Still apply carry over to defaults if available
+        if (carryOverAmount > 0) {
+          stationData.saltInput = carryOverAmount
+          stationData.note = carryOverNote.trim()
+        }
       }
 
       // Get prices from supply management
@@ -739,6 +772,18 @@ export function SaltProcessing() {
                   </div>
                 </div>
               </div>
+
+              {/* Carry over info section */}
+              {dailySaltProcessing?.note?.includes("📦 Chuyển từ") && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                  <div className="flex items-center">
+                    <div className="text-blue-800 text-sm">
+                      <strong>🔄 Chuyển kho từ ngày trước:</strong>
+                      {dailySaltProcessing.note.split("📦 Chuyển từ")[1]?.split("\n")[0] || ""}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Four box layout */}
               <div className="grid grid-cols-2 gap-6">
