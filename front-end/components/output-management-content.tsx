@@ -237,7 +237,7 @@ export function OutputManagementContent() {
   }
 
   // Fetch data from APIs
-  const fetchData = async () => {
+    const fetchData = async () => {
     setIsLoading(true)
     try {
       // Fetch units
