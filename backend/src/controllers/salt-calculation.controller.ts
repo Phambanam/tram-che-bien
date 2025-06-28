@@ -52,7 +52,6 @@ export const calculateSaltRequirements = async (req: Request, res: Response) => 
   try {
     const { date } = req.query
 
-    // Simple response for now
     const result = {
       date: date || new Date().toISOString().split('T')[0],
       totalSaltRequired: 50,
@@ -77,7 +76,7 @@ export const calculateSaltRequirements = async (req: Request, res: Response) => 
       summary: {
         totalDishesUsingSalt: 1,
         averageSaltPerPerson: 0.5,
-        recommendedVegetablesInput: 71.4 // 50/0.7
+        recommendedVegetablesInput: 71.4
       }
     }
 
@@ -163,7 +162,6 @@ export const getWeeklySaltTracking = async (req: Request, res: Response) => {
     const weekNum = parseInt(week as string) || 1
     const yearNum = parseInt(year as string) || 2025
 
-    // Generate sample weekly data
     const weeklyData = []
     const days = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
     
@@ -217,7 +215,6 @@ export const getMonthlySaltSummary = async (req: Request, res: Response) => {
     const yearNum = parseInt(year as string) || 2025
     const monthCountNum = parseInt(monthCount as string) || 6
 
-    // Generate sample monthly data
     const monthlySummaries = []
     
     for (let i = monthCountNum - 1; i >= 0; i--) {
