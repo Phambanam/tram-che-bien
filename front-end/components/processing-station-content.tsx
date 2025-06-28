@@ -4,8 +4,8 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Package, Utensils, Fish, Beef, Wheat, Droplets } from "lucide-react"
-import { TofuProcessing, BeanSproutsProcessing, SaltProcessing, SausageProcessing, LivestockProcessing, PoultryProcessing, LttpManagement } from "@/components/processing-station"
+import { Package, Utensils, Fish, Beef, Wheat, Droplets, Sprout, Ham, Bird, Calculator } from "lucide-react"
+import { TofuProcessing, BeanSproutsProcessing, SaltProcessing, SausageProcessing, LivestockProcessing, PoultryProcessing, LttpManagement, RevenuePlanning } from "@/components/processing-station"
 
 export function ProcessingStationContent() {
   const [activeSection, setActiveSection] = useState("tofu")
@@ -18,6 +18,7 @@ export function ProcessingStationContent() {
     { id: "livestock", name: "Giết mổ lợn", icon: Beef, color: "bg-red-100 text-red-800" },
     { id: "seafood", name: "Gia cầm, hải sản", icon: Fish, color: "bg-purple-100 text-purple-800" },
     { id: "lttp", name: "Quản lý LTTP", icon: Package, color: "bg-indigo-100 text-indigo-800" },
+    { id: "revenue-planning", name: "Hoạch toán thu chi", icon: Calculator, color: "bg-purple-100 text-purple-800" },
   ]
 
   const renderActiveSection = () => {
@@ -36,6 +37,8 @@ export function ProcessingStationContent() {
         return <PoultryProcessing />
       case "lttp":
         return <LttpManagement />
+      case "revenue-planning":
+        return <RevenuePlanning />
       default:
         return (
           <div className="text-center py-12">
@@ -68,7 +71,7 @@ export function ProcessingStationContent() {
             {sections.map((section) => {
               const Icon = section.icon
               const isActive = activeSection === section.id
-              const isImplemented = ["tofu", "sprouts", "salt", "sausage", "livestock", "seafood", "lttp"].includes(section.id)
+              const isImplemented = ["tofu", "sprouts", "salt", "sausage", "livestock", "seafood", "lttp", "revenue-planning"].includes(section.id)
               
               return (
                 <Button
