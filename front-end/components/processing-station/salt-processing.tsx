@@ -16,15 +16,15 @@ import { Unit } from "@/types"
 
 interface DailySaltProcessing {
   date: string
-  vegetablesInput: number // CHI - Rau củ quả chi - Số lượng (kg) - Station manager input
+  cabbageInput: number // CHI - Rau cải chi - Số lượng (kg) - Station manager input
   saltInput: number // THU - Dưa muối thu - Số lượng (kg) - Station manager input  
   saltOutput: number // Dưa muối thực tế đã xuất - From supply outputs
   saltRemaining: number // Dưa muối tồn - Calculated: saltInput - saltOutput
   note?: string
   // Price fields
-  vegetablesPrice?: number // Giá rau củ quả VND/kg
+  cabbagePrice?: number // Giá rau cải VND/kg
   saltPrice?: number // Giá dưa muối VND/kg
-  vegetablesPriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
+  cabbagePriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
   saltPriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
   // By-products fields
   byProductQuantity?: number // Sản phẩm phụ (kg) - Station manager input
@@ -35,14 +35,14 @@ interface DailySaltProcessing {
 interface WeeklySaltTracking {
   date: string
   dayOfWeek: string
-  vegetablesInput: number // Rau củ quả chi
+  cabbageInput: number // Rau cải chi
   saltInput: number // Dưa muối thu
   saltOutput: number // Dưa muối thực tế đã xuất
   saltRemaining: number // Dưa muối tồn
   // Financial calculation fields
   byProductQuantity: number // Sản phẩm phụ (kg)
   byProductPrice: number // Giá sản phẩm phụ VND/kg
-  vegetablesPrice: number // Giá rau củ quả VND/kg
+  cabbagePrice: number // Giá rau cải VND/kg
   saltPrice: number // Giá dưa muối VND/kg
   otherCosts: number // Chi phí khác (VND)
 }
@@ -50,7 +50,7 @@ interface WeeklySaltTracking {
 interface MonthlySaltSummary {
   month: string
   year: number
-  totalVegetablesInput: number
+  totalCabbageInput: number
   totalSaltCollected: number
   totalSaltOutput: number
   totalSaltRemaining: number
@@ -69,16 +69,16 @@ export function SaltProcessing() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [dailyUpdateData, setDailyUpdateData] = useState<{
-    vegetablesInput: number
+    cabbageInput: number
     saltInput: number
     note: string
-    vegetablesPrice: number
+    cabbagePrice: number
     saltPrice: number
   }>({
-    vegetablesInput: 0,
+    cabbageInput: 0,
     saltInput: 0,
     note: "",
-    vegetablesPrice: 0,
+    cabbagePrice: 0,
     saltPrice: 0
   })
   
@@ -127,29 +127,29 @@ export function SaltProcessing() {
   // Fetch prices from supply
   const fetchPricesFromSupply = async (date: string) => {
     try {
-      let vegetablesPrice = null
+      let cabbagePrice = null
       let saltPrice = null
-      let vegetablesPriceFromSupply = false
+      let cabbagePriceFromSupply = false
       let saltPriceFromSupply = false
 
-      // Get supplies data to check for vegetables and salt prices
+      // Get supplies data to check for cabbage and salt prices
       const suppliesResponse = await suppliesApi.getSupplies({
         status: 'approved'
       })
       
       const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
 
-      // Look for vegetables (rau củ quả) in supplies
-      const vegetablesSupply = supplies.find((supply: any) => 
-        (supply.product?.name?.toLowerCase().includes("rau") || 
-         supply.product?.name?.toLowerCase().includes("củ") || 
-         supply.product?.name?.toLowerCase().includes("quả")) &&
+      // Look for cabbage (rau cải) in supplies
+      const cabbageSupply = supplies.find((supply: any) => 
+        (supply.product?.name?.toLowerCase().includes("rau cải") || 
+         supply.product?.name?.toLowerCase().includes("cải") || 
+         supply.product?.name?.toLowerCase().includes("bắp cải")) &&
         supply.unitPrice
       )
 
-      if (vegetablesSupply && vegetablesSupply.unitPrice) {
-        vegetablesPrice = vegetablesSupply.unitPrice
-        vegetablesPriceFromSupply = true
+      if (cabbageSupply && cabbageSupply.unitPrice) {
+        cabbagePrice = cabbageSupply.unitPrice
+        cabbagePriceFromSupply = true
       }
 
       // Look for salt/pickled vegetables (dưa muối) in supplies 
@@ -165,17 +165,17 @@ export function SaltProcessing() {
       }
 
       return {
-        vegetablesPrice,
+        cabbagePrice,
         saltPrice,
-        vegetablesPriceFromSupply,
+        cabbagePriceFromSupply,
         saltPriceFromSupply
       }
     } catch (error) {
       console.log("Error fetching prices from supply:", error)
       return {
-        vegetablesPrice: null,
+        cabbagePrice: null,
         saltPrice: null,
-        vegetablesPriceFromSupply: false,
+        cabbagePriceFromSupply: false,
         saltPriceFromSupply: false
       }
     }
@@ -239,10 +239,10 @@ export function SaltProcessing() {
       
       // Get station manager input data from processing station API
       let stationData = {
-        vegetablesInput: 0,
+        cabbageInput: 0,
         saltInput: 0,
         note: "",
-        vegetablesPrice: 0,
+        cabbagePrice: 0,
         saltPrice: 0
       }
       
@@ -250,10 +250,10 @@ export function SaltProcessing() {
         const stationResponse = await processingStationApi.getDailyData(dateStr)
         if (stationResponse && stationResponse.data) {
           stationData = {
-            vegetablesInput: stationResponse.data.vegetablesInput || 0,
+            cabbageInput: stationResponse.data.cabbageInput || 0,
             saltInput: stationResponse.data.saltInput || 0,
             note: stationResponse.data.note || "",
-            vegetablesPrice: stationResponse.data.vegetablesPrice || 0,
+            cabbagePrice: stationResponse.data.cabbagePrice || 0,
             saltPrice: stationResponse.data.saltPrice || 0
           }
         }
@@ -265,7 +265,7 @@ export function SaltProcessing() {
       const priceData = await fetchPricesFromSupply(dateStr)
 
       // Use supply prices if available, otherwise use station manager input
-      const finalVegetablesPrice = priceData.vegetablesPriceFromSupply ? priceData.vegetablesPrice : stationData.vegetablesPrice
+      const finalVegetablesPrice = priceData.cabbagePriceFromSupply ? priceData.cabbagePrice : stationData.cabbagePrice
       const finalSaltPrice = priceData.saltPriceFromSupply ? priceData.saltPrice : stationData.saltPrice
 
       // Get salt output requirement using new API (primary method) or fallback to supply outputs
@@ -317,14 +317,14 @@ export function SaltProcessing() {
 
       const processingData: DailySaltProcessing = {
         date: dateStr,
-        vegetablesInput: stationData.vegetablesInput,
+        cabbageInput: stationData.cabbageInput,
         saltInput: stationData.saltInput,
         saltOutput: plannedSaltOutput, // Kế hoạch xuất (từ quản lý nguồn xuất - đăng ký người ăn)
         saltRemaining: Math.max(0, saltRemaining),
         note: stationData.note,
-        vegetablesPrice: finalVegetablesPrice || 0,
+        cabbagePrice: finalVegetablesPrice || 0,
         saltPrice: finalSaltPrice || 0,
-        vegetablesPriceFromSupply: priceData.vegetablesPriceFromSupply,
+        cabbagePriceFromSupply: priceData.cabbagePriceFromSupply,
         saltPriceFromSupply: priceData.saltPriceFromSupply
       }
 
@@ -336,19 +336,19 @@ export function SaltProcessing() {
         const apiData = dailyApiResponse?.data || {}
         
         setDailyUpdateData({
-          vegetablesInput: stationData.vegetablesInput,
+          cabbageInput: stationData.cabbageInput,
           saltInput: stationData.saltInput,
           note: stationData.note,
-          vegetablesPrice: finalVegetablesPrice || 0,
+          cabbagePrice: finalVegetablesPrice || 0,
           saltPrice: finalSaltPrice || 0
         })
       } catch (error) {
         console.log("Error loading by-products data, using defaults:", error)
         setDailyUpdateData({
-          vegetablesInput: stationData.vegetablesInput,
+          cabbageInput: stationData.cabbageInput,
           saltInput: stationData.saltInput,
           note: stationData.note,
-          vegetablesPrice: finalVegetablesPrice || 0,
+          cabbagePrice: finalVegetablesPrice || 0,
           saltPrice: finalSaltPrice || 0
         })
       }
@@ -359,22 +359,22 @@ export function SaltProcessing() {
       // Set default data
       const defaultData: DailySaltProcessing = {
         date: format(date, "yyyy-MM-dd"),
-        vegetablesInput: 0,
+        cabbageInput: 0,
         saltInput: 0,
         saltOutput: 0,
         saltRemaining: 0,
         note: "",
-        vegetablesPrice: 0,
+        cabbagePrice: 0,
         saltPrice: 0,
-        vegetablesPriceFromSupply: false,
+        cabbagePriceFromSupply: false,
         saltPriceFromSupply: false
       }
       setDailySaltProcessing(defaultData)
       setDailyUpdateData({
-        vegetablesInput: 0,
+        cabbageInput: 0,
         saltInput: 0,
         note: "",
-        vegetablesPrice: 0,
+        cabbagePrice: 0,
         saltPrice: 0
       })
     }
@@ -399,13 +399,13 @@ export function SaltProcessing() {
         const weeklyData: WeeklySaltTracking[] = apiData.map((day: any) => ({
           date: day.date,
           dayOfWeek: day.dayOfWeek,
-          vegetablesInput: day.vegetablesInput,
+          cabbageInput: day.cabbageInput,
           saltInput: day.saltInput,
           saltOutput: day.saltOutput,
           saltRemaining: day.saltRemaining,
           byProductQuantity: day.byProductQuantity || 0,
           byProductPrice: day.byProductPrice || 2000,
-          vegetablesPrice: day.vegetablesPrice || 8000,
+          cabbagePrice: day.cabbagePrice || 8000,
           saltPrice: day.saltPrice || 12000,
           otherCosts: day.otherCosts || 0
         }))
@@ -429,13 +429,13 @@ export function SaltProcessing() {
       const sampleWeeklyData: WeeklySaltTracking[] = weekDates.map((date) => ({
         date: format(date, "yyyy-MM-dd"),
         dayOfWeek: getDayName(date.getDay()),
-        vegetablesInput: 0,
+        cabbageInput: 0,
         saltInput: 0,
         saltOutput: 0,
         saltRemaining: 0,
         byProductQuantity: 0,
         byProductPrice: 2000,
-        vegetablesPrice: 8000,
+        cabbagePrice: 8000,
         saltPrice: 12000,
         otherCosts: 0
       }))
@@ -469,7 +469,7 @@ export function SaltProcessing() {
         const monthlySummaries: MonthlySaltSummary[] = apiData.map((monthData: any) => ({
           month: monthData.month,
           year: monthData.year,
-          totalVegetablesInput: monthData.totalVegetablesInput,
+          totalCabbageInput: monthData.totalCabbageInput,
           totalSaltCollected: monthData.totalSaltCollected,
           totalSaltOutput: monthData.totalSaltOutput,
           totalSaltRemaining: monthData.totalSaltRemaining,
@@ -501,18 +501,18 @@ export function SaltProcessing() {
       }
       
       const fallbackSummaries: MonthlySaltSummary[] = months.map(month => {
-        const totalVegetablesInput = 2000 + Math.floor(Math.random() * 800)
+        const totalCabbageInput = 2000 + Math.floor(Math.random() * 800)
         const totalSaltCollected = 1400 + Math.floor(Math.random() * 560)
         const totalSaltOutput = 1200 + Math.floor(Math.random() * 480)
         
         return {
           month: format(month, 'MM/yyyy', { locale: vi }),
           year: month.getFullYear(),
-          totalVegetablesInput,
+          totalCabbageInput,
           totalSaltCollected,
           totalSaltOutput,
           totalSaltRemaining: totalSaltCollected - totalSaltOutput,
-          processingEfficiency: totalVegetablesInput > 0 ? Math.round((totalSaltCollected / totalVegetablesInput) * 100) : 0
+          processingEfficiency: totalCabbageInput > 0 ? Math.round((totalSaltCollected / totalCabbageInput) * 100) : 0
         }
       })
       
@@ -535,10 +535,10 @@ export function SaltProcessing() {
 
       // Update station data via API (byProductQuantity, byProductPrice, otherCosts get default values since not edited in daily view)
       await processingStationApi.updateDailyData(dailySaltProcessing.date, {
-        vegetablesInput: dailyUpdateData.vegetablesInput,
+        cabbageInput: dailyUpdateData.cabbageInput,
         saltInput: dailyUpdateData.saltInput,
         note: dailyUpdateData.note,
-        vegetablesPrice: dailyUpdateData.vegetablesPrice,
+        cabbagePrice: dailyUpdateData.cabbagePrice,
         saltPrice: dailyUpdateData.saltPrice,
         // Set default values for fields only editable in weekly/monthly views
         byProductQuantity: 0, // Default: no by-products in daily view
@@ -687,11 +687,11 @@ export function SaltProcessing() {
                         dailySaltProcessing.saltPrice || 0
                       
                       const currentVegetablesPrice = editingDailyData ? 
-                        (dailySaltProcessing.vegetablesPriceFromSupply ? dailySaltProcessing.vegetablesPrice : dailyUpdateData.vegetablesPrice) || 0 :
-                        dailySaltProcessing.vegetablesPrice || 0
+                        (dailySaltProcessing.cabbagePriceFromSupply ? dailySaltProcessing.cabbagePrice : dailyUpdateData.cabbagePrice) || 0 :
+                        dailySaltProcessing.cabbagePrice || 0
                       
                       const currentSaltInput = editingDailyData ? dailyUpdateData.saltInput : dailySaltProcessing.saltInput
-                      const currentVegetablesInput = editingDailyData ? dailyUpdateData.vegetablesInput : dailySaltProcessing.vegetablesInput
+                      const currentVegetablesInput = editingDailyData ? dailyUpdateData.cabbageInput : dailySaltProcessing.cabbageInput
                       
                       if (currentSaltPrice === 0 || currentVegetablesPrice === 0) {
                         return (
@@ -702,8 +702,8 @@ export function SaltProcessing() {
                       }
                       
                       const saltRevenue = currentSaltInput * currentSaltPrice
-                      const vegetablesCost = currentVegetablesInput * currentVegetablesPrice
-                      const dailyProfit = saltRevenue - vegetablesCost
+                      const cabbageCost = currentVegetablesInput * currentVegetablesPrice
+                      const dailyProfit = saltRevenue - cabbageCost
                       
                       return (
                         <span className={dailyProfit >= 0 ? "text-green-600" : "text-red-600"}>
@@ -721,11 +721,11 @@ export function SaltProcessing() {
                         dailySaltProcessing.saltPrice || 0
                       
                       const currentVegetablesPrice = editingDailyData ? 
-                        (dailySaltProcessing.vegetablesPriceFromSupply ? dailySaltProcessing.vegetablesPrice : dailyUpdateData.vegetablesPrice) || 0 :
-                        dailySaltProcessing.vegetablesPrice || 0
+                        (dailySaltProcessing.cabbagePriceFromSupply ? dailySaltProcessing.cabbagePrice : dailyUpdateData.cabbagePrice) || 0 :
+                        dailySaltProcessing.cabbagePrice || 0
                       
                       const currentSaltInput = editingDailyData ? dailyUpdateData.saltInput : dailySaltProcessing.saltInput
-                      const currentVegetablesInput = editingDailyData ? dailyUpdateData.vegetablesInput : dailySaltProcessing.vegetablesInput
+                      const currentVegetablesInput = editingDailyData ? dailyUpdateData.cabbageInput : dailySaltProcessing.cabbageInput
                       
                       if (currentSaltPrice && currentVegetablesPrice) {
                         const revenue = currentSaltInput * currentSaltPrice
@@ -734,7 +734,7 @@ export function SaltProcessing() {
                           <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
                         )
                       }
-                      return "Cần nhập đầy đủ giá dưa muối và rau củ quả"
+                      return "Cần nhập đầy đủ giá dưa muối và rau cải"
                     })()}
                   </div>
                 </div>
@@ -742,24 +742,24 @@ export function SaltProcessing() {
 
               {/* Four box layout */}
               <div className="grid grid-cols-2 gap-6">
-                {/* Rau củ quả chi */}
+                {/* Rau cải chi */}
                 <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
                   <div className="text-center">
-                    <div className="text-sm font-medium text-green-700 mb-2">Rau củ quả chi:</div>
+                    <div className="text-sm font-medium text-green-700 mb-2">Rau cải chi:</div>
                     <div className="text-2xl font-bold text-green-800">
                       {editingDailyData ? (
                         <Input
                           type="number"
-                          value={dailyUpdateData.vegetablesInput}
+                          value={dailyUpdateData.cabbageInput}
                           onChange={(e) => setDailyUpdateData(prev => ({ 
                             ...prev, 
-                            vegetablesInput: Number(e.target.value) || 0
+                            cabbageInput: Number(e.target.value) || 0
                           }))}
                           className="w-24 h-12 text-center text-2xl font-bold bg-white border-green-300"
                           placeholder="0"
                         />
                       ) : (
-                        <span>{dailySaltProcessing.vegetablesInput}</span>
+                        <span>{dailySaltProcessing.cabbageInput}</span>
                       )}
                       <span className="text-lg ml-1">kg</span>
                     </div>
@@ -825,37 +825,37 @@ export function SaltProcessing() {
                 </div>
               </div>
 
-              {/* Price section - 2 boxes for vegetables and salt prices */}
+              {/* Price section - 2 boxes for cabbage and salt prices */}
               <div className="grid grid-cols-2 gap-6 mt-6">
-                {/* Giá rau củ quả */}
+                {/* Giá rau cải */}
                 <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
                   <div className="text-center">
-                    <div className="text-sm font-medium text-orange-700 mb-2">Giá rau củ quả:</div>
+                    <div className="text-sm font-medium text-orange-700 mb-2">Giá rau cải:</div>
                     <div className="text-xl font-bold text-orange-800">
-                      {editingDailyData && !dailySaltProcessing.vegetablesPriceFromSupply ? (
+                      {editingDailyData && !dailySaltProcessing.cabbagePriceFromSupply ? (
                         <Input
                           type="number"
-                          value={dailyUpdateData.vegetablesPrice}
+                          value={dailyUpdateData.cabbagePrice}
                           onChange={(e) => setDailyUpdateData(prev => ({ 
                             ...prev, 
-                            vegetablesPrice: Number(e.target.value) || 0
+                            cabbagePrice: Number(e.target.value) || 0
                           }))}
                           className="w-32 h-10 text-center text-xl font-bold bg-white border-orange-300"
                           placeholder="0"
                         />
                       ) : (
-                        <span>{(dailySaltProcessing.vegetablesPrice || 0).toLocaleString('vi-VN')}</span>
+                        <span>{(dailySaltProcessing.cabbagePrice || 0).toLocaleString('vi-VN')}</span>
                       )}
                       <span className="text-sm ml-1">đ/kg</span>
                     </div>
                     <div className="text-xs text-orange-600 mt-1">
-                      {dailySaltProcessing.vegetablesPriceFromSupply ? (
+                      {dailySaltProcessing.cabbagePriceFromSupply ? (
                         "(Từ quản lý nguồn xuất)"
                       ) : (
                         "(Trạm trưởng nhập tay)"
                       )}
                     </div>
-                    {dailySaltProcessing.vegetablesPriceFromSupply && (
+                    {dailySaltProcessing.cabbagePriceFromSupply && (
                       <div className="text-xs text-orange-500 mt-1">
                         🔒 Không thể chỉnh sửa
                       </div>
@@ -931,10 +931,10 @@ export function SaltProcessing() {
                         onClick={() => {
                           setEditingDailyData(false)
                           setDailyUpdateData({
-                            vegetablesInput: dailySaltProcessing.vegetablesInput,
+                            cabbageInput: dailySaltProcessing.cabbageInput,
                             saltInput: dailySaltProcessing.saltInput,
                             note: dailySaltProcessing.note || "",
-                            vegetablesPrice: dailySaltProcessing.vegetablesPrice || 0,
+                            cabbagePrice: dailySaltProcessing.cabbagePrice || 0,
                             saltPrice: dailySaltProcessing.saltPrice || 0
                           })
                         }}
@@ -1067,7 +1067,7 @@ export function SaltProcessing() {
                     <tr>
                       <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Dưa muối</th>
                       <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
-                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Rau củ quả</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Rau cải</th>
                       <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
                     </tr>
                     <tr>
@@ -1084,9 +1084,9 @@ export function SaltProcessing() {
                       // Financial calculations for this day
                       const saltRevenue = (day.saltInput * day.saltPrice) / 1000 // Convert to thousands
                       const byProductRevenue = (day.byProductQuantity * day.byProductPrice) / 1000 // Convert to thousands
-                      const vegetablesCost = (day.vegetablesInput * day.vegetablesPrice) / 1000 // Convert to thousands
+                      const cabbageCost = (day.cabbageInput * day.cabbagePrice) / 1000 // Convert to thousands
                       const otherCosts = day.otherCosts / 1000 // Convert to thousands
-                      const dailyProfit = saltRevenue + byProductRevenue - vegetablesCost - otherCosts
+                      const dailyProfit = saltRevenue + byProductRevenue - cabbageCost - otherCosts
                       
                       return (
                         <tr key={index} className={isToday ? "bg-blue-50" : ""}>
@@ -1108,12 +1108,12 @@ export function SaltProcessing() {
                           <td className="border border-black p-1 text-center font-semibold text-green-600">
                             {byProductRevenue.toFixed(0)}
                           </td>
-                          {/* CHI - Rau củ quả */}
+                          {/* CHI - Rau cải */}
                           <td className="border border-black p-1 text-center font-semibold text-red-600">
-                            {day.vegetablesInput.toLocaleString()}
+                            {day.cabbageInput.toLocaleString()}
                           </td>
                           <td className="border border-black p-1 text-center font-semibold text-red-600">
-                            {vegetablesCost.toFixed(0)}
+                            {cabbageCost.toFixed(0)}
                           </td>
                           {/* CHI - Chi khác */}
                           <td className="border border-black p-1 text-center font-semibold text-red-600">
@@ -1153,12 +1153,12 @@ export function SaltProcessing() {
                       </td>
                       <td className="border border-black p-1 text-center bg-red-100">
                         <span className="text-red-800">
-                          {weeklyTracking.reduce((sum, day) => sum + day.vegetablesInput, 0).toLocaleString()}
+                          {weeklyTracking.reduce((sum, day) => sum + day.cabbageInput, 0).toLocaleString()}
                         </span>
                       </td>
                       <td className="border border-black p-1 text-center bg-red-100">
                         <span className="text-red-800">
-                          {weeklyTracking.reduce((sum, day) => sum + (day.vegetablesInput * day.vegetablesPrice / 1000), 0).toFixed(0)}
+                          {weeklyTracking.reduce((sum, day) => sum + (day.cabbageInput * day.cabbagePrice / 1000), 0).toFixed(0)}
                         </span>
                       </td>
                       <td className="border border-black p-1 text-center bg-red-100">
@@ -1171,17 +1171,17 @@ export function SaltProcessing() {
                           weeklyTracking.reduce((sum, day) => {
                             const saltRev = (day.saltInput * day.saltPrice / 1000)
                             const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
-                            const vegetablesCost = (day.vegetablesInput * day.vegetablesPrice / 1000)
+                            const cabbageCost = (day.cabbageInput * day.cabbagePrice / 1000)
                             const otherCost = (day.otherCosts / 1000)
-                            return sum + (saltRev + byProductRev - vegetablesCost - otherCost)
+                            return sum + (saltRev + byProductRev - cabbageCost - otherCost)
                           }, 0) >= 0 ? 'text-green-800' : 'text-red-800'
                         }`}>
                           {weeklyTracking.reduce((sum, day) => {
                             const saltRev = (day.saltInput * day.saltPrice / 1000)
                             const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
-                            const vegetablesCost = (day.vegetablesInput * day.vegetablesPrice / 1000)
+                            const cabbageCost = (day.cabbageInput * day.cabbagePrice / 1000)
                             const otherCost = (day.otherCosts / 1000)
-                            return sum + (saltRev + byProductRev - vegetablesCost - otherCost)
+                            return sum + (saltRev + byProductRev - cabbageCost - otherCost)
                           }, 0).toFixed(0)}
                         </span>
                       </td>
@@ -1209,13 +1209,13 @@ export function SaltProcessing() {
                   <div className="text-xs text-red-600">Tổng CHI (1.000đ)</div>
                   <div className="text-lg font-bold text-red-700">
                     {weeklyTracking.reduce((sum, day) => {
-                      const vegetablesCost = (day.vegetablesInput * day.vegetablesPrice / 1000)
+                      const cabbageCost = (day.cabbageInput * day.cabbagePrice / 1000)
                       const otherCosts = (day.otherCosts / 1000)
-                      return sum + vegetablesCost + otherCosts
+                      return sum + cabbageCost + otherCosts
                     }, 0).toFixed(0)}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Rau củ quả + Chi khác
+                    Rau cải + Chi khác
                   </div>
                 </div>
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
@@ -1224,17 +1224,17 @@ export function SaltProcessing() {
                     weeklyTracking.reduce((sum, day) => {
                       const saltRev = (day.saltInput * day.saltPrice / 1000)
                       const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
-                      const vegetablesCost = (day.vegetablesInput * day.vegetablesPrice / 1000)
+                      const cabbageCost = (day.cabbageInput * day.cabbagePrice / 1000)
                       const otherCost = (day.otherCosts / 1000)
-                      return sum + (saltRev + byProductRev - vegetablesCost - otherCost)
+                      return sum + (saltRev + byProductRev - cabbageCost - otherCost)
                     }, 0) >= 0 ? 'text-green-700' : 'text-red-700'
                   }`}>
                     {weeklyTracking.reduce((sum, day) => {
                       const saltRev = (day.saltInput * day.saltPrice / 1000)
                       const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
-                      const vegetablesCost = (day.vegetablesInput * day.vegetablesPrice / 1000)
+                      const cabbageCost = (day.cabbageInput * day.cabbagePrice / 1000)
                       const otherCost = (day.otherCosts / 1000)
-                      return sum + (saltRev + byProductRev - vegetablesCost - otherCost)
+                      return sum + (saltRev + byProductRev - cabbageCost - otherCost)
                     }, 0).toFixed(0)}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
@@ -1246,12 +1246,12 @@ export function SaltProcessing() {
                   <div className="text-lg font-bold text-yellow-700">
                     {weeklyTracking.length > 0 ? (
                       weeklyTracking.reduce((sum, day) => {
-                        return sum + (day.vegetablesInput > 0 ? (day.saltInput / day.vegetablesInput) * 100 : 0)
-                      }, 0) / weeklyTracking.filter(day => day.vegetablesInput > 0).length
+                        return sum + (day.cabbageInput > 0 ? (day.saltInput / day.cabbageInput) * 100 : 0)
+                      }, 0) / weeklyTracking.filter(day => day.cabbageInput > 0).length
                     ).toFixed(1) : '0'}%
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Tỷ lệ rau củ quả → dưa muối
+                    Tỷ lệ rau cải → dưa muối
                   </div>
                 </div>
               </div>
@@ -1361,7 +1361,7 @@ export function SaltProcessing() {
                     <tr>
                       <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Dưa muối</th>
                       <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
-                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Rau củ quả</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Rau cải</th>
                       <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
                     </tr>
                     <tr>
@@ -1391,27 +1391,27 @@ export function SaltProcessing() {
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
                           {Math.round(month.totalSaltCollected * 0.1 * 2).toLocaleString()}
                         </td>
-                        {/* CHI - Rau củ quả */}
+                        {/* CHI - Rau cải */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {month.totalVegetablesInput.toLocaleString()}
+                          {month.totalCabbageInput.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {(month.totalVegetablesInput * 8).toLocaleString()}
+                          {(month.totalCabbageInput * 8).toLocaleString()}
                         </td>
                         {/* CHI - Chi khác */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {Math.round(month.totalVegetablesInput * 0.02 * 1000).toLocaleString()}
+                          {Math.round(month.totalCabbageInput * 0.02 * 1000).toLocaleString()}
                         </td>
                         {/* THU-CHI (LÃI) */}
                         <td className="border border-black p-1 text-center bg-blue-50">
                           <span className={`font-bold ${
                             ((month.totalSaltCollected * 12) + Math.round(month.totalSaltCollected * 0.1 * 2) - 
-                             (month.totalVegetablesInput * 8) - Math.round(month.totalVegetablesInput * 0.02 * 1000)) >= 0 
+                             (month.totalCabbageInput * 8) - Math.round(month.totalCabbageInput * 0.02 * 1000)) >= 0 
                             ? 'text-green-600' : 'text-red-600'
                           }`}>
                             {(
                               (month.totalSaltCollected * 12) + Math.round(month.totalSaltCollected * 0.1 * 2) - 
-                              (month.totalVegetablesInput * 8) - Math.round(month.totalVegetablesInput * 0.02 * 1000)
+                              (month.totalCabbageInput * 8) - Math.round(month.totalCabbageInput * 0.02 * 1000)
                             ).toLocaleString()}
                           </span>
                         </td>
@@ -1527,7 +1527,7 @@ export function SaltProcessing() {
                       <div className="text-sm text-yellow-700 space-y-1">
                         <div>Tổng món ăn có dưa muối: <strong>{detectionResult.summary.totalDishesUsingSalt}</strong></div>
                         <div>Trung bình dưa muối/người: <strong>{detectionResult.summary.averageSaltPerPerson?.toFixed(3)} kg</strong></div>
-                        <div>Ước tính rau củ quả cần: <strong>{detectionResult.summary.recommendedVegetablesInput?.toFixed(2)} kg</strong></div>
+                        <div>Ước tính rau cải cần: <strong>{detectionResult.summary.recommendedVegetablesInput?.toFixed(2)} kg</strong></div>
                       </div>
                     </div>
                   )}

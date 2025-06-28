@@ -41,7 +41,7 @@ interface SaltCalculationResult {
   summary: {
     totalDishesUsingSalt: number
     averageSaltPerPerson: number
-    recommendedVegetablesInput: number // Ước tính rau củ quả cần để làm đủ dưa muối
+    recommendedCabbageInput: number // Ước tính rau cải cần để làm đủ dưa muối
   }
 }
 
@@ -160,7 +160,7 @@ export const calculateSaltRequirements = async (req: Request, res: Response) => 
       summary: {
         totalDishesUsingSalt: 0,
         averageSaltPerPerson: 0,
-        recommendedVegetablesInput: 0
+        recommendedCabbageInput: 0
       }
     }
 
@@ -275,7 +275,7 @@ export const calculateSaltRequirements = async (req: Request, res: Response) => 
       : 0
 
     // Estimate vegetables input needed (typical conversion rate: 1kg vegetables → ~0.7kg pickled vegetables)
-    result.summary.recommendedVegetablesInput = result.totalSaltRequired / 0.7
+    result.summary.recommendedCabbageInput = result.totalSaltRequired / 0.7
 
     res.status(200).json({
       success: true,
@@ -453,7 +453,7 @@ async function calculateDailySaltForDate(db: any, targetDate: string, unitIds?: 
     summary: {
       totalDishesUsingSalt: 0,
       averageSaltPerPerson: 0,
-      recommendedVegetablesInput: 0
+      recommendedCabbageInput: 0
     }
   }
 
@@ -563,7 +563,7 @@ async function calculateDailySaltForDate(db: any, targetDate: string, unitIds?: 
     ? result.totalSaltRequired / result.totalPersonnel 
     : 0
 
-  result.summary.recommendedVegetablesInput = result.totalSaltRequired / 0.7
+  result.summary.recommendedCabbageInput = result.totalSaltRequired / 0.7
 
   return result
 }
@@ -608,11 +608,11 @@ export const getSaltUsageStatistics = async (req: Request, res: Response) => {
       sum + (data.saltInput || 0), 0
     )
 
-    const totalVegetablesUsed = saltProcessingData.reduce((sum, data) => 
-      sum + (data.vegetablesInput || 0), 0
+    const totalCabbageUsed = saltProcessingData.reduce((sum, data) => 
+      sum + (data.cabbageInput || 0), 0
     )
 
-    const conversionRate = totalVegetablesUsed > 0 ? totalProcessedSalt / totalVegetablesUsed : 0.7
+    const conversionRate = totalCabbageUsed > 0 ? totalProcessedSalt / totalCabbageUsed : 0.7
 
     res.status(200).json({
       success: true,
@@ -631,7 +631,7 @@ export const getSaltUsageStatistics = async (req: Request, res: Response) => {
         })),
         processing: {
           totalDays: saltProcessingData.length,
-          totalVegetablesInput: totalVegetablesUsed,
+          totalCabbageInput: totalCabbageUsed,
           totalSaltOutput: totalProcessedSalt,
           averageConversionRate: conversionRate,
           dailyData: saltProcessingData
@@ -693,14 +693,14 @@ export const getWeeklySaltTracking = async (req: Request, res: Response) => {
       weeklyData.push({
         date: dateStr,
         dayOfWeek: getDayNameVi(date.getDay()),
-        vegetablesInput: processingData.vegetablesInput || 0,
+        cabbageInput: processingData.cabbageInput || 0,
         saltInput: processingData.saltInput || 0,
         saltOutput: processingData.saltOutput || 0, // Use actual output from processing data
         saltRemaining: Math.max(0, (processingData.saltInput || 0) - (processingData.saltOutput || 0)),
         // Financial fields
         byProductQuantity: processingData.byProductQuantity || 0,
         byProductPrice: processingData.byProductPrice || 2000,
-        vegetablesPrice: processingData.vegetablesPrice || 8000,
+        cabbagePrice: processingData.cabbagePrice || 8000,
         saltPrice: processingData.saltPrice || 12000,
         otherCosts: processingData.otherCosts || 0
       })
@@ -708,7 +708,7 @@ export const getWeeklySaltTracking = async (req: Request, res: Response) => {
 
     // Calculate weekly totals
     const weeklyTotals = {
-      totalVegetablesInput: weeklyData.reduce((sum, day) => sum + day.vegetablesInput, 0),
+      totalCabbageInput: weeklyData.reduce((sum, day) => sum + day.cabbageInput, 0),
       totalSaltInput: weeklyData.reduce((sum, day) => sum + day.saltInput, 0),
       totalSaltOutput: weeklyData.reduce((sum, day) => sum + day.saltOutput, 0),
       totalSaltRemaining: weeklyData.reduce((sum, day) => sum + day.saltRemaining, 0),
@@ -776,46 +776,46 @@ export const getMonthlySaltSummary = async (req: Request, res: Response) => {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
           monthNumber: targetMonth,
-          totalVegetablesInput: monthlyData.totalVegetablesInput,
+          totalCabbageInput: monthlyData.totalCabbageInput,
           totalSaltCollected: monthlyData.totalSaltCollected,
           totalSaltOutput: monthlyData.totalSaltOutput,
           totalSaltRemaining: monthlyData.totalSaltRemaining,
           processingEfficiency: monthlyData.processingEfficiency,
           // Financial calculations (in thousands VND)
           saltRevenue: Math.round(monthlyData.totalSaltCollected * 12), // 12k VND per kg
-          vegetablesCost: Math.round(monthlyData.totalVegetablesInput * 8),  // 8k VND per kg
-          otherCosts: Math.round(monthlyData.totalVegetablesInput * 0.02), // 2% other costs in thousands
+          cabbageCost: Math.round(monthlyData.totalCabbageInput * 8),  // 8k VND per kg
+          otherCosts: Math.round(monthlyData.totalCabbageInput * 0.02), // 2% other costs in thousands
           byProductRevenue: Math.round(monthlyData.totalSaltCollected * 0.1 * 2), // By-products
           netProfit: 0 // Will calculate below
         }
         
         // Calculate net profit
-        summary.netProfit = (summary.saltRevenue + summary.byProductRevenue) - (summary.vegetablesCost + summary.otherCosts)
+        summary.netProfit = (summary.saltRevenue + summary.byProductRevenue) - (summary.cabbageCost + summary.otherCosts)
         
         monthlySummaries.push(summary)
       } catch (error) {
         // Fallback with estimated data if no real data available
-        const estimatedVegetablesInput = 2000 + Math.floor(Math.random() * 800)
-        const estimatedSaltCollected = Math.round(estimatedVegetablesInput * 0.7)
+        const estimatedCabbageInput = 2000 + Math.floor(Math.random() * 800)
+        const estimatedSaltCollected = Math.round(estimatedCabbageInput * 0.7)
         const estimatedSaltOutput = Math.round(estimatedSaltCollected * 0.9)
         
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
           monthNumber: targetMonth,
-          totalVegetablesInput: estimatedVegetablesInput,
+          totalCabbageInput: estimatedCabbageInput,
           totalSaltCollected: estimatedSaltCollected,
           totalSaltOutput: estimatedSaltOutput,
           totalSaltRemaining: estimatedSaltCollected - estimatedSaltOutput,
-          processingEfficiency: Math.round((estimatedSaltCollected / estimatedVegetablesInput) * 100),
+          processingEfficiency: Math.round((estimatedSaltCollected / estimatedCabbageInput) * 100),
           saltRevenue: Math.round(estimatedSaltCollected * 12),
-          vegetablesCost: Math.round(estimatedVegetablesInput * 8),
-          otherCosts: Math.round(estimatedVegetablesInput * 0.02),
+          cabbageCost: Math.round(estimatedCabbageInput * 8),
+          otherCosts: Math.round(estimatedCabbageInput * 0.02),
           byProductRevenue: Math.round(estimatedSaltCollected * 0.1 * 2),
           netProfit: 0
         }
         
-        summary.netProfit = (summary.saltRevenue + summary.byProductRevenue) - (summary.vegetablesCost + summary.otherCosts)
+        summary.netProfit = (summary.saltRevenue + summary.byProductRevenue) - (summary.cabbageCost + summary.otherCosts)
         monthlySummaries.push(summary)
       }
     }
@@ -876,12 +876,12 @@ async function getProcessingStationData(db: any, dateStr: string) {
     
     if (processingData) {
       return {
-        vegetablesInput: processingData.vegetablesInput || 0,
+        cabbageInput: processingData.cabbageInput || 0,
         saltInput: processingData.saltInput || 0,
         saltOutput: processingData.saltOutput || 0,
         byProductQuantity: processingData.byProductQuantity || 0,
         byProductPrice: processingData.byProductPrice || 2000,
-        vegetablesPrice: processingData.vegetablesPrice || 8000,
+        cabbagePrice: processingData.cabbagePrice || 8000,
         saltPrice: processingData.saltPrice || 12000,
         otherCosts: processingData.otherCosts || 0,
         note: processingData.note || ""
@@ -895,12 +895,12 @@ async function getProcessingStationData(db: any, dateStr: string) {
     })
     
     return {
-      vegetablesInput: genericData?.vegetablesInput || 0,
+      cabbageInput: genericData?.cabbageInput || 0,
       saltInput: genericData?.saltInput || 0,
       saltOutput: genericData?.saltOutput || 0,
       byProductQuantity: genericData?.byProductQuantity || 0,
       byProductPrice: genericData?.byProductPrice || 2000,
-      vegetablesPrice: genericData?.vegetablesPrice || 8000,
+      cabbagePrice: genericData?.cabbagePrice || 8000,
       saltPrice: genericData?.saltPrice || 12000,
       otherCosts: genericData?.otherCosts || 0,
       note: genericData?.note || ""
@@ -908,12 +908,12 @@ async function getProcessingStationData(db: any, dateStr: string) {
   } catch (error) {
     console.log(`No processing station data for ${dateStr}`)
     return {
-      vegetablesInput: 0,
+      cabbageInput: 0,
       saltInput: 0,
       saltOutput: 0,
       byProductQuantity: 0,
       byProductPrice: 2000,
-      vegetablesPrice: 8000,
+      cabbagePrice: 8000,
       saltPrice: 12000,
       otherCosts: 0,
       note: ""
@@ -938,7 +938,7 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
         {
           $group: {
             _id: null,
-            totalVegetablesInput: { $sum: "$vegetablesInput" },
+            totalCabbageInput: { $sum: "$cabbageInput" },
             totalSaltCollected: { $sum: "$saltInput" },
             totalSaltOutput: { $sum: "$saltOutput" },
             count: { $sum: 1 }
@@ -950,35 +950,35 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
     if (monthlyData.length > 0) {
       const data = monthlyData[0]
       return {
-        totalVegetablesInput: data.totalVegetablesInput || 0,
+        totalCabbageInput: data.totalCabbageInput || 0,
         totalSaltCollected: data.totalSaltCollected || 0,
         totalSaltOutput: data.totalSaltOutput || 0,
         totalSaltRemaining: (data.totalSaltCollected || 0) - (data.totalSaltOutput || 0),
-        processingEfficiency: data.totalVegetablesInput > 0 
-          ? Math.round(((data.totalSaltCollected || 0) / data.totalVegetablesInput) * 100) 
+        processingEfficiency: data.totalCabbageInput > 0 
+          ? Math.round(((data.totalSaltCollected || 0) / data.totalCabbageInput) * 100) 
           : 70
       }
     }
     
     // If no real data, return estimated data based on realistic production patterns
-    const baseVegetables = 2000 + Math.floor(Math.random() * 800)
-    const baseSaltCollected = Math.round(baseVegetables * (0.65 + Math.random() * 0.1)) // 65-75% efficiency
+    const baseCabbage = 2000 + Math.floor(Math.random() * 800)
+    const baseSaltCollected = Math.round(baseCabbage * (0.65 + Math.random() * 0.1)) // 65-75% efficiency
     const baseSaltOutput = Math.round(baseSaltCollected * (0.85 + Math.random() * 0.1)) // 85-95% output rate
     
     return {
-      totalVegetablesInput: baseVegetables,
+      totalCabbageInput: baseCabbage,
       totalSaltCollected: baseSaltCollected,
       totalSaltOutput: baseSaltOutput,
       totalSaltRemaining: baseSaltCollected - baseSaltOutput,
-      processingEfficiency: Math.round((baseSaltCollected / baseVegetables) * 100)
+      processingEfficiency: Math.round((baseSaltCollected / baseCabbage) * 100)
     }
   } catch (error) {
     console.error(`Error getting monthly data for ${year}-${month}:`, error)
     // Return default estimated data
-    const baseVegetables = 2200
-    const baseSaltCollected = Math.round(baseVegetables * 0.7)
+    const baseCabbage = 2200
+    const baseSaltCollected = Math.round(baseCabbage * 0.7)
     return {
-      totalVegetablesInput: baseVegetables,
+      totalCabbageInput: baseCabbage,
       totalSaltCollected: baseSaltCollected,
       totalSaltOutput: Math.round(baseSaltCollected * 0.9),
       totalSaltRemaining: Math.round(baseSaltCollected * 0.1),
