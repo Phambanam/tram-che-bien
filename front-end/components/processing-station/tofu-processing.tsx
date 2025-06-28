@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Package } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
+import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, tofuCalculationApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Unit } from "@/types"
@@ -48,6 +48,10 @@ interface MonthlyTofuSummary {
 }
 
 export function TofuProcessing() {
+  // ✨ UPDATED: Now uses new Tofu Calculation API instead of complex ingredient analysis
+  // The new API /api/tofu-calculation/requirements provides accurate tofu requirements
+  // based on menu data and unit personnel, replacing manual calculation logic
+  
   const [dailyTofuProcessing, setDailyTofuProcessing] = useState<DailyTofuProcessing | null>(null)
   const [monthlyTofuSummary, setMonthlyTofuSummary] = useState<MonthlyTofuSummary[]>([])
   const [weeklyTracking, setWeeklyTracking] = useState<WeeklyTofuTracking[]>([])
@@ -62,7 +66,7 @@ export function TofuProcessing() {
     tofuPrice: 0
   })
   
-  // Detection test states
+  // API test states (previously detection test)
   const [detectionResult, setDetectionResult] = useState<any>(null)
   const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isTestingDetection, setIsTestingDetection] = useState(false)
@@ -166,76 +170,34 @@ export function TofuProcessing() {
     })
   }
 
-  // Enhanced tofu calculation with multiple ingredient support
-  const calculateTofuOutputFromIngredients = async (dateStr: string) => {
+  // Simplified tofu calculation using new API
+  const calculateTofuOutputFromAPI = async (dateStr: string) => {
     try {
-      console.log("🔍 Calculating tofu output from ingredients for:", dateStr)
+      console.log("🚀 Using new tofu calculation API for:", dateStr)
       
-      const week = Math.ceil(new Date(dateStr).getDate() / 7)
-      const year = new Date(dateStr).getFullYear()
-      
-      const ingredientResponse = await menuPlanningApi.getDailyIngredientSummaries({
-        week: week,
-        year: year,
-        showAllDays: true
+      const response = await tofuCalculationApi.getTofuRequirements({
+        date: dateStr
       })
       
-      if (!ingredientResponse.success || !ingredientResponse.data) {
-        console.log("❌ No ingredient data available")
+      if (!response.success || !response.data) {
+        console.log("❌ No tofu calculation data available")
         return 0
       }
       
-      const dayData = ingredientResponse.data.find((day: any) => day.date === dateStr)
-      if (!dayData) {
-        console.log("❌ No data found for specific date:", dateStr)
-        return 0
-      }
+      const totalTofuRequired = response.data.totalTofuRequired || 0
       
-      // Find all tofu-related ingredients using improved pattern matching
-      const tofuIngredients = findTofuInIngredients(dayData.ingredients)
-      
-      if (tofuIngredients.length === 0) {
-        console.log("❌ No tofu ingredients found in menu")
-        return 0
-      }
-      
-      console.log("✅ Found tofu ingredients:", {
-        count: tofuIngredients.length,
-        ingredients: tofuIngredients.map(ing => ({
-          name: ing.lttpName,
-          quantity: ing.totalQuantity,
-          dishes: ing.usedInDishes
-        }))
+      console.log("✅ API tofu calculation result:", {
+        date: dateStr,
+        totalTofuRequired,
+        totalPersonnel: response.data.totalPersonnel,
+        dishesUsingTofu: response.data.dishesUsingTofu?.length || 0,
+        summary: response.data.summary
       })
       
-      // Get total personnel for this date
-      const personnelResponse = await unitPersonnelDailyApi.getPersonnelByWeek(dateStr, dateStr)
-      const totalPersonnel = personnelResponse.success ? 
-        Object.values(personnelResponse.data[dateStr] || {}).reduce((sum: number, count: any) => sum + count, 0) : 100
-      
-      // Calculate total tofu needed (sum all tofu ingredients)
-      const totalTofuQuantity = tofuIngredients.reduce((sum, ingredient) => 
-        sum + (ingredient.totalQuantity || 0), 0
-      )
-      
-      // Calculate: (personnel * total quantity per 100 people) / 100
-      const plannedTofuOutput = (totalPersonnel * totalTofuQuantity) / 100
-      
-      console.log("📊 Tofu calculation result:", {
-        totalPersonnel,
-        totalTofuQuantity,
-        plannedOutput: plannedTofuOutput,
-        ingredientBreakdown: tofuIngredients.map(ing => ({
-          name: ing.lttpName,
-          quantityPer100: ing.totalQuantity,
-          dishes: ing.usedInDishes.join(", ")
-        }))
-      })
-      
-      return plannedTofuOutput
+      return totalTofuRequired
       
     } catch (error) {
-      console.error("❌ Error calculating tofu from ingredients:", error)
+      console.error("❌ Error calling tofu calculation API:", error)
       return 0
     }
   }
@@ -276,70 +238,48 @@ export function TofuProcessing() {
       const finalSoybeanPrice = priceData.soybeanPriceFromSupply ? priceData.soybeanPrice : stationData.soybeanPrice
       const finalTofuPrice = priceData.tofuPriceFromSupply ? priceData.tofuPrice : stationData.tofuPrice
 
-      // Get planned tofu output from supply management (kế hoạch xuất từ đăng ký người ăn)
+      // Get tofu output requirement using new API (primary method) or fallback to supply outputs
       let plannedTofuOutput = 0
       try {
-        console.log("🔍 Fetching planned tofu outputs for date:", dateStr)
-        const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-          startDate: dateStr,
-          endDate: dateStr
-        })
-        const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        console.log("🚀 Using Tofu Calculation API for date:", dateStr)
         
-        console.log("🔍 Supply outputs response:", {
-          totalOutputs: outputs.length,
-          plannedOutputs: outputs.filter((o: any) => o.type === "planned"),
-          allTypes: [...new Set(outputs.map((o: any) => o.type || "unknown"))]
-        })
+        // Primary method: Use new Tofu Calculation API
+        plannedTofuOutput = await calculateTofuOutputFromAPI(dateStr)
         
-        // Calculate planned tofu outputs for this date (type: "planned")
-        const filteredOutputs = outputs.filter((output: any) => {
-          const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
-          const dateMatch = outputDate === dateStr
-          const isPlanned = output.type === "planned"
+        // Fallback method: If API returns 0, try to get from supply outputs (legacy)
+        if (plannedTofuOutput === 0) {
+          console.log("🔍 API returned 0, trying fallback to supply outputs...")
+          const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+            startDate: dateStr,
+            endDate: dateStr
+          })
+          const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
           
-          // Check both product name and sourceIngredient name
-          const productName = (output.product?.name || "").toLowerCase()
-          const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
-          const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu") ||
-                           ingredientName.includes("đậu phụ") || ingredientName.includes("tofu")
-          
-          console.log(`🔍 Filter check for planned output:`, {
-            productName: output.product?.name,
-            ingredientName: output.sourceIngredient?.lttpName,
-            type: output.type,
-            quantity: output.quantity,
-            outputDate,
-            targetDate: dateStr,
-            dateMatch,
-            isPlanned,
-            nameMatch,
-            willInclude: dateMatch && isPlanned && nameMatch
+          // Calculate planned tofu outputs for this date (type: "planned")
+          const filteredOutputs = outputs.filter((output: any) => {
+            const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
+            const dateMatch = outputDate === dateStr
+            const isPlanned = output.type === "planned"
+            
+            // Check both product name and sourceIngredient name
+            const productName = (output.product?.name || "").toLowerCase()
+            const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
+            const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu") ||
+                             ingredientName.includes("đậu phụ") || ingredientName.includes("tofu")
+            
+            return dateMatch && isPlanned && nameMatch
           })
           
-          return dateMatch && isPlanned && nameMatch
-        })
-        
-        plannedTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
-        
-        console.log("🎯 Planned tofu output calculation:", {
-          filteredCount: filteredOutputs.length,
-          totalPlannedTofuOutput: plannedTofuOutput,
-          filteredOutputs
-        })
-        
-        // If no planned outputs found, try to calculate from ingredient summaries
-        if (plannedTofuOutput === 0) {
-          console.log("🔍 No planned outputs found, trying to calculate from ingredient summaries...")
-          try {
-            plannedTofuOutput = await calculateTofuOutputFromIngredients(dateStr)
-          } catch (calcError) {
-            console.log("Could not calculate from ingredients:", calcError)
-          }
+          plannedTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+          
+          console.log("🔄 Fallback result:", {
+            filteredCount: filteredOutputs.length,
+            fallbackTofuOutput: plannedTofuOutput
+          })
         }
         
       } catch (error) {
-        console.log("❌ Error fetching planned tofu output data:", error)
+        console.log("❌ Error getting tofu output data:", error)
       }
 
       // Calculate remaining tofu
@@ -419,42 +359,36 @@ export function TofuProcessing() {
           // Use default values
         }
 
-        // Get planned tofu output from supply management (kế hoạch xuất từ đăng ký người ăn)
+        // Get tofu output requirement using new API (primary method) for weekly tracking
         let plannedTofuOutput = 0
         try {
-          console.log(`🔍 WEEKLY - Fetching planned outputs for ${dateStr}`)
-          const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-            startDate: dateStr,
-            endDate: dateStr
-          })
-          const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+          console.log(`🚀 WEEKLY - Using Tofu API for ${dateStr}`)
           
-          console.log(`🔍 WEEKLY - ${dateStr} outputs:`, {
-            totalOutputs: outputs.length,
-            plannedOutputs: outputs.filter((o: any) => o.type === "planned"),
-            tofuPlannedOutputs: outputs.filter((o: any) => 
-              o.type === "planned" && 
-              (o.product?.name?.toLowerCase().includes("đậu phụ") || 
-               o.sourceIngredient?.lttpName?.toLowerCase().includes("đậu phụ"))
-            )
-          })
+          // Primary method: Use new Tofu Calculation API
+          plannedTofuOutput = await calculateTofuOutputFromAPI(dateStr)
           
-          plannedTofuOutput = outputs
-            .filter((output: any) => {
-              const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
-              const isPlanned = output.type === "planned"
-              const productName = (output.product?.name || "").toLowerCase()
-              const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
-              const nameMatch = productName.includes("đậu phụ") || ingredientName.includes("đậu phụ")
-              
-              return outputDate === dateStr && isPlanned && nameMatch
-            })
-            .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
-          
-          // If no planned outputs found, try to calculate from ingredient summaries
+          // Fallback method: If API returns 0, try supply outputs (legacy)
           if (plannedTofuOutput === 0) {
-            console.log(`🔍 WEEKLY - No planned outputs for ${dateStr}, calculating from ingredients...`)
-            plannedTofuOutput = await calculateTofuOutputFromIngredients(dateStr)
+            console.log(`🔍 WEEKLY - API returned 0 for ${dateStr}, trying fallback...`)
+            const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+              startDate: dateStr,
+              endDate: dateStr
+            })
+            const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+            
+            plannedTofuOutput = outputs
+              .filter((output: any) => {
+                const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
+                const isPlanned = output.type === "planned"
+                const productName = (output.product?.name || "").toLowerCase()
+                const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
+                const nameMatch = productName.includes("đậu phụ") || ingredientName.includes("đậu phụ")
+                
+                return outputDate === dateStr && isPlanned && nameMatch
+              })
+              .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+            
+            console.log(`🔄 WEEKLY - Fallback result for ${dateStr}: ${plannedTofuOutput} kg`)
           }
         } catch (error) {
           console.log(`❌ WEEKLY - Error for ${dateStr}:`, error)
@@ -731,37 +665,58 @@ export function TofuProcessing() {
     return result
   }
 
-  // Test detection with custom date
+  // Test detection with custom date using new API
   const testTofuDetection = async (targetDate?: string) => {
     setIsTestingDetection(true)
     try {
       const dateToTest = targetDate || testDate
-      console.log("🧪 Testing tofu detection for date:", dateToTest)
+      console.log("🧪 Testing tofu detection using API for date:", dateToTest)
       
-      const result = await exampleTofuDetectionFlow(dateToTest)
+      // Use new API for testing
+      const apiResponse = await tofuCalculationApi.getTofuRequirements({
+        date: dateToTest
+      })
+      
+      let result: any
+      if (apiResponse.success && apiResponse.data) {
+        result = {
+          found: true,
+          totalTofuRequired: apiResponse.data.totalTofuRequired,
+          totalPersonnel: apiResponse.data.totalPersonnel,
+          dishesUsingTofu: apiResponse.data.dishesUsingTofu,
+          units: apiResponse.data.units,
+          summary: apiResponse.data.summary
+        }
+      } else {
+        result = {
+          found: false,
+          reason: "Không có dữ liệu từ API"
+        }
+      }
+      
       setDetectionResult(result)
       
       toast({
-        title: "🧪 Test Detection Completed",
+        title: "🧪 Test API Completed",
         description: result.found ? 
-          `Tìm thấy ${result.ingredients?.length} loại đậu phụ. Cần xuất: ${result.finalOutput?.toFixed(2)} kg` :
+          `Tìm thấy ${result.dishesUsingTofu?.length || 0} món có đậu phụ. Cần xuất: ${result.totalTofuRequired?.toFixed(2) || 0} kg` :
           `Không tìm thấy đậu phụ: ${result.reason}`,
         variant: result.found ? "default" : "destructive"
       })
       
       // If found tofu for today, refresh the daily data
       if (result.found && dateToTest === format(new Date(), "yyyy-MM-dd")) {
-        console.log("🔄 Refreshing daily data with new detection results...")
+        console.log("🔄 Refreshing daily data with new API results...")
         await fetchDailyTofuProcessing(new Date())
         await fetchWeeklyTracking()
       }
       
       return result
     } catch (error) {
-      console.error("❌ Detection test error:", error)
+      console.error("❌ API test error:", error)
       toast({
         title: "❌ Test Error",
-        description: "Lỗi khi test detection",
+        description: "Lỗi khi test API",
         variant: "destructive"
       })
     } finally {
@@ -1085,7 +1040,7 @@ export function TofuProcessing() {
                         disabled={isTestingDetection}
                         className="bg-purple-100 text-purple-700 hover:bg-purple-200"
                       >
-                        {isTestingDetection ? "🔄 Đang test..." : "🧪 Test Detection"}
+                        {isTestingDetection ? "🔄 Đang test..." : "🚀 Test Tofu API"}
                       </Button>
                     </>
                   )}
@@ -1335,7 +1290,7 @@ export function TofuProcessing() {
         <Card className="mt-6">
           <CardHeader>
             <CardTitle className="text-center text-xl font-bold">
-              🧪 KẾT QUẢ TEST DETECTION ĐẬU PHỤ
+              🚀 KẾT QUẢ TEST API TÍNH TOÁN ĐẬU PHỤ
             </CardTitle>
             <p className="text-sm text-gray-600 text-center">
               Ngày test: {testDate} • {detectionResult.found ? "✅ Có đậu phụ" : "❌ Không có đậu phụ"}
@@ -1366,9 +1321,9 @@ export function TofuProcessing() {
                   {/* Summary */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                      <div className="text-sm text-green-600 mb-1">Số loại đậu phụ</div>
+                      <div className="text-sm text-green-600 mb-1">Số món có đậu phụ</div>
                       <div className="text-2xl font-bold text-green-700">
-                        {detectionResult.ingredients?.length || 0}
+                        {detectionResult.dishesUsingTofu?.length || 0}
                       </div>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -1380,42 +1335,62 @@ export function TofuProcessing() {
                     <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
                       <div className="text-sm text-orange-600 mb-1">Cần xuất (kg)</div>
                       <div className="text-2xl font-bold text-orange-700">
-                        {detectionResult.finalOutput?.toFixed(2) || 0}
+                        {detectionResult.totalTofuRequired?.toFixed(2) || 0}
                       </div>
                     </div>
                   </div>
 
-                  {/* Ingredients Breakdown */}
+                  {/* Dishes Using Tofu */}
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium mb-3">Chi tiết từng loại đậu phụ:</h4>
+                    <h4 className="font-medium mb-3">Món ăn sử dụng đậu phụ:</h4>
                     <div className="space-y-2">
-                      {detectionResult.breakdown?.map((item: any, index: number) => (
+                      {detectionResult.dishesUsingTofu?.map((dish: any, index: number) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
                           <div>
-                            <span className="font-medium">{item.name}</span>
+                            <span className="font-medium">{dish.dishName}</span>
                             <div className="text-xs text-gray-600">
-                              Dùng trong: {item.dishes.join(", ")}
+                              Bữa: {dish.mealType === 'morning' ? 'Sáng' : dish.mealType === 'noon' ? 'Trưa' : 'Tối'} | 
+                              Nguyên liệu: {dish.tofuIngredients?.map((ing: any) => ing.lttpName).join(", ")}
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium">{item.output.toFixed(2)} kg</div>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Formula Explanation */}
-                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                    <h4 className="font-medium text-yellow-800 mb-2">📊 Công thức tính toán:</h4>
-                    <div className="text-sm text-yellow-700">
-                      <div>Tổng lượng đậu phụ cho 100 người: <strong>{detectionResult.totalTofuQuantity?.toFixed(2)} kg</strong></div>
-                      <div>Số người ăn thực tế: <strong>{detectionResult.totalPersonnel} người</strong></div>
-                      <div className="mt-2 p-2 bg-yellow-100 rounded">
-                        Công thức: ({detectionResult.totalPersonnel} người × {detectionResult.totalTofuQuantity?.toFixed(2)} kg/100 người) ÷ 100 = <strong>{detectionResult.finalOutput?.toFixed(2)} kg</strong>
+                  {/* Units Breakdown */}
+                  {detectionResult.units && detectionResult.units.length > 0 && (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h4 className="font-medium mb-3">Chi tiết theo đơn vị:</h4>
+                      <div className="space-y-2">
+                        {detectionResult.units.map((unit: any, index: number) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                            <div>
+                              <span className="font-medium">{unit.unitName}</span>
+                              <div className="text-xs text-gray-600">
+                                {unit.personnel} người
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium">{unit.totalTofuRequired?.toFixed(2)} kg</div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Summary Statistics */}
+                  {detectionResult.summary && (
+                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                      <h4 className="font-medium text-yellow-800 mb-2">📊 Thống kê tổng hợp:</h4>
+                      <div className="text-sm text-yellow-700 space-y-1">
+                        <div>Tổng món ăn có đậu phụ: <strong>{detectionResult.summary.totalDishesUsingTofu}</strong></div>
+                        <div>Trung bình đậu phụ/người: <strong>{detectionResult.summary.averageTofuPerPerson?.toFixed(3)} kg</strong></div>
+                        <div>Ước tính đậu tương cần: <strong>{detectionResult.summary.recommendedSoybeanInput?.toFixed(2)} kg</strong></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8">

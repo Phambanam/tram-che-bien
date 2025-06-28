@@ -1091,6 +1091,57 @@ export const unitPersonnelDailyApi = {
   },
 }
 
+// Tofu Calculation API
+export const tofuCalculationApi = {
+  getTofuRequirements: async (params: {
+    date?: string
+    week?: number
+    year?: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params.date) queryParams.append("date", params.date)
+    if (params.week) queryParams.append("week", params.week.toString())
+    if (params.year) queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/requirements${query}`)
+  },
+
+  getWeeklyTofuRequirements: async (params: {
+    week: number
+    year: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/weekly-requirements${query}`)
+  },
+
+  getTofuUsageStatistics: async (params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("startDate", params.startDate)
+    queryParams.append("endDate", params.endDate)
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/statistics${query}`)
+  },
+}
+
 // Export all APIs for convenience
 export const api = {
   auth: authApi,
@@ -1114,4 +1165,5 @@ export const api = {
   lttp: lttpApi,
   menuPlanning: menuPlanningApi,
   unitPersonnelDaily: unitPersonnelDailyApi,
+  tofuCalculation: tofuCalculationApi,
 }
