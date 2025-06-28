@@ -963,7 +963,575 @@ export function BeanSproutsProcessing() {
         </CardContent>
       </Card>
 
-      {/* Phần còn lại: Weekly và Monthly Tables sẽ được thêm tiếp... */}
+      {/* Weekly Tracking Table */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-center text-xl font-bold">
+            BẢNG THEO DÕI CHẾ BIẾN GIÁ ĐỖ THEO TUẦN
+          </CardTitle>
+          <p className="text-sm text-gray-600 text-center">
+            Ngày hôm nay: {format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi })}
+          </p>
+          
+          {/* Week Filter */}
+          <div className="flex items-center justify-center gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Tuần:</label>
+              <select
+                value={selectedWeek}
+                onChange={(e) => {
+                  const newWeek = parseInt(e.target.value)
+                  setSelectedWeek(newWeek)
+                  fetchWeeklyTracking(newWeek, selectedYear)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                {Array.from({ length: 53 }, (_, i) => i + 1).map((week) => (
+                  <option key={week} value={week}>
+                    Tuần {week}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Năm:</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  const newYear = parseInt(e.target.value)
+                  setSelectedYear(newYear)
+                  fetchWeeklyTracking(selectedWeek, newYear)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const now = new Date()
+                const currentWeek = getCurrentWeekOfYear(now)
+                const currentYear = now.getFullYear()
+                
+                console.log(`🔄 Reset to current week: ${currentWeek}/${currentYear}`)
+                
+                setSelectedWeek(currentWeek)
+                setSelectedYear(currentYear)
+                fetchWeeklyTracking(currentWeek, currentYear)
+              }}
+              className="text-blue-600 hover:text-blue-800"
+            >
+              📅 Tuần hiện tại (Tuần {getCurrentWeekOfYear()})
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading || weeklyTracking.length === 0 ? (
+            <div className="text-center py-8">Đang tải dữ liệu tuần...</div>
+          ) : (
+            <div className="space-y-4">
+              <div className="overflow-x-auto">
+                <table className="w-full border-2 border-black">
+                  <thead>
+                    <tr>
+                      <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">NGÀY</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">THỨ</th>
+                      <th colSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU</th>
+                      <th colSpan={3} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-blue-100 font-bold">THU-<br/>CHI<br/>(LÃI)</th>
+                    </tr>
+                    <tr>
+                      <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Giá đỗ</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu tương</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
+                    </tr>
+                    <tr>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {weeklyTracking.map((day, index) => {
+                      const isToday = format(new Date(), "yyyy-MM-dd") === day.date
+                      
+                      // Financial calculations for this day
+                      const beanSproutsRevenue = (day.beanSproutsInput * day.beanSproutsPrice) / 1000 // Convert to thousands
+                      const byProductRevenue = (day.byProductQuantity * day.byProductPrice) / 1000 // Convert to thousands
+                      const soybeansCost = (day.soybeansInput * day.soybeansPrice) / 1000 // Convert to thousands
+                      const otherCosts = day.otherCosts / 1000 // Convert to thousands
+                      const dailyProfit = beanSproutsRevenue + byProductRevenue - soybeansCost - otherCosts
+                      
+                      return (
+                        <tr key={index} className={isToday ? "bg-blue-50" : ""}>
+                          <td className="border border-black p-2 text-center font-medium">
+                            {format(new Date(day.date), "dd/MM", { locale: vi })}
+                            {isToday && <div className="text-xs text-blue-600 mt-1">(Hôm nay)</div>}
+                          </td>
+                          <td className="border border-black p-2 text-center font-medium">
+                            {day.dayOfWeek}
+                          </td>
+                          {/* THU - Giá đỗ */}
+                          <td className="border border-black p-1 text-center font-semibold text-green-600">
+                            {day.beanSproutsInput.toLocaleString()}
+                          </td>
+                          <td className="border border-black p-1 text-center font-semibold text-green-600">
+                            {beanSproutsRevenue.toFixed(0)}
+                          </td>
+                          {/* THU - Sản phẩm phụ */}
+                          <td className="border border-black p-1 text-center font-semibold text-green-600">
+                            {byProductRevenue.toFixed(0)}
+                          </td>
+                          {/* CHI - Đậu tương */}
+                          <td className="border border-black p-1 text-center font-semibold text-red-600">
+                            {day.soybeansInput.toLocaleString()}
+                          </td>
+                          <td className="border border-black p-1 text-center font-semibold text-red-600">
+                            {soybeansCost.toFixed(0)}
+                          </td>
+                          {/* CHI - Chi khác */}
+                          <td className="border border-black p-1 text-center font-semibold text-red-600">
+                            {otherCosts.toFixed(0)}
+                          </td>
+                          {/* THU-CHI (LÃI) */}
+                          <td className="border border-black p-1 text-center bg-blue-50">
+                            <span className={`font-bold ${
+                              dailyProfit >= 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {dailyProfit.toFixed(0)}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    
+                    {/* Weekly Total Row */}
+                    <tr className="bg-gray-200 font-bold border-t-2 border-gray-400">
+                      <td colSpan={2} className="border border-black p-2 text-center">
+                        TỔNG TUẦN
+                      </td>
+                      <td className="border border-black p-1 text-center bg-green-100">
+                        <span className="text-green-800">
+                          {weeklyTracking.reduce((sum, day) => sum + day.beanSproutsInput, 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-green-100">
+                        <span className="text-green-800">
+                          {weeklyTracking.reduce((sum, day) => sum + (day.beanSproutsInput * day.beanSproutsPrice / 1000), 0).toFixed(0)}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-green-100">
+                        <span className="text-green-800">
+                          {weeklyTracking.reduce((sum, day) => sum + (day.byProductQuantity * day.byProductPrice / 1000), 0).toFixed(0)}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-red-100">
+                        <span className="text-red-800">
+                          {weeklyTracking.reduce((sum, day) => sum + day.soybeansInput, 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-red-100">
+                        <span className="text-red-800">
+                          {weeklyTracking.reduce((sum, day) => sum + (day.soybeansInput * day.soybeansPrice / 1000), 0).toFixed(0)}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-red-100">
+                        <span className="text-red-800">
+                          {weeklyTracking.reduce((sum, day) => sum + (day.otherCosts / 1000), 0).toFixed(0)}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-blue-100">
+                        <span className={`font-bold ${
+                          weeklyTracking.reduce((sum, day) => {
+                            const beanSproutsRev = (day.beanSproutsInput * day.beanSproutsPrice / 1000)
+                            const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                            const soybeansCost = (day.soybeansInput * day.soybeansPrice / 1000)
+                            const otherCost = (day.otherCosts / 1000)
+                            return sum + (beanSproutsRev + byProductRev - soybeansCost - otherCost)
+                          }, 0) >= 0 ? 'text-green-800' : 'text-red-800'
+                        }`}>
+                          {weeklyTracking.reduce((sum, day) => {
+                            const beanSproutsRev = (day.beanSproutsInput * day.beanSproutsPrice / 1000)
+                            const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                            const soybeansCost = (day.soybeansInput * day.soybeansPrice / 1000)
+                            const otherCost = (day.otherCosts / 1000)
+                            return sum + (beanSproutsRev + byProductRev - soybeansCost - otherCost)
+                          }, 0).toFixed(0)}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Financial Summary Statistics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                  <div className="text-xs text-green-600">Tổng THU (1.000đ)</div>
+                  <div className="text-lg font-bold text-green-700">
+                    {weeklyTracking.reduce((sum, day) => {
+                      const beanSproutsRev = (day.beanSproutsInput * day.beanSproutsPrice / 1000)
+                      const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                      return sum + beanSproutsRev + byProductRev
+                    }, 0).toFixed(0)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Giá đỗ + Sản phẩm phụ
+                  </div>
+                </div>
+                <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                  <div className="text-xs text-red-600">Tổng CHI (1.000đ)</div>
+                  <div className="text-lg font-bold text-red-700">
+                    {weeklyTracking.reduce((sum, day) => {
+                      const soybeansCost = (day.soybeansInput * day.soybeansPrice / 1000)
+                      const otherCosts = (day.otherCosts / 1000)
+                      return sum + soybeansCost + otherCosts
+                    }, 0).toFixed(0)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Đậu tương + Chi khác
+                  </div>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <div className="text-xs text-blue-600">LÃI/LỖ (1.000đ)</div>
+                  <div className={`text-lg font-bold ${
+                    weeklyTracking.reduce((sum, day) => {
+                      const beanSproutsRev = (day.beanSproutsInput * day.beanSproutsPrice / 1000)
+                      const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                      const soybeansCost = (day.soybeansInput * day.soybeansPrice / 1000)
+                      const otherCost = (day.otherCosts / 1000)
+                      return sum + (beanSproutsRev + byProductRev - soybeansCost - otherCost)
+                    }, 0) >= 0 ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {weeklyTracking.reduce((sum, day) => {
+                      const beanSproutsRev = (day.beanSproutsInput * day.beanSproutsPrice / 1000)
+                      const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                      const soybeansCost = (day.soybeansInput * day.soybeansPrice / 1000)
+                      const otherCost = (day.otherCosts / 1000)
+                      return sum + (beanSproutsRev + byProductRev - soybeansCost - otherCost)
+                    }, 0).toFixed(0)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Thu - Chi
+                  </div>
+                </div>
+                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                  <div className="text-xs text-yellow-600">Hiệu suất (%)</div>
+                  <div className="text-lg font-bold text-yellow-700">
+                    {weeklyTracking.length > 0 ? (
+                      weeklyTracking.reduce((sum, day) => {
+                        return sum + (day.soybeansInput > 0 ? (day.beanSproutsInput / day.soybeansInput) * 100 : 0)
+                      }, 0) / weeklyTracking.filter(day => day.soybeansInput > 0).length
+                    ).toFixed(1) : '0'}%
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Tỷ lệ đậu tương → giá đỗ
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Monthly Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-center text-xl font-bold">
+            LÀM GIÁ ĐỖ - TỔNG HỢP THEO THÁNG
+          </CardTitle>
+          <p className="text-sm text-gray-600 text-center">
+            Bảng thu chi lãi theo từng tháng trong năm {new Date().getFullYear()}
+          </p>
+          
+          {/* Month Filter */}
+          <div className="flex items-center justify-center gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Tháng kết thúc:</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  const newMonth = parseInt(e.target.value)
+                  setSelectedMonth(newMonth)
+                  fetchMonthlyBeanSproutsSummary(newMonth, selectedMonthYear)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                  <option key={month} value={month}>
+                    Tháng {month}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Năm:</label>
+              <select
+                value={selectedMonthYear}
+                onChange={(e) => {
+                  const newYear = parseInt(e.target.value)
+                  setSelectedMonthYear(newYear)
+                  fetchMonthlyBeanSproutsSummary(selectedMonth, newYear)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const now = new Date()
+                const currentMonth = now.getMonth() + 1
+                const currentYear = now.getFullYear()
+                setSelectedMonth(currentMonth)
+                setSelectedMonthYear(currentYear)
+                fetchMonthlyBeanSproutsSummary(currentMonth, currentYear)
+              }}
+              className="text-green-600 hover:text-green-800"
+            >
+              📊 Tháng hiện tại
+            </Button>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Hiển thị:</label>
+              <select
+                defaultValue="6"
+                onChange={(e) => {
+                  const monthCount = parseInt(e.target.value)
+                  fetchMonthlyBeanSproutsSummary(selectedMonth, selectedMonthYear, monthCount)
+                }}
+                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              >
+                <option value="3">3 tháng</option>
+                <option value="6">6 tháng</option>
+                <option value="12">12 tháng</option>
+              </select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {monthlyBeanSproutsSummary.length === 0 ? (
+            <div className="text-center py-8">Đang tải dữ liệu tháng...</div>
+          ) : (
+            <div className="space-y-4">
+              {/* Monthly Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full border-2 border-black">
+                  <thead>
+                    <tr>
+                      <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">THÁNG</th>
+                      <th colSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU</th>
+                      <th colSpan={3} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-blue-100 font-bold">THU-<br/>CHI<br/>(LÃI)</th>
+                    </tr>
+                    <tr>
+                      <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Giá đỗ</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu tương</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
+                    </tr>
+                    <tr>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyBeanSproutsSummary.map((month, index) => (
+                      <tr key={index} className={index === monthlyBeanSproutsSummary.length - 1 ? "bg-blue-50" : ""}>
+                        <td className="border border-black p-2 font-medium text-center">
+                          {month.month}
+                          {index === monthlyBeanSproutsSummary.length - 1 && (
+                            <div className="text-xs text-blue-600 mt-1">(Hiện tại)</div>
+                          )}
+                        </td>
+                        {/* THU - Giá đỗ */}
+                        <td className="border border-black p-1 text-center font-semibold text-green-600">
+                          {month.totalBeanSproutsCollected.toLocaleString()}
+                        </td>
+                        <td className="border border-black p-1 text-center font-semibold text-green-600">
+                          {(month.totalBeanSproutsCollected * 8).toLocaleString()}
+                        </td>
+                        {/* THU - Sản phẩm phụ */}
+                        <td className="border border-black p-1 text-center font-semibold text-green-600">
+                          {Math.round(month.totalBeanSproutsCollected * 0.05 * 3).toLocaleString()}
+                        </td>
+                        {/* CHI - Đậu tương */}
+                        <td className="border border-black p-1 text-center font-semibold text-red-600">
+                          {month.totalSoybeansInput.toLocaleString()}
+                        </td>
+                        <td className="border border-black p-1 text-center font-semibold text-red-600">
+                          {(month.totalSoybeansInput * 15).toLocaleString()}
+                        </td>
+                        {/* CHI - Chi khác */}
+                        <td className="border border-black p-1 text-center font-semibold text-red-600">
+                          {Math.round(month.totalSoybeansInput * 0.02 * 1000).toLocaleString()}
+                        </td>
+                        {/* THU-CHI (LÃI) */}
+                        <td className="border border-black p-1 text-center bg-blue-50">
+                          <span className={`font-bold ${
+                            ((month.totalBeanSproutsCollected * 8) + Math.round(month.totalBeanSproutsCollected * 0.05 * 3) - 
+                             (month.totalSoybeansInput * 15) - Math.round(month.totalSoybeansInput * 0.02 * 1000)) >= 0 
+                            ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {(
+                              (month.totalBeanSproutsCollected * 8) + Math.round(month.totalBeanSproutsCollected * 0.05 * 3) - 
+                              (month.totalSoybeansInput * 15) - Math.round(month.totalSoybeansInput * 0.02 * 1000)
+                            ).toLocaleString()}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Detection Test Results */}
+      {detectionResult && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-center text-xl font-bold">
+              🚀 KẾT QUẢ TEST API TÍNH TOÁN GIÁ ĐỖ
+            </CardTitle>
+            <p className="text-sm text-gray-600 text-center">
+              Ngày test: {testDate} • {detectionResult.found ? "✅ Có giá đỗ" : "❌ Không có giá đỗ"}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Test Date Selector */}
+              <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-lg border">
+                <label className="text-sm font-medium text-purple-700">Ngày test:</label>
+                <Input
+                  type="date"
+                  value={testDate}
+                  onChange={(e) => setTestDate(e.target.value)}
+                  className="w-40"
+                />
+                <Button
+                  onClick={() => testBeanSproutsDetection(testDate)}
+                  disabled={isTestingDetection}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {isTestingDetection ? "🔄 Đang test..." : "🧪 Test ngày này"}
+                </Button>
+              </div>
+
+              {detectionResult.found ? (
+                <div className="space-y-4">
+                  {/* Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="text-sm text-green-600 mb-1">Số món có giá đỗ</div>
+                      <div className="text-2xl font-bold text-green-700">
+                        {detectionResult.dishesUsingBeanSprouts?.length || 0}
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div className="text-sm text-blue-600 mb-1">Tổng số người ăn</div>
+                      <div className="text-2xl font-bold text-blue-700">
+                        {detectionResult.totalPersonnel || 0}
+                      </div>
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                      <div className="text-sm text-orange-600 mb-1">Cần xuất (kg)</div>
+                      <div className="text-2xl font-bold text-orange-700">
+                        {detectionResult.totalBeanSproutsRequired?.toFixed(2) || 0}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dishes Using Bean Sprouts */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-3">Món ăn sử dụng giá đỗ:</h4>
+                    <div className="space-y-2">
+                      {detectionResult.dishesUsingBeanSprouts?.map((dish: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                          <div>
+                            <span className="font-medium">{dish.dishName}</span>
+                            <div className="text-xs text-gray-600">
+                              Bữa: {dish.mealType === 'morning' ? 'Sáng' : dish.mealType === 'noon' ? 'Trưa' : 'Tối'} | 
+                              Nguyên liệu: {dish.beanSproutsIngredients?.map((ing: any) => ing.lttpName).join(", ")}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Units Breakdown */}
+                  {detectionResult.units && detectionResult.units.length > 0 && (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h4 className="font-medium mb-3">Chi tiết theo đơn vị:</h4>
+                      <div className="space-y-2">
+                        {detectionResult.units.map((unit: any, index: number) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                            <div>
+                              <span className="font-medium">{unit.unitName}</span>
+                              <div className="text-xs text-gray-600">
+                                {unit.personnel} người
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium">{unit.totalBeanSproutsRequired?.toFixed(2)} kg</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Summary Statistics */}
+                  {detectionResult.summary && (
+                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                      <h4 className="font-medium text-yellow-800 mb-2">📊 Thống kê tổng hợp:</h4>
+                      <div className="text-sm text-yellow-700 space-y-1">
+                        <div>Tổng món ăn có giá đỗ: <strong>{detectionResult.summary.totalDishesUsingBeanSprouts}</strong></div>
+                        <div>Trung bình giá đỗ/người: <strong>{detectionResult.summary.averageBeanSproutsPerPerson?.toFixed(3)} kg</strong></div>
+                        <div>Ước tính đậu tương cần: <strong>{detectionResult.summary.recommendedSoybeansInput?.toFixed(2)} kg</strong></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">😔</div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">Không tìm thấy giá đỗ</h3>
+                  <p className="text-gray-600">
+                    Lý do: <span className="font-medium">{detectionResult.reason}</span>
+                  </p>
+                  <div className="mt-4 text-sm text-gray-500">
+                    Có thể thực đơn ngày này không có món nào sử dụng giá đỗ, hoặc chưa có thực đơn được lập.
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 } 
