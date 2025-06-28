@@ -5,7 +5,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Package, Utensils, Fish, Beef, Wheat, Droplets } from "lucide-react"
-import { TofuProcessing, BeanSproutsProcessing, SausageProcessing, LivestockProcessing, LttpManagement } from "@/components/processing-station"
+import { TofuProcessing, BeanSproutsProcessing, SaltProcessing, SausageProcessing, LivestockProcessing, LttpManagement } from "@/components/processing-station"
 
 export function ProcessingStationContent() {
   const [activeSection, setActiveSection] = useState("tofu")
@@ -26,6 +26,8 @@ export function ProcessingStationContent() {
         return <TofuProcessing />
       case "sprouts":
         return <BeanSproutsProcessing />
+      case "salt":
+        return <SaltProcessing />
       case "sausage":
         return <SausageProcessing />
       case "livestock":
@@ -64,7 +66,7 @@ export function ProcessingStationContent() {
             {sections.map((section) => {
               const Icon = section.icon
               const isActive = activeSection === section.id
-              const isImplemented = ["tofu", "sprouts", "sausage", "livestock", "lttp"].includes(section.id)
+              const isImplemented = ["tofu", "sprouts", "salt", "sausage", "livestock", "lttp"].includes(section.id)
               
               return (
                 <Button

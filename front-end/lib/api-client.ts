@@ -1249,6 +1249,85 @@ export const beanSproutsCalculationApi = {
   },
 }
 
+// Salt Calculation API
+export const saltCalculationApi = {
+  getSaltRequirements: async (params: {
+    date?: string
+    week?: number
+    year?: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params.date) queryParams.append("date", params.date)
+    if (params.week) queryParams.append("week", params.week.toString())
+    if (params.year) queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/requirements${query}`)
+  },
+
+  getWeeklySaltRequirements: async (params: {
+    week: number
+    year: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/weekly-requirements${query}`)
+  },
+
+  getSaltUsageStatistics: async (params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("startDate", params.startDate)
+    queryParams.append("endDate", params.endDate)
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/statistics${query}`)
+  },
+
+  // Get weekly salt tracking data for frontend table
+  getWeeklySaltTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/weekly-tracking${query}`)
+  },
+
+  // Get monthly salt summary for frontend table
+  getMonthlySaltSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/monthly-summary${query}`)
+  },
+}
+
 // Export all APIs for convenience
 export const api = {
   auth: authApi,
@@ -1274,4 +1353,5 @@ export const api = {
   unitPersonnelDaily: unitPersonnelDailyApi,
   tofuCalculation: tofuCalculationApi,
   beanSproutsCalculation: beanSproutsCalculationApi,
+  saltCalculation: saltCalculationApi,
 }
