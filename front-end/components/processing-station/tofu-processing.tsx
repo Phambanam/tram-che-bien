@@ -184,7 +184,8 @@ export function TofuProcessing() {
       let actualTofuOutput = 0
       try {
         const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-          date: dateStr
+          startDate: dateStr,
+          endDate: dateStr
         })
         const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
         
@@ -196,6 +197,7 @@ export function TofuProcessing() {
                    output.product?.name?.toLowerCase().includes("đậu phụ")
           })
           .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        
       } catch (error) {
         console.log("No tofu output data found, using 0:", error)
       }
@@ -281,7 +283,8 @@ export function TofuProcessing() {
         let actualTofuOutput = 0
         try {
           const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-            date: dateStr
+            startDate: dateStr,
+            endDate: dateStr
           })
           const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
           
