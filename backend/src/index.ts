@@ -28,8 +28,8 @@ import dailyRationRoutes from "./routes/daily-ration.routes"
 import menuPlanningRoutes from "./routes/menu-planning.routes"
 import unitPersonnelDailyRoutes from "./routes/unit-personnel-daily.routes"
 import tofuCalculationRoutes from "./routes/tofu-calculation.routes"
-import beanSproutsCalculationRoutes from "./routes/bean-sprouts-calculation.routes"
 import saltCalculationRoutes from "./routes/salt-calculation.routes"
+import beanSproutsCalculationRoutes from "./routes/bean-sprouts-calculation.routes"
 
 // Load environment variables
 dotenv.config()
@@ -88,8 +88,8 @@ app.use("/api/daily-rations", dailyRationRoutes)
 app.use("/api/menu-planning", menuPlanningRoutes)
 app.use("/api/unit-personnel-daily", unitPersonnelDailyRoutes)
 app.use("/api/tofu-calculation", tofuCalculationRoutes)
-app.use("/api/bean-sprouts-calculation", beanSproutsCalculationRoutes)
 app.use("/api/salt-calculation", saltCalculationRoutes)
+app.use("/api/bean-sprouts-calculation", beanSproutsCalculationRoutes)
 // routes
 app.use("/api/upload", uploadRoutes)
 
