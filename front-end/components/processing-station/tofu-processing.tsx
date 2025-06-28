@@ -68,7 +68,16 @@ export function TofuProcessing() {
   const [editingDailyData, setEditingDailyData] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [dailyUpdateData, setDailyUpdateData] = useState({
+  const [dailyUpdateData, setDailyUpdateData] = useState<{
+    soybeanInput: number
+    tofuInput: number
+    note: string
+    soybeanPrice: number
+    tofuPrice: number
+    byProductQuantity: number
+    byProductPrice: number
+    otherCosts: number
+  }>({
     soybeanInput: 0,
     tofuInput: 0,
     note: "",
@@ -326,17 +335,34 @@ export function TofuProcessing() {
 
       setDailyTofuProcessing(processingData)
       
-      // Update dailyUpdateData for editing
-      setDailyUpdateData({
-        soybeanInput: stationData.soybeanInput,
-        tofuInput: stationData.tofuInput,
-        note: stationData.note,
-        soybeanPrice: finalSoybeanPrice || 0,
-        tofuPrice: finalTofuPrice || 0,
-        byProductQuantity: stationData.byProductQuantity || 0,
-        byProductPrice: stationData.byProductPrice || 5000,
-        otherCosts: stationData.otherCosts || 0
-      })
+      // Update dailyUpdateData for editing (get by-products and other costs from API response)
+      try {
+        const dailyApiResponse = await processingStationApi.getDailyData(dateStr)
+        const apiData = dailyApiResponse?.data || {}
+        
+        setDailyUpdateData({
+          soybeanInput: stationData.soybeanInput,
+          tofuInput: stationData.tofuInput,
+          note: stationData.note,
+          soybeanPrice: finalSoybeanPrice || 0,
+          tofuPrice: finalTofuPrice || 0,
+          byProductQuantity: apiData.byProductQuantity || 0,
+          byProductPrice: apiData.byProductPrice || 5000,
+          otherCosts: apiData.otherCosts || 0
+        })
+      } catch (error) {
+        console.log("Error loading by-products data, using defaults:", error)
+        setDailyUpdateData({
+          soybeanInput: stationData.soybeanInput,
+          tofuInput: stationData.tofuInput,
+          note: stationData.note,
+          soybeanPrice: finalSoybeanPrice || 0,
+          tofuPrice: finalTofuPrice || 0,
+          byProductQuantity: 0,
+          byProductPrice: 5000,
+          otherCosts: 0
+        })
+      }
 
     } catch (error) {
       console.error("Error fetching daily tofu processing data:", error)
@@ -521,13 +547,16 @@ export function TofuProcessing() {
     try {
       setIsUpdating(true)
 
-      // Update station data via API (include price data)
+      // Update station data via API (include all fields: prices, by-products, other costs)
       await processingStationApi.updateDailyData(dailyTofuProcessing.date, {
         soybeanInput: dailyUpdateData.soybeanInput,
         tofuInput: dailyUpdateData.tofuInput,
         note: dailyUpdateData.note,
         soybeanPrice: dailyUpdateData.soybeanPrice,
-        tofuPrice: dailyUpdateData.tofuPrice
+        tofuPrice: dailyUpdateData.tofuPrice,
+        byProductQuantity: dailyUpdateData.byProductQuantity,
+        byProductPrice: dailyUpdateData.byProductPrice,
+        otherCosts: dailyUpdateData.otherCosts
       })
 
       // Refresh data
@@ -536,7 +565,7 @@ export function TofuProcessing() {
 
       toast({
         title: "Thành công",
-        description: "Đã cập nhật dữ liệu chế biến đậu phụ",
+        description: "Đã cập nhật dữ liệu chế biến đậu phụ (bao gồm sản phẩm phụ và chi phí khác)",
       })
 
       setEditingDailyData(false)
