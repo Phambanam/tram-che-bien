@@ -773,38 +773,141 @@ export function LivestockProcessing() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Ngày</TableHead>
-                    <TableHead>Thứ</TableHead>
-                    <TableHead>Lợn hơi chi (con)</TableHead>
-                    <TableHead>Thịt nạc (kg)</TableHead>
-                    <TableHead>Thịt xuất (kg)</TableHead>
-                    <TableHead>Thịt tồn (kg)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {weeklyLivestockTracking && weeklyLivestockTracking.length > 0 ? (
-                    weeklyLivestockTracking.map((day) => (
-                      <TableRow key={day.date}>
-                        <TableCell>{format(new Date(day.date), "dd/MM")}</TableCell>
-                        <TableCell>{day.dayOfWeek}</TableCell>
-                        <TableCell>{day.liveAnimalsInput}</TableCell>
-                        <TableCell>{day.meatOutput}</TableCell>
-                        <TableCell>{day.actualMeatOutput}</TableCell>
-                        <TableCell>{day.meatRemaining}</TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
+              <div className="overflow-x-auto">
+                <Table className="border">
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500">
-                        Không có dữ liệu cho tuần đã chọn
-                      </TableCell>
+                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100">NGÀY</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">TỔNG<br/>THU<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={8} className="text-center border-r bg-blue-50">THU - TRONG ĐÓ</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">TỔNG<br/>CHI<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={3} className="text-center border-r bg-red-50">CHI - TRONG ĐÓ</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    <TableRow>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Thịt xổ lọc<br/>(kg)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Thịt nạc<br/>(kg)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-pink-50 text-xs">Xương xổ<br/>(kg)</TableHead>
+                      <TableHead className="text-center bg-pink-50 text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Lòng<br/>(kg)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 border-r text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-orange-50 text-xs">Lợn hơi<br/>(con)</TableHead>
+                      <TableHead className="text-center bg-orange-50 text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-gray-50 border-r text-xs">Chi khác<br/>(1.000đ)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {weeklyLivestockTracking && weeklyLivestockTracking.length > 0 ? (
+                      weeklyLivestockTracking.map((day) => {
+                        // Calculate totals
+                        const totalRevenue = (day.leanMeatActualOutput * day.leanMeatPrice) + 
+                                           (day.boneActualOutput * day.bonePrice) + 
+                                           (day.groundMeatActualOutput * day.groundMeatPrice) + 
+                                           (day.organsActualOutput * day.organsPrice)
+                        const totalCost = (day.liveAnimalsInput * day.liveAnimalPrice)
+                        const otherCosts = Math.round(day.liveAnimalsInput * 500) // 500 VND other costs per animal
+                        const totalExpense = totalCost + otherCosts
+                        const profit = totalRevenue - totalExpense
+
+                        return (
+                          <TableRow key={day.date} className="border-b">
+                            <TableCell className="text-center border-r font-medium">{format(new Date(day.date), "dd/MM")}</TableCell>
+                            <TableCell className="text-center border-r font-semibold text-blue-700">{Math.round(totalRevenue / 1000)}</TableCell>
+                            {/* Thịt xổ lọc */}
+                            <TableCell className="text-center text-sm">{day.groundMeatActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{Math.round((day.groundMeatActualOutput * day.groundMeatPrice) / 1000)}</TableCell>
+                            {/* Thịt nạc */}
+                            <TableCell className="text-center text-sm">{day.leanMeatActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{Math.round((day.leanMeatActualOutput * day.leanMeatPrice) / 1000)}</TableCell>
+                            {/* Xương xổ */}
+                            <TableCell className="text-center text-sm">{day.boneActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{Math.round((day.boneActualOutput * day.bonePrice) / 1000)}</TableCell>
+                            {/* Lòng */}
+                            <TableCell className="text-center text-sm">{day.organsActualOutput}</TableCell>
+                            <TableCell className="text-center border-r text-sm">{Math.round((day.organsActualOutput * day.organsPrice) / 1000)}</TableCell>
+                            {/* Tổng chi */}
+                            <TableCell className="text-center border-r font-semibold text-red-700">{Math.round(totalExpense / 1000)}</TableCell>
+                            {/* Lợn hơi */}
+                            <TableCell className="text-center text-sm">{day.liveAnimalsInput}</TableCell>
+                            <TableCell className="text-center text-sm">{Math.round(totalCost / 1000)}</TableCell>
+                            {/* Chi khác */}
+                            <TableCell className="text-center border-r text-sm">{Math.round(otherCosts / 1000)}</TableCell>
+                            {/* Lãi */}
+                            <TableCell className="text-center font-semibold">
+                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
+                                {profit >= 0 ? "+" : ""}{Math.round(profit / 1000)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={15} className="text-center text-gray-500 py-8">
+                          Không có dữ liệu cho tuần đã chọn
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    
+                    {/* Tổng cộng */}
+                    {weeklyLivestockTracking && weeklyLivestockTracking.length > 0 && (
+                      <TableRow className="bg-gray-100 font-semibold border-t-2">
+                        <TableCell className="text-center border-r">Tổng cộng</TableCell>
+                        <TableCell className="text-center border-r text-blue-700">
+                          {Math.round(weeklyLivestockTracking.reduce((sum, day) => {
+                            const revenue = (day.leanMeatActualOutput * day.leanMeatPrice) + 
+                                          (day.boneActualOutput * day.bonePrice) + 
+                                          (day.groundMeatActualOutput * day.groundMeatPrice) + 
+                                          (day.organsActualOutput * day.organsPrice)
+                            return sum + revenue
+                          }, 0) / 1000)}
+                        </TableCell>
+                        <TableCell className="text-center">{weeklyLivestockTracking.reduce((sum, day) => sum + day.groundMeatActualOutput, 0)}</TableCell>
+                        <TableCell className="text-center">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.groundMeatActualOutput * day.groundMeatPrice), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center">{weeklyLivestockTracking.reduce((sum, day) => sum + day.leanMeatActualOutput, 0)}</TableCell>
+                        <TableCell className="text-center">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.leanMeatActualOutput * day.leanMeatPrice), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center">{weeklyLivestockTracking.reduce((sum, day) => sum + day.boneActualOutput, 0)}</TableCell>
+                        <TableCell className="text-center">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.boneActualOutput * day.bonePrice), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center">{weeklyLivestockTracking.reduce((sum, day) => sum + day.organsActualOutput, 0)}</TableCell>
+                        <TableCell className="text-center border-r">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.organsActualOutput * day.organsPrice), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center border-r text-red-700">
+                          {Math.round(weeklyLivestockTracking.reduce((sum, day) => {
+                            const totalCost = (day.liveAnimalsInput * day.liveAnimalPrice)
+                            const otherCosts = Math.round(day.liveAnimalsInput * 500)
+                            return sum + totalCost + otherCosts
+                          }, 0) / 1000)}
+                        </TableCell>
+                        <TableCell className="text-center">{weeklyLivestockTracking.reduce((sum, day) => sum + day.liveAnimalsInput, 0)}</TableCell>
+                        <TableCell className="text-center">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.liveAnimalsInput * day.liveAnimalPrice), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center border-r">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.liveAnimalsInput * 500), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center">
+                          {(() => {
+                            const totalRevenue = weeklyLivestockTracking.reduce((sum, day) => {
+                              return sum + (day.leanMeatActualOutput * day.leanMeatPrice) + 
+                                    (day.boneActualOutput * day.bonePrice) + 
+                                    (day.groundMeatActualOutput * day.groundMeatPrice) + 
+                                    (day.organsActualOutput * day.organsPrice)
+                            }, 0)
+                            const totalExpense = weeklyLivestockTracking.reduce((sum, day) => {
+                              const cost = (day.liveAnimalsInput * day.liveAnimalPrice)
+                              const otherCosts = Math.round(day.liveAnimalsInput * 500)
+                              return sum + cost + otherCosts
+                            }, 0)
+                            const profit = totalRevenue - totalExpense
+                            return (
+                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
+                                {profit >= 0 ? "+" : ""}{Math.round(profit / 1000)}
+                              </span>
+                            )
+                          })()}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -856,40 +959,116 @@ export function LivestockProcessing() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tháng</TableHead>
-                    <TableHead>Lợn hơi chi (con)</TableHead>
-                    <TableHead>Thịt nạc (kg)</TableHead>
-                    <TableHead>Thịt xuất (kg)</TableHead>
-                    <TableHead>Hiệu suất (%)</TableHead>
-                    <TableHead>Lãi ròng (đ)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {monthlyLivestockSummary && monthlyLivestockSummary.length > 0 ? (
-                    monthlyLivestockSummary.map((month) => (
-                      <TableRow key={month.month}>
-                        <TableCell>{month.month}</TableCell>
-                        <TableCell>{month.totalLiveAnimalsInput}</TableCell>
-                        <TableCell>{month.totalMeatOutput}</TableCell>
-                        <TableCell>{month.totalActualMeatOutput}</TableCell>
-                        <TableCell>{month.processingEfficiency}%</TableCell>
-                        <TableCell className={month.netProfit >= 0 ? "text-green-600" : "text-red-600"}>
-                          {month.netProfit >= 0 ? "+" : ""}{month.netProfit.toLocaleString('vi-VN')}
+              <div className="overflow-x-auto">
+                <Table className="border">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100">THÁNG</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">TỔNG<br/>THU<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={8} className="text-center border-r bg-blue-50">THU - TRONG ĐÓ</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">TỔNG<br/>CHI<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={3} className="text-center border-r bg-red-50">CHI - TRONG ĐÓ</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
+                    </TableRow>
+                    <TableRow>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Thịt xổ lọc<br/>(kg)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Thịt nạc<br/>(kg)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-pink-50 text-xs">Xương xổ<br/>(kg)</TableHead>
+                      <TableHead className="text-center bg-pink-50 text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 text-xs">Lòng<br/>(kg)</TableHead>
+                      <TableHead className="text-center bg-yellow-50 border-r text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-orange-50 text-xs">Lợn hơi<br/>(con)</TableHead>
+                      <TableHead className="text-center bg-orange-50 text-xs">Thành tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-gray-50 border-r text-xs">Chi khác<br/>(1.000đ)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {monthlyLivestockSummary && monthlyLivestockSummary.length > 0 ? (
+                      monthlyLivestockSummary.map((month) => {
+                        // Calculate revenue breakdown (thousands VND)
+                        const leanMeatRevenue = Math.round((month.totalLeanMeatActualOutput * 120000) / 1000) // 120k per kg
+                        const boneRevenue = Math.round((month.totalBoneActualOutput * 30000) / 1000) // 30k per kg
+                        const groundMeatRevenue = Math.round((month.totalGroundMeatActualOutput * 80000) / 1000) // 80k per kg
+                        const organsRevenue = Math.round((month.totalOrgansActualOutput * 50000) / 1000) // 50k per kg
+                        
+                        return (
+                          <TableRow key={month.month} className="border-b">
+                            <TableCell className="text-center border-r font-medium">{month.month}</TableCell>
+                            <TableCell className="text-center border-r font-semibold text-blue-700">{Math.round(month.totalRevenue / 1000)}</TableCell>
+                            {/* Thịt xổ lọc */}
+                            <TableCell className="text-center text-sm">{month.totalGroundMeatActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{groundMeatRevenue}</TableCell>
+                            {/* Thịt nạc */}
+                            <TableCell className="text-center text-sm">{month.totalLeanMeatActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{leanMeatRevenue}</TableCell>
+                            {/* Xương xổ */}
+                            <TableCell className="text-center text-sm">{month.totalBoneActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{boneRevenue}</TableCell>
+                            {/* Lòng */}
+                            <TableCell className="text-center text-sm">{month.totalOrgansActualOutput}</TableCell>
+                            <TableCell className="text-center border-r text-sm">{organsRevenue}</TableCell>
+                            {/* Tổng chi */}
+                            <TableCell className="text-center border-r font-semibold text-red-700">{Math.round((month.livestockCost + month.otherCosts) / 1000)}</TableCell>
+                            {/* Lợn hơi */}
+                            <TableCell className="text-center text-sm">{month.totalLiveAnimalsInput}</TableCell>
+                            <TableCell className="text-center text-sm">{Math.round(month.livestockCost / 1000)}</TableCell>
+                            {/* Chi khác */}
+                            <TableCell className="text-center border-r text-sm">{Math.round(month.otherCosts / 1000)}</TableCell>
+                            {/* Lãi */}
+                            <TableCell className="text-center font-semibold">
+                              <span className={month.netProfit >= 0 ? "text-green-600" : "text-red-600"}>
+                                {month.netProfit >= 0 ? "+" : ""}{Math.round(month.netProfit / 1000)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={15} className="text-center text-gray-500 py-8">
+                          Không có dữ liệu cho tháng đã chọn
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500">
-                        Không có dữ liệu cho tháng đã chọn
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    )}
+                    
+                    {/* Tổng cộng */}
+                    {monthlyLivestockSummary && monthlyLivestockSummary.length > 0 && (
+                      <TableRow className="bg-gray-100 font-semibold border-t-2">
+                        <TableCell className="text-center border-r">Tổng cộng</TableCell>
+                        <TableCell className="text-center border-r text-blue-700">
+                          {Math.round(monthlyLivestockSummary.reduce((sum, month) => sum + month.totalRevenue, 0) / 1000)}
+                        </TableCell>
+                        <TableCell className="text-center">{monthlyLivestockSummary.reduce((sum, month) => sum + month.totalGroundMeatActualOutput, 0)}</TableCell>
+                        <TableCell className="text-center">{Math.round(monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalGroundMeatActualOutput * 80000), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center">{monthlyLivestockSummary.reduce((sum, month) => sum + month.totalLeanMeatActualOutput, 0)}</TableCell>
+                        <TableCell className="text-center">{Math.round(monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalLeanMeatActualOutput * 120000), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center">{monthlyLivestockSummary.reduce((sum, month) => sum + month.totalBoneActualOutput, 0)}</TableCell>
+                        <TableCell className="text-center">{Math.round(monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalBoneActualOutput * 30000), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center">{monthlyLivestockSummary.reduce((sum, month) => sum + month.totalOrgansActualOutput, 0)}</TableCell>
+                        <TableCell className="text-center border-r">{Math.round(monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalOrgansActualOutput * 50000), 0) / 1000)}</TableCell>
+                        <TableCell className="text-center border-r text-red-700">
+                          {Math.round(monthlyLivestockSummary.reduce((sum, month) => sum + month.livestockCost + month.otherCosts, 0) / 1000)}
+                        </TableCell>
+                        <TableCell className="text-center">{monthlyLivestockSummary.reduce((sum, month) => sum + month.totalLiveAnimalsInput, 0)}</TableCell>
+                        <TableCell className="text-center">{Math.round(monthlyLivestockSummary.reduce((sum, month) => sum + month.livestockCost, 0) / 1000)}</TableCell>
+                        <TableCell className="text-center border-r">{Math.round(monthlyLivestockSummary.reduce((sum, month) => sum + month.otherCosts, 0) / 1000)}</TableCell>
+                        <TableCell className="text-center">
+                          {(() => {
+                            const totalProfit = monthlyLivestockSummary.reduce((sum, month) => sum + month.netProfit, 0)
+                            return (
+                              <span className={totalProfit >= 0 ? "text-green-600" : "text-red-600"}>
+                                {totalProfit >= 0 ? "+" : ""}{Math.round(totalProfit / 1000)}
+                              </span>
+                            )
+                          })()}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
