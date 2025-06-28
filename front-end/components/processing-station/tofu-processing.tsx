@@ -183,23 +183,61 @@ export function TofuProcessing() {
       // Get actual tofu output from supply outputs (thực tế đã xuất)
       let actualTofuOutput = 0
       try {
+        console.log("🔍 Fetching supply outputs for date:", dateStr)
         const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
           startDate: dateStr,
           endDate: dateStr
         })
         const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
         
-        // Calculate actual tofu outputs for this date
-        actualTofuOutput = outputs
-          .filter((output: any) => {
-            const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
-            return outputDate === dateStr && 
-                   output.product?.name?.toLowerCase().includes("đậu phụ")
+        console.log("🔍 Supply outputs response:", {
+          isArray: Array.isArray(outputsResponse),
+          totalOutputs: outputs.length,
+          rawResponse: outputsResponse
+        })
+        
+        // Log all outputs to see what's available
+        outputs.forEach((output: any, index: number) => {
+          console.log(`📦 Output ${index + 1}:`, {
+            productName: output.product?.name,
+            quantity: output.quantity,
+            outputDate: output.outputDate,
+            formattedOutputDate: output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : 'No date',
+            unit: output.receivingUnit?.name,
+            targetDate: dateStr
           })
-          .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        })
+        
+        // Calculate actual tofu outputs for this date
+        const filteredOutputs = outputs.filter((output: any) => {
+          const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
+          const dateMatch = outputDate === dateStr
+          const productName = output.product?.name?.toLowerCase() || ''
+          const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu")
+          
+          console.log(`🔍 Filter check for output:`, {
+            productName: output.product?.name,
+            productNameLower: productName,
+            outputDate,
+            targetDate: dateStr,
+            dateMatch,
+            nameMatch,
+            willInclude: dateMatch && nameMatch
+          })
+          
+          return dateMatch && nameMatch
+        })
+        
+        actualTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        
+        console.log("🎯 Final tofu output calculation:", {
+          filteredCount: filteredOutputs.length,
+          totalTofuOutput: actualTofuOutput,
+          filteredOutputs
+        })
         
       } catch (error) {
-        console.log("No tofu output data found, using 0:", error)
+        console.log("❌ Error fetching tofu output data:", error)
       }
 
       // Calculate remaining tofu
@@ -282,11 +320,17 @@ export function TofuProcessing() {
         // Get actual tofu output from supply outputs (thực tế đã xuất)
         let actualTofuOutput = 0
         try {
+          console.log(`🔍 WEEKLY - Fetching supply outputs for ${dateStr}`)
           const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
             startDate: dateStr,
             endDate: dateStr
           })
           const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+          
+          console.log(`🔍 WEEKLY - ${dateStr} outputs:`, {
+            totalOutputs: outputs.length,
+            tofuOutputs: outputs.filter((o: any) => o.product?.name?.toLowerCase().includes("đậu phụ"))
+          })
           
           actualTofuOutput = outputs
             .filter((output: any) => {
@@ -296,7 +340,7 @@ export function TofuProcessing() {
             })
             .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
         } catch (error) {
-          // Use default 0
+          console.log(`❌ WEEKLY - Error for ${dateStr}:`, error)
         }
 
         weeklyData.push({
