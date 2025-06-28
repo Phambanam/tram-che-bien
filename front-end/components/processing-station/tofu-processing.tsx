@@ -16,13 +16,13 @@ import { Unit } from "@/types"
 
 interface DailyTofuProcessing {
   date: string
-  soybeanInput: number // CHI - Đậu tương chi - Số lượng (kg) - Station manager input
+  soybeanInput: number // CHI - Đậu nành chi - Số lượng (kg) - Station manager input
   tofuInput: number // THU - Đậu phụ thu - Số lượng (kg) - Station manager input  
   tofuOutput: number // Đậu phụ thực tế đã xuất - From supply outputs
   tofuRemaining: number // Đậu phụ tồn - Calculated: tofuInput - tofuOutput
   note?: string
   // Price fields
-  soybeanPrice?: number // Giá đậu tương VND/kg
+  soybeanPrice?: number // Giá đậu nành VND/kg
   tofuPrice?: number // Giá đậu phụ VND/kg
   soybeanPriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
   tofuPriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
@@ -35,14 +35,14 @@ interface DailyTofuProcessing {
 interface WeeklyTofuTracking {
   date: string
   dayOfWeek: string
-  soybeanInput: number // Đậu tương chi
+  soybeanInput: number // Đậu nành chi
   tofuInput: number // Đậu phụ thu
   tofuOutput: number // Đậu phụ thực tế đã xuất
   tofuRemaining: number // Đậu phụ tồn
   // Financial calculation fields
   byProductQuantity: number // Sản phẩm phụ (kg)
   byProductPrice: number // Giá sản phẩm phụ VND/kg
-  soybeanPrice: number // Giá đậu tương VND/kg
+  soybeanPrice: number // Giá đậu nành VND/kg
   tofuPrice: number // Giá đậu phụ VND/kg
   otherCosts: number // Chi phí khác (VND)
 }
@@ -139,7 +139,7 @@ export function TofuProcessing() {
       
       const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
 
-      // Look for soybean (đậu tương/đậu nành) in supplies
+      // Look for soybean (đậu nành) in supplies
       const soybeanSupply = supplies.find((supply: any) => 
         supply.product?.name?.toLowerCase().includes("đậu") && 
         (supply.product?.name?.toLowerCase().includes("tương") || 
@@ -879,7 +879,7 @@ export function TofuProcessing() {
                           <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
                         )
                       }
-                      return "Cần nhập đầy đủ giá đậu phụ và đậu tương"
+                      return "Cần nhập đầy đủ giá đậu phụ và đậu nành"
                     })()}
                   </div>
                 </div>
@@ -887,10 +887,10 @@ export function TofuProcessing() {
 
               {/* Four box layout */}
               <div className="grid grid-cols-2 gap-6">
-                {/* Đậu tương chi */}
+                {/* Đậu nành chi */}
                 <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
                   <div className="text-center">
-                    <div className="text-sm font-medium text-green-700 mb-2">Đậu tương chi:</div>
+                    <div className="text-sm font-medium text-green-700 mb-2">Đậu nành chi:</div>
                     <div className="text-2xl font-bold text-green-800">
                       {editingDailyData ? (
                         <Input
@@ -974,10 +974,10 @@ export function TofuProcessing() {
 
               {/* Price section - 2 boxes for soybean and tofu prices */}
               <div className="grid grid-cols-2 gap-6 mt-6">
-                {/* Giá đậu tương */}
+                {/* Giá đậu nành */}
                 <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
                   <div className="text-center">
-                    <div className="text-sm font-medium text-orange-700 mb-2">Giá đậu tương:</div>
+                    <div className="text-sm font-medium text-orange-700 mb-2">Giá đậu nành:</div>
                     <div className="text-xl font-bold text-orange-800">
                       {editingDailyData && !dailyTofuProcessing.soybeanPriceFromSupply ? (
                         <Input
@@ -1214,7 +1214,7 @@ export function TofuProcessing() {
                     <tr>
                       <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Đậu phụ</th>
                       <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
-                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu tương</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu nành</th>
                       <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
                     </tr>
                     <tr>
@@ -1255,7 +1255,7 @@ export function TofuProcessing() {
                           <td className="border border-black p-1 text-center font-semibold text-green-600">
                             {byProductRevenue.toFixed(0)}
                           </td>
-                          {/* CHI - Đậu tương */}
+                          {/* CHI - Đậu nành */}
                           <td className="border border-black p-1 text-center font-semibold text-red-600">
                             {day.soybeanInput.toLocaleString()}
                           </td>
@@ -1362,7 +1362,7 @@ export function TofuProcessing() {
                     }, 0).toFixed(0)}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Đậu tương + Chi khác
+                    Đậu nành + Chi khác
                   </div>
                 </div>
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
@@ -1398,7 +1398,7 @@ export function TofuProcessing() {
                     ).toFixed(1) : '0'}%
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Tỷ lệ đậu tương → đậu phụ
+                    Tỷ lệ đậu nành → đậu phụ
                   </div>
                 </div>
               </div>
@@ -1508,7 +1508,7 @@ export function TofuProcessing() {
                     <tr>
                       <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Đậu phụ</th>
                       <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
-                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu tương</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu nành</th>
                       <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
                     </tr>
                     <tr>
@@ -1538,7 +1538,7 @@ export function TofuProcessing() {
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
                           {Math.round(month.totalTofuCollected * 0.1 * 5).toLocaleString()}
                         </td>
-                        {/* CHI - Đậu tương */}
+                        {/* CHI - Đậu nành */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
                           {month.totalSoybeanInput.toLocaleString()}
                         </td>
@@ -1674,7 +1674,7 @@ export function TofuProcessing() {
                       <div className="text-sm text-yellow-700 space-y-1">
                         <div>Tổng món ăn có đậu phụ: <strong>{detectionResult.summary.totalDishesUsingTofu}</strong></div>
                         <div>Trung bình đậu phụ/người: <strong>{detectionResult.summary.averageTofuPerPerson?.toFixed(3)} kg</strong></div>
-                        <div>Ước tính đậu tương cần: <strong>{detectionResult.summary.recommendedSoybeanInput?.toFixed(2)} kg</strong></div>
+                        <div>Ước tính đậu nành cần: <strong>{detectionResult.summary.recommendedSoybeanInput?.toFixed(2)} kg</strong></div>
                       </div>
                     </div>
                   )}
