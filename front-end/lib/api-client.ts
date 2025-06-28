@@ -819,7 +819,7 @@ export const processingStationApi = {
 
   updateDailyData: async (date: string, data: any) => {
     return apiRequest<{ success: boolean; message: string }>(`/processing-station/daily/${date}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(data),
     })
   },
@@ -831,7 +831,7 @@ export const processingStationApi = {
 
   updateDailySausageData: async (date: string, data: any) => {
     return apiRequest<{ success: boolean; message: string }>(`/processing-station/sausage/${date}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(data),
     })
   },

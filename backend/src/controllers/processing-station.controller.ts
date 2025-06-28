@@ -561,7 +561,9 @@ export const getDailyTofuData = async (req: Request, res: Response) => {
           date: date,
           soybeanInput: 0,
           tofuInput: 0,
-          note: ""
+          note: "",
+          soybeanPrice: 0,
+          tofuPrice: 0
         }
       })
     }
@@ -572,7 +574,9 @@ export const getDailyTofuData = async (req: Request, res: Response) => {
         date: dailyData.date,
         soybeanInput: dailyData.soybeanInput || 0,
         tofuInput: dailyData.tofuInput || 0,
-        note: dailyData.note || ""
+        note: dailyData.note || "",
+        soybeanPrice: dailyData.soybeanPrice || 0,
+        tofuPrice: dailyData.tofuPrice || 0
       }
     })
   } catch (error) {
@@ -590,7 +594,7 @@ export const getDailyTofuData = async (req: Request, res: Response) => {
 export const updateDailyTofuData = async (req: Request, res: Response) => {
   try {
     const { date } = req.params
-    const { soybeanInput, tofuInput, note } = req.body
+    const { soybeanInput, tofuInput, note, soybeanPrice, tofuPrice } = req.body
     const db = await getDb()
 
     // Validate input
@@ -610,6 +614,8 @@ export const updateDailyTofuData = async (req: Request, res: Response) => {
           soybeanInput: Number(soybeanInput) || 0,
           tofuInput: Number(tofuInput) || 0,
           note: note || "",
+          soybeanPrice: Number(soybeanPrice) || 0,
+          tofuPrice: Number(tofuPrice) || 0,
           updatedAt: new Date(),
           updatedBy: req.user._id
         },
@@ -628,7 +634,9 @@ export const updateDailyTofuData = async (req: Request, res: Response) => {
         date: date,
         soybeanInput: Number(soybeanInput) || 0,
         tofuInput: Number(tofuInput) || 0,
-        note: note || ""
+        note: note || "",
+        soybeanPrice: Number(soybeanPrice) || 0,
+        tofuPrice: Number(tofuPrice) || 0
       }
     })
   } catch (error) {

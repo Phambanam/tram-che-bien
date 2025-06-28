@@ -21,6 +21,11 @@ interface DailyTofuProcessing {
   tofuOutput: number // Đậu phụ thực tế đã xuất - From supply outputs
   tofuRemaining: number // Đậu phụ tồn - Calculated: tofuInput - tofuOutput
   note?: string
+  // Price fields
+  soybeanPrice?: number // Giá đậu tương VND/kg
+  tofuPrice?: number // Giá đậu phụ VND/kg
+  soybeanPriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
+  tofuPriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
 }
 
 interface WeeklyTofuTracking {
@@ -52,7 +57,9 @@ export function TofuProcessing() {
   const [dailyUpdateData, setDailyUpdateData] = useState({
     soybeanInput: 0,
     tofuInput: 0,
-    note: ""
+    note: "",
+    soybeanPrice: 0,
+    tofuPrice: 0
   })
 
   const { toast } = useToast()
@@ -81,6 +88,62 @@ export function TofuProcessing() {
     return days[dayIndex]
   }
 
+  // Fetch prices from supply management
+  const fetchPricesFromSupply = async (date: string) => {
+    try {
+      let soybeanPrice = null
+      let tofuPrice = null
+      let soybeanPriceFromSupply = false
+      let tofuPriceFromSupply = false
+
+      // Get supplies data to check for soybean and tofu prices
+      const suppliesResponse = await suppliesApi.getSupplies({
+        status: 'approved'
+      })
+      
+      const supplies = Array.isArray(suppliesResponse) ? suppliesResponse : (suppliesResponse as any).data || []
+
+      // Look for soybean (đậu tương/đậu nành) in supplies
+      const soybeanSupply = supplies.find((supply: any) => 
+        supply.product?.name?.toLowerCase().includes("đậu") && 
+        (supply.product?.name?.toLowerCase().includes("tương") || 
+         supply.product?.name?.toLowerCase().includes("nành")) &&
+        supply.unitPrice
+      )
+
+      if (soybeanSupply && soybeanSupply.unitPrice) {
+        soybeanPrice = soybeanSupply.unitPrice
+        soybeanPriceFromSupply = true
+      }
+
+      // Look for tofu (đậu phụ) in supplies 
+      const tofuSupply = supplies.find((supply: any) => 
+        supply.product?.name?.toLowerCase().includes("đậu phụ") &&
+        supply.unitPrice
+      )
+
+      if (tofuSupply && tofuSupply.unitPrice) {
+        tofuPrice = tofuSupply.unitPrice
+        tofuPriceFromSupply = true
+      }
+
+      return {
+        soybeanPrice,
+        tofuPrice,
+        soybeanPriceFromSupply,
+        tofuPriceFromSupply
+      }
+    } catch (error) {
+      console.log("Error fetching prices from supply:", error)
+      return {
+        soybeanPrice: null,
+        tofuPrice: null,
+        soybeanPriceFromSupply: false,
+        tofuPriceFromSupply: false
+      }
+    }
+  }
+
   // Fetch daily tofu processing data
   const fetchDailyTofuProcessing = async (date: Date) => {
     try {
@@ -90,7 +153,9 @@ export function TofuProcessing() {
       let stationData = {
         soybeanInput: 0,
         tofuInput: 0,
-        note: ""
+        note: "",
+        soybeanPrice: 0,
+        tofuPrice: 0
       }
       
       try {
@@ -99,12 +164,21 @@ export function TofuProcessing() {
           stationData = {
             soybeanInput: stationResponse.data.soybeanInput || 0,
             tofuInput: stationResponse.data.tofuInput || 0,
-            note: stationResponse.data.note || ""
+            note: stationResponse.data.note || "",
+            soybeanPrice: stationResponse.data.soybeanPrice || 0,
+            tofuPrice: stationResponse.data.tofuPrice || 0
           }
         }
       } catch (error) {
         console.log("No station data found for date, using defaults:", error)
       }
+
+      // Get prices from supply management
+      const priceData = await fetchPricesFromSupply(dateStr)
+
+      // Use supply prices if available, otherwise use station manager input
+      const finalSoybeanPrice = priceData.soybeanPriceFromSupply ? priceData.soybeanPrice : stationData.soybeanPrice
+      const finalTofuPrice = priceData.tofuPriceFromSupply ? priceData.tofuPrice : stationData.tofuPrice
 
       // Get actual tofu output from supply outputs (thực tế đã xuất)
       let actualTofuOutput = 0
@@ -135,7 +209,11 @@ export function TofuProcessing() {
         tofuInput: stationData.tofuInput,
         tofuOutput: actualTofuOutput, // Thực tế đã xuất (từ quản lý nguồn xuất)
         tofuRemaining: Math.max(0, tofuRemaining),
-        note: stationData.note
+        note: stationData.note,
+        soybeanPrice: finalSoybeanPrice || 0,
+        tofuPrice: finalTofuPrice || 0,
+        soybeanPriceFromSupply: priceData.soybeanPriceFromSupply,
+        tofuPriceFromSupply: priceData.tofuPriceFromSupply
       }
 
       setDailyTofuProcessing(processingData)
@@ -144,7 +222,9 @@ export function TofuProcessing() {
       setDailyUpdateData({
         soybeanInput: stationData.soybeanInput,
         tofuInput: stationData.tofuInput,
-        note: stationData.note
+        note: stationData.note,
+        soybeanPrice: finalSoybeanPrice || 0,
+        tofuPrice: finalTofuPrice || 0
       })
 
     } catch (error) {
@@ -157,13 +237,19 @@ export function TofuProcessing() {
         tofuInput: 0,
         tofuOutput: 0,
         tofuRemaining: 0,
-        note: ""
+        note: "",
+        soybeanPrice: 0,
+        tofuPrice: 0,
+        soybeanPriceFromSupply: false,
+        tofuPriceFromSupply: false
       }
       setDailyTofuProcessing(defaultData)
       setDailyUpdateData({
         soybeanInput: 0,
         tofuInput: 0,
-        note: ""
+        note: "",
+        soybeanPrice: 0,
+        tofuPrice: 0
       })
     }
   }
@@ -288,11 +374,13 @@ export function TofuProcessing() {
     try {
       setIsUpdating(true)
 
-      // Update station data via API
+      // Update station data via API (include price data)
       await processingStationApi.updateDailyData(dailyTofuProcessing.date, {
         soybeanInput: dailyUpdateData.soybeanInput,
         tofuInput: dailyUpdateData.tofuInput,
-        note: dailyUpdateData.note
+        note: dailyUpdateData.note,
+        soybeanPrice: dailyUpdateData.soybeanPrice,
+        tofuPrice: dailyUpdateData.tofuPrice
       })
 
       // Refresh data
@@ -363,13 +451,36 @@ export function TofuProcessing() {
                 <div className="text-center">
                   <div className="text-lg font-bold text-blue-700 mb-2">🏆 LÃI TRONG NGÀY:</div>
                   <div className="text-3xl font-bold text-blue-900">
-                    <span className="text-gray-500 text-xl">
-                      Chưa cấu hình giá
-                    </span>
+                    {(() => {
+                      const tofuPrice = dailyTofuProcessing.tofuPrice || 0
+                      const soybeanPrice = dailyTofuProcessing.soybeanPrice || 0
+                      
+                      if (tofuPrice === 0 || soybeanPrice === 0) {
+                        return (
+                          <span className="text-gray-500 text-xl">
+                            Chưa có giá
+                          </span>
+                        )
+                      }
+                      
+                      const tofuRevenue = dailyTofuProcessing.tofuInput * tofuPrice
+                      const soybeanCost = dailyTofuProcessing.soybeanInput * soybeanPrice
+                      const dailyProfit = tofuRevenue - soybeanCost
+                      
+                      return (
+                        <span className={dailyProfit >= 0 ? "text-green-600" : "text-red-600"}>
+                          {dailyProfit >= 0 ? "+" : ""}{dailyProfit.toLocaleString('vi-VN')}
+                        </span>
+                      )
+                    })()}
                     <span className="text-lg ml-1">đ</span>
                   </div>
                   <div className="text-xs text-blue-600 mt-1">
-                    (Cần cấu hình giá đậu phụ và đậu tương)
+                    {dailyTofuProcessing.tofuPrice && dailyTofuProcessing.soybeanPrice ? (
+                      <>Thu: {(dailyTofuProcessing.tofuInput * dailyTofuProcessing.tofuPrice).toLocaleString('vi-VN')}đ - Chi: {(dailyTofuProcessing.soybeanInput * dailyTofuProcessing.soybeanPrice).toLocaleString('vi-VN')}đ</>
+                    ) : (
+                      "Cần nhập đầy đủ giá đậu phụ và đậu tương"
+                    )}
                   </div>
                 </div>
               </div>
@@ -459,6 +570,81 @@ export function TofuProcessing() {
                 </div>
               </div>
 
+              {/* Price section - 2 boxes for soybean and tofu prices */}
+              <div className="grid grid-cols-2 gap-6 mt-6">
+                {/* Giá đậu tương */}
+                <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-orange-700 mb-2">Giá đậu tương:</div>
+                    <div className="text-xl font-bold text-orange-800">
+                      {editingDailyData && !dailyTofuProcessing.soybeanPriceFromSupply ? (
+                        <Input
+                          type="number"
+                          value={dailyUpdateData.soybeanPrice}
+                          onChange={(e) => setDailyUpdateData(prev => ({ 
+                            ...prev, 
+                            soybeanPrice: Number(e.target.value) || 0
+                          }))}
+                          className="w-32 h-10 text-center text-xl font-bold bg-white border-orange-300"
+                          placeholder="0"
+                        />
+                      ) : (
+                        <span>{(dailyTofuProcessing.soybeanPrice || 0).toLocaleString('vi-VN')}</span>
+                      )}
+                      <span className="text-sm ml-1">đ/kg</span>
+                    </div>
+                    <div className="text-xs text-orange-600 mt-1">
+                      {dailyTofuProcessing.soybeanPriceFromSupply ? (
+                        "(Từ quản lý nguồn xuất)"
+                      ) : (
+                        "(Trạm trưởng nhập tay)"
+                      )}
+                    </div>
+                    {dailyTofuProcessing.soybeanPriceFromSupply && (
+                      <div className="text-xs text-orange-500 mt-1">
+                        🔒 Không thể chỉnh sửa
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Giá đậu phụ */}
+                <div className="bg-cyan-50 border-2 border-cyan-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-cyan-700 mb-2">Giá đậu phụ:</div>
+                    <div className="text-xl font-bold text-cyan-800">
+                      {editingDailyData && !dailyTofuProcessing.tofuPriceFromSupply ? (
+                        <Input
+                          type="number"
+                          value={dailyUpdateData.tofuPrice}
+                          onChange={(e) => setDailyUpdateData(prev => ({ 
+                            ...prev, 
+                            tofuPrice: Number(e.target.value) || 0
+                          }))}
+                          className="w-32 h-10 text-center text-xl font-bold bg-white border-cyan-300"
+                          placeholder="0"
+                        />
+                      ) : (
+                        <span>{(dailyTofuProcessing.tofuPrice || 0).toLocaleString('vi-VN')}</span>
+                      )}
+                      <span className="text-sm ml-1">đ/kg</span>
+                    </div>
+                    <div className="text-xs text-cyan-600 mt-1">
+                      {dailyTofuProcessing.tofuPriceFromSupply ? (
+                        "(Từ quản lý nguồn xuất)"
+                      ) : (
+                        "(Trạm trưởng nhập tay)"
+                      )}
+                    </div>
+                    {dailyTofuProcessing.tofuPriceFromSupply && (
+                      <div className="text-xs text-cyan-500 mt-1">
+                        🔒 Không thể chỉnh sửa
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Notes section */}
               {editingDailyData && (
                 <div className="space-y-2">
@@ -492,7 +678,9 @@ export function TofuProcessing() {
                           setDailyUpdateData({
                             soybeanInput: dailyTofuProcessing.soybeanInput,
                             tofuInput: dailyTofuProcessing.tofuInput,
-                            note: dailyTofuProcessing.note || ""
+                            note: dailyTofuProcessing.note || "",
+                            soybeanPrice: dailyTofuProcessing.soybeanPrice || 0,
+                            tofuPrice: dailyTofuProcessing.tofuPrice || 0
                           })
                         }}
                       >
