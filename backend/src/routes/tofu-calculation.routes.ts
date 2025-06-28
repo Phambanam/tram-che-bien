@@ -2,7 +2,9 @@ import express from "express"
 import {
   calculateTofuRequirements,
   calculateWeeklyTofuRequirements,
-  getTofuUsageStatistics
+  getTofuUsageStatistics,
+  getWeeklyTofuTracking,
+  getMonthlyTofuSummary
 } from "../controllers/tofu-calculation.controller"
 import { protect, authorize } from "../middleware/auth.middleware"
 
@@ -19,5 +21,11 @@ router.get("/weekly-requirements", calculateWeeklyTofuRequirements)
 
 // Get tofu usage statistics
 router.get("/statistics", getTofuUsageStatistics)
+
+// Get weekly tofu tracking data (for frontend weekly table)
+router.get("/weekly-tracking", getWeeklyTofuTracking)
+
+// Get monthly tofu summary (for frontend monthly table)
+router.get("/monthly-summary", getMonthlyTofuSummary)
 
 export default router 

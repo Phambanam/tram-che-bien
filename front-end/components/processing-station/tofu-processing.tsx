@@ -71,6 +71,15 @@ export function TofuProcessing() {
   const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isTestingDetection, setIsTestingDetection] = useState(false)
 
+  // Filter states
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    const now = new Date()
+    return Math.ceil(now.getDate() / 7)
+  })
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [selectedMonthYear, setSelectedMonthYear] = useState(new Date().getFullYear())
+
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -184,17 +193,19 @@ export function TofuProcessing() {
         return 0
       }
       
-      const totalTofuRequired = response.data.totalTofuRequired || 0
+      const totalTofuRequiredGrams = response.data.totalTofuRequired || 0
+      const totalTofuRequiredKg = totalTofuRequiredGrams / 1000 // Convert grams to kg
       
       console.log("✅ API tofu calculation result:", {
         date: dateStr,
-        totalTofuRequired,
+        totalTofuRequiredGrams,
+        totalTofuRequiredKg,
         totalPersonnel: response.data.totalPersonnel,
         dishesUsingTofu: response.data.dishesUsingTofu?.length || 0,
         summary: response.data.summary
       })
       
-      return totalTofuRequired
+      return totalTofuRequiredKg
       
     } catch (error) {
       console.error("❌ Error calling tofu calculation API:", error)
@@ -336,79 +347,46 @@ export function TofuProcessing() {
     }
   }
 
-  // Fetch weekly tracking data
-  const fetchWeeklyTracking = async () => {
+  // Fetch weekly tracking data using API
+  const fetchWeeklyTracking = async (week?: number, year?: number) => {
+    const targetWeek = week || selectedWeek
+    const targetYear = year || selectedYear
+    
     try {
-      const weekDates = getCurrentWeekDates()
-      const weeklyData: WeeklyTofuTracking[] = []
-
-      for (const date of weekDates) {
-        const dateStr = format(date, "yyyy-MM-dd")
-        
-        // Get station data
-        let stationData = { soybeanInput: 0, tofuInput: 0 }
-        try {
-          const stationResponse = await processingStationApi.getDailyData(dateStr)
-          if (stationResponse && stationResponse.data) {
-            stationData = {
-              soybeanInput: stationResponse.data.soybeanInput || 0,
-              tofuInput: stationResponse.data.tofuInput || 0
-            }
-          }
-        } catch (error) {
-          // Use default values
-        }
-
-        // Get tofu output requirement using new API (primary method) for weekly tracking
-        let plannedTofuOutput = 0
-        try {
-          console.log(`🚀 WEEKLY - Using Tofu API for ${dateStr}`)
-          
-          // Primary method: Use new Tofu Calculation API
-          plannedTofuOutput = await calculateTofuOutputFromAPI(dateStr)
-          
-          // Fallback method: If API returns 0, try supply outputs (legacy)
-          if (plannedTofuOutput === 0) {
-            console.log(`🔍 WEEKLY - API returned 0 for ${dateStr}, trying fallback...`)
-            const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-              startDate: dateStr,
-              endDate: dateStr
-            })
-            const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
-            
-            plannedTofuOutput = outputs
-              .filter((output: any) => {
-                const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
-                const isPlanned = output.type === "planned"
-                const productName = (output.product?.name || "").toLowerCase()
-                const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
-                const nameMatch = productName.includes("đậu phụ") || ingredientName.includes("đậu phụ")
-                
-                return outputDate === dateStr && isPlanned && nameMatch
-              })
-              .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
-            
-            console.log(`🔄 WEEKLY - Fallback result for ${dateStr}: ${plannedTofuOutput} kg`)
-          }
-        } catch (error) {
-          console.log(`❌ WEEKLY - Error for ${dateStr}:`, error)
-        }
-
-        weeklyData.push({
-          date: dateStr,
-          dayOfWeek: getDayName(date.getDay()),
-          soybeanInput: stationData.soybeanInput,
-          tofuInput: stationData.tofuInput,
-          tofuOutput: plannedTofuOutput, // Kế hoạch xuất (từ quản lý nguồn xuất - đăng ký người ăn)
-          tofuRemaining: Math.max(0, stationData.tofuInput - plannedTofuOutput)
-        })
-      }
-
-      setWeeklyTracking(weeklyData)
-    } catch (error) {
-      console.error("Error fetching weekly tracking data:", error)
+      console.log(`🚀 Fetching weekly tracking data via API for week ${targetWeek}/${targetYear}`)
       
-      // Generate sample data for current week
+      const response = await tofuCalculationApi.getWeeklyTofuTracking({
+        week: targetWeek,
+        year: targetYear
+      })
+
+      if (response.success && response.data) {
+        const apiData = response.data.dailyData
+        
+        const weeklyData: WeeklyTofuTracking[] = apiData.map((day: any) => ({
+          date: day.date,
+          dayOfWeek: day.dayOfWeek,
+          soybeanInput: day.soybeanInput,
+          tofuInput: day.tofuInput,
+          tofuOutput: day.tofuOutput,
+          tofuRemaining: day.tofuRemaining
+        }))
+
+        setWeeklyTracking(weeklyData)
+        
+        console.log(`✅ Weekly tracking data loaded:`, {
+          week: targetWeek,
+          year: targetYear,
+          totalDays: weeklyData.length,
+          totals: response.data.totals
+        })
+      } else {
+        throw new Error("API response không hợp lệ")
+      }
+    } catch (error) {
+      console.error("❌ Error fetching weekly tracking data via API:", error)
+      
+      // Fallback: Generate sample data for current week
       const weekDates = getCurrentWeekDates()
       const sampleWeeklyData: WeeklyTofuTracking[] = weekDates.map((date) => ({
         date: format(date, "yyyy-MM-dd"),
@@ -419,49 +397,89 @@ export function TofuProcessing() {
         tofuRemaining: 0
       }))
       setWeeklyTracking(sampleWeeklyData)
+      
+      toast({
+        title: "Lỗi",
+        description: `Không thể lấy dữ liệu tuần ${targetWeek}/${targetYear}. Hiển thị dữ liệu mặc định.`,
+        variant: "destructive",
+      })
     }
   }
 
-  // Fetch monthly tofu summary
-  const fetchMonthlyTofuSummary = async () => {
+  // Fetch monthly tofu summary using API
+  const fetchMonthlyTofuSummary = async (month?: number, year?: number, monthCount: number = 6) => {
+    const targetMonth = month || selectedMonth
+    const targetYear = year || selectedMonthYear
+    
     try {
+      console.log(`🚀 Fetching monthly summary via API for ${targetMonth}/${targetYear}`)
+      
+      const response = await tofuCalculationApi.getMonthlyTofuSummary({
+        month: targetMonth,
+        year: targetYear,
+        monthCount
+      })
+
+      if (response.success && response.data) {
+        const apiData = response.data.monthlySummaries
+        
+        const monthlySummaries: MonthlyTofuSummary[] = apiData.map((monthData: any) => ({
+          month: monthData.month,
+          year: monthData.year,
+          totalSoybeanInput: monthData.totalSoybeanInput,
+          totalTofuCollected: monthData.totalTofuCollected,
+          totalTofuOutput: monthData.totalTofuOutput,
+          totalTofuRemaining: monthData.totalTofuRemaining,
+          processingEfficiency: monthData.processingEfficiency
+        }))
+        
+        setMonthlyTofuSummary(monthlySummaries)
+        
+        console.log(`✅ Monthly summary data loaded:`, {
+          targetMonth,
+          targetYear,
+          monthCount,
+          summariesCount: monthlySummaries.length
+        })
+      } else {
+        throw new Error("API response không hợp lệ")
+      }
+      
+    } catch (error) {
+      console.error('❌ Error fetching monthly tofu summary via API:', error)
+      
+      // Fallback: Generate sample data 
       const currentDate = new Date()
       const months = []
       
-      // Get last 6 months including current month
-      for (let i = 5; i >= 0; i--) {
+      for (let i = monthCount - 1; i >= 0; i--) {
         const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
         months.push(date)
       }
       
-      const monthlySummaries: MonthlyTofuSummary[] = []
-      
-      for (const month of months) {
-        const startOfMonth = new Date(month.getFullYear(), month.getMonth(), 1)
-        const endOfMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0)
-        
-        // Get processing station data for the month - simplified for demo
+      const fallbackSummaries: MonthlyTofuSummary[] = months.map(month => {
         const totalSoybeanInput = 3000 + Math.floor(Math.random() * 1000)
         const totalTofuCollected = 2400 + Math.floor(Math.random() * 800)
         const totalTofuOutput = 2200 + Math.floor(Math.random() * 600)
-        const totalTofuRemaining = totalTofuCollected - totalTofuOutput
-        const processingEfficiency = totalSoybeanInput > 0 ? Math.round((totalTofuCollected / totalSoybeanInput) * 100) : 0
         
-        monthlySummaries.push({
+        return {
           month: format(month, 'MM/yyyy', { locale: vi }),
           year: month.getFullYear(),
           totalSoybeanInput,
           totalTofuCollected,
           totalTofuOutput,
-          totalTofuRemaining,
-          processingEfficiency
-        })
-      }
+          totalTofuRemaining: totalTofuCollected - totalTofuOutput,
+          processingEfficiency: totalSoybeanInput > 0 ? Math.round((totalTofuCollected / totalSoybeanInput) * 100) : 0
+        }
+      })
       
-      setMonthlyTofuSummary(monthlySummaries)
+      setMonthlyTofuSummary(fallbackSummaries)
       
-    } catch (error) {
-      console.error('Error fetching monthly tofu summary:', error)
+      toast({
+        title: "Lỗi",
+        description: `Không thể lấy dữ liệu tháng ${targetMonth}/${targetYear}. Hiển thị dữ liệu mặc định.`,
+        variant: "destructive",
+      })
     }
   }
 

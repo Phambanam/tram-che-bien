@@ -1140,6 +1140,34 @@ export const tofuCalculationApi = {
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/statistics${query}`)
   },
+
+  // Get weekly tofu tracking data for frontend table
+  getWeeklyTofuTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/weekly-tracking${query}`)
+  },
+
+  // Get monthly tofu summary for frontend table
+  getMonthlyTofuSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/monthly-summary${query}`)
+  },
 }
 
 // Export all APIs for convenience
