@@ -180,10 +180,10 @@ export function TofuProcessing() {
       const finalSoybeanPrice = priceData.soybeanPriceFromSupply ? priceData.soybeanPrice : stationData.soybeanPrice
       const finalTofuPrice = priceData.tofuPriceFromSupply ? priceData.tofuPrice : stationData.tofuPrice
 
-      // Get actual tofu output from supply outputs (thực tế đã xuất)
-      let actualTofuOutput = 0
+      // Get planned tofu output from supply management (kế hoạch xuất từ đăng ký người ăn)
+      let plannedTofuOutput = 0
       try {
-        console.log("🔍 Fetching supply outputs for date:", dateStr)
+        console.log("🔍 Fetching planned tofu outputs for date:", dateStr)
         const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
           startDate: dateStr,
           endDate: dateStr
@@ -191,73 +191,99 @@ export function TofuProcessing() {
         const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
         
         console.log("🔍 Supply outputs response:", {
-          isArray: Array.isArray(outputsResponse),
           totalOutputs: outputs.length,
-          rawResponse: outputsResponse,
-          apiUrl: `http://localhost:5001/api/supply-outputs?startDate=${dateStr}&endDate=${dateStr}`
+          plannedOutputs: outputs.filter((o: any) => o.type === "planned"),
+          allTypes: [...new Set(outputs.map((o: any) => o.type || "unknown"))]
         })
         
-        // Also test without date filter to see if there's any data at all
-        console.log("🔍 Testing API without date filter...")
-        const allOutputsResponse = await supplyOutputsApi.getSupplyOutputs({})
-        const allOutputs = Array.isArray(allOutputsResponse) ? allOutputsResponse : (allOutputsResponse as any).data || []
-        console.log("🔍 All supply outputs (no filter):", {
-          totalCount: allOutputs.length,
-          sample: allOutputs.slice(0, 3)
-        })
-        
-        // Log all outputs to see what's available
-        outputs.forEach((output: any, index: number) => {
-          console.log(`📦 Output ${index + 1}:`, {
-            productName: output.product?.name,
-            quantity: output.quantity,
-            outputDate: output.outputDate,
-            formattedOutputDate: output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : 'No date',
-            unit: output.receivingUnit?.name,
-            targetDate: dateStr
-          })
-        })
-        
-        // Calculate actual tofu outputs for this date
+        // Calculate planned tofu outputs for this date (type: "planned")
         const filteredOutputs = outputs.filter((output: any) => {
           const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
           const dateMatch = outputDate === dateStr
-          const productName = output.product?.name?.toLowerCase() || ''
-          const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu")
+          const isPlanned = output.type === "planned"
           
-          console.log(`🔍 Filter check for output:`, {
+          // Check both product name and sourceIngredient name
+          const productName = (output.product?.name || "").toLowerCase()
+          const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
+          const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu") ||
+                           ingredientName.includes("đậu phụ") || ingredientName.includes("tofu")
+          
+          console.log(`🔍 Filter check for planned output:`, {
             productName: output.product?.name,
-            productNameLower: productName,
+            ingredientName: output.sourceIngredient?.lttpName,
+            type: output.type,
+            quantity: output.quantity,
             outputDate,
             targetDate: dateStr,
             dateMatch,
+            isPlanned,
             nameMatch,
-            willInclude: dateMatch && nameMatch
+            willInclude: dateMatch && isPlanned && nameMatch
           })
           
-          return dateMatch && nameMatch
+          return dateMatch && isPlanned && nameMatch
         })
         
-        actualTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        plannedTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
         
-        console.log("🎯 Final tofu output calculation:", {
+        console.log("🎯 Planned tofu output calculation:", {
           filteredCount: filteredOutputs.length,
-          totalTofuOutput: actualTofuOutput,
+          totalPlannedTofuOutput: plannedTofuOutput,
           filteredOutputs
         })
         
+        // If no planned outputs found, try to calculate from ingredient summaries
+        if (plannedTofuOutput === 0) {
+          console.log("🔍 No planned outputs found, trying to calculate from ingredient summaries...")
+          try {
+            const week = Math.ceil(new Date(dateStr).getDate() / 7)
+            const year = new Date(dateStr).getFullYear()
+            const ingredientResponse = await menuPlanningApi.getDailyIngredientSummaries({
+              week: week,
+              year: year,
+              showAllDays: true
+            })
+            
+            if (ingredientResponse.success && ingredientResponse.data) {
+              const dayData = ingredientResponse.data.find((day: any) => day.date === dateStr)
+              if (dayData) {
+                const tofuIngredient = dayData.ingredients.find((ing: any) => 
+                  ing.lttpName?.toLowerCase().includes("đậu phụ") ||
+                  ing.lttpName?.toLowerCase().includes("tofu")
+                )
+                if (tofuIngredient) {
+                                     // Get total personnel for this date
+                   const personnelResponse = await unitPersonnelDailyApi.getPersonnelByWeek(dateStr, dateStr)
+                   const totalPersonnel = personnelResponse.success ? 
+                     Object.values(personnelResponse.data[dateStr] || {}).reduce((sum: number, count: any) => sum + count, 0) : 100
+                  
+                  // Calculate: (personnel * quantity per 100 people) / 100
+                  plannedTofuOutput = (totalPersonnel * tofuIngredient.totalQuantity) / 100
+                  console.log("📊 Calculated from ingredients:", {
+                    totalPersonnel,
+                    quantityPer100: tofuIngredient.totalQuantity,
+                    calculatedOutput: plannedTofuOutput
+                  })
+                }
+              }
+            }
+          } catch (calcError) {
+            console.log("Could not calculate from ingredients:", calcError)
+          }
+        }
+        
       } catch (error) {
-        console.log("❌ Error fetching tofu output data:", error)
+        console.log("❌ Error fetching planned tofu output data:", error)
       }
 
       // Calculate remaining tofu
-      const tofuRemaining = stationData.tofuInput - actualTofuOutput
+      const tofuRemaining = stationData.tofuInput - plannedTofuOutput
 
       const processingData: DailyTofuProcessing = {
         date: dateStr,
         soybeanInput: stationData.soybeanInput,
         tofuInput: stationData.tofuInput,
-        tofuOutput: actualTofuOutput, // Thực tế đã xuất (từ quản lý nguồn xuất)
+        tofuOutput: plannedTofuOutput, // Kế hoạch xuất (từ quản lý nguồn xuất - đăng ký người ăn)
         tofuRemaining: Math.max(0, tofuRemaining),
         note: stationData.note,
         soybeanPrice: finalSoybeanPrice || 0,
@@ -327,10 +353,10 @@ export function TofuProcessing() {
           // Use default values
         }
 
-        // Get actual tofu output from supply outputs (thực tế đã xuất)
-        let actualTofuOutput = 0
+        // Get planned tofu output from supply management (kế hoạch xuất từ đăng ký người ăn)
+        let plannedTofuOutput = 0
         try {
-          console.log(`🔍 WEEKLY - Fetching supply outputs for ${dateStr}`)
+          console.log(`🔍 WEEKLY - Fetching planned outputs for ${dateStr}`)
           const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
             startDate: dateStr,
             endDate: dateStr
@@ -339,14 +365,23 @@ export function TofuProcessing() {
           
           console.log(`🔍 WEEKLY - ${dateStr} outputs:`, {
             totalOutputs: outputs.length,
-            tofuOutputs: outputs.filter((o: any) => o.product?.name?.toLowerCase().includes("đậu phụ"))
+            plannedOutputs: outputs.filter((o: any) => o.type === "planned"),
+            tofuPlannedOutputs: outputs.filter((o: any) => 
+              o.type === "planned" && 
+              (o.product?.name?.toLowerCase().includes("đậu phụ") || 
+               o.sourceIngredient?.lttpName?.toLowerCase().includes("đậu phụ"))
+            )
           })
           
-          actualTofuOutput = outputs
+          plannedTofuOutput = outputs
             .filter((output: any) => {
               const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
-              return outputDate === dateStr && 
-                     output.product?.name?.toLowerCase().includes("đậu phụ")
+              const isPlanned = output.type === "planned"
+              const productName = (output.product?.name || "").toLowerCase()
+              const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
+              const nameMatch = productName.includes("đậu phụ") || ingredientName.includes("đậu phụ")
+              
+              return outputDate === dateStr && isPlanned && nameMatch
             })
             .reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
         } catch (error) {
@@ -358,8 +393,8 @@ export function TofuProcessing() {
           dayOfWeek: getDayName(date.getDay()),
           soybeanInput: stationData.soybeanInput,
           tofuInput: stationData.tofuInput,
-          tofuOutput: actualTofuOutput, // Thực tế đã xuất (từ quản lý nguồn xuất)
-          tofuRemaining: Math.max(0, stationData.tofuInput - actualTofuOutput)
+          tofuOutput: plannedTofuOutput, // Kế hoạch xuất (từ quản lý nguồn xuất - đăng ký người ăn)
+          tofuRemaining: Math.max(0, stationData.tofuInput - plannedTofuOutput)
         })
       }
 
@@ -640,7 +675,7 @@ export function TofuProcessing() {
                       <span className="text-lg ml-1">kg</span>
                     </div>
                     <div className="text-xs text-red-600 mt-1">
-                      (Thực tế đã xuất trong ngày)
+                      (Kế hoạch xuất từ đăng ký người ăn)
                     </div>
                   </div>
                 </div>
