@@ -26,6 +26,10 @@ interface DailyTofuProcessing {
   tofuPrice?: number // Giá đậu phụ VND/kg
   soybeanPriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
   tofuPriceFromSupply?: boolean // Giá từ quản lý nguồn xuất hay nhập tay
+  // By-products fields
+  byProductQuantity?: number // Sản phẩm phụ (kg) - Station manager input
+  byProductPrice?: number // Giá sản phẩm phụ VND/kg
+  otherCosts?: number // Chi phí khác (VND) - Station manager input
 }
 
 interface WeeklyTofuTracking {
@@ -35,6 +39,12 @@ interface WeeklyTofuTracking {
   tofuInput: number // Đậu phụ thu
   tofuOutput: number // Đậu phụ thực tế đã xuất
   tofuRemaining: number // Đậu phụ tồn
+  // Financial calculation fields
+  byProductQuantity: number // Sản phẩm phụ (kg)
+  byProductPrice: number // Giá sản phẩm phụ VND/kg
+  soybeanPrice: number // Giá đậu tương VND/kg
+  tofuPrice: number // Giá đậu phụ VND/kg
+  otherCosts: number // Chi phí khác (VND)
 }
 
 interface MonthlyTofuSummary {
@@ -63,7 +73,10 @@ export function TofuProcessing() {
     tofuInput: 0,
     note: "",
     soybeanPrice: 0,
-    tofuPrice: 0
+    tofuPrice: 0,
+    byProductQuantity: 0,
+    byProductPrice: 5000,
+    otherCosts: 0
   })
   
   // API test states (previously detection test)
@@ -319,7 +332,10 @@ export function TofuProcessing() {
         tofuInput: stationData.tofuInput,
         note: stationData.note,
         soybeanPrice: finalSoybeanPrice || 0,
-        tofuPrice: finalTofuPrice || 0
+        tofuPrice: finalTofuPrice || 0,
+        byProductQuantity: stationData.byProductQuantity || 0,
+        byProductPrice: stationData.byProductPrice || 5000,
+        otherCosts: stationData.otherCosts || 0
       })
 
     } catch (error) {
@@ -344,7 +360,10 @@ export function TofuProcessing() {
         tofuInput: 0,
         note: "",
         soybeanPrice: 0,
-        tofuPrice: 0
+        tofuPrice: 0,
+        byProductQuantity: 0,
+        byProductPrice: 5000,
+        otherCosts: 0
       })
     }
   }
@@ -371,7 +390,12 @@ export function TofuProcessing() {
           soybeanInput: day.soybeanInput,
           tofuInput: day.tofuInput,
           tofuOutput: day.tofuOutput,
-          tofuRemaining: day.tofuRemaining
+          tofuRemaining: day.tofuRemaining,
+          byProductQuantity: day.byProductQuantity || 0,
+          byProductPrice: day.byProductPrice || 5000,
+          soybeanPrice: day.soybeanPrice || 12000,
+          tofuPrice: day.tofuPrice || 15000,
+          otherCosts: day.otherCosts || 0
         }))
 
         setWeeklyTracking(weeklyData)
@@ -396,7 +420,12 @@ export function TofuProcessing() {
         soybeanInput: 0,
         tofuInput: 0,
         tofuOutput: 0,
-        tofuRemaining: 0
+        tofuRemaining: 0,
+        byProductQuantity: 0,
+        byProductPrice: 5000,
+        soybeanPrice: 12000,
+        tofuPrice: 15000,
+        otherCosts: 0
       }))
       setWeeklyTracking(sampleWeeklyData)
       
@@ -926,6 +955,73 @@ export function TofuProcessing() {
                 </div>
               </div>
 
+              {/* By-products and Other Costs section */}
+              {editingDailyData && (
+                <div className="grid grid-cols-2 gap-6 mt-6">
+                  {/* Sản phẩm phụ */}
+                  <div className="bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-indigo-700 mb-2">Sản phẩm phụ:</div>
+                      <div className="text-xl font-bold text-indigo-800 flex items-center justify-center gap-2">
+                        <Input
+                          type="number"
+                          value={dailyUpdateData.byProductQuantity}
+                          onChange={(e) => setDailyUpdateData(prev => ({ 
+                            ...prev, 
+                            byProductQuantity: Number(e.target.value) || 0
+                          }))}
+                          className="w-20 h-10 text-center text-xl font-bold bg-white border-indigo-300"
+                          placeholder="0"
+                          step="0.1"
+                        />
+                        <span className="text-sm">kg</span>
+                        <span className="text-sm">×</span>
+                        <Input
+                          type="number"
+                          value={dailyUpdateData.byProductPrice}
+                          onChange={(e) => setDailyUpdateData(prev => ({ 
+                            ...prev, 
+                            byProductPrice: Number(e.target.value) || 0
+                          }))}
+                          className="w-24 h-10 text-center text-xl font-bold bg-white border-indigo-300"
+                          placeholder="5000"
+                        />
+                        <span className="text-sm">đ/kg</span>
+                      </div>
+                      <div className="text-xs text-indigo-600 mt-2">
+                        Thành tiền: {((dailyUpdateData.byProductQuantity || 0) * (dailyUpdateData.byProductPrice || 0)).toLocaleString('vi-VN')}đ
+                      </div>
+                      <div className="text-xs text-indigo-500 mt-1">
+                        (Vỏ đậu, nước đậu, v.v.)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chi phí khác */}
+                  <div className="bg-pink-50 border-2 border-pink-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-pink-700 mb-2">Chi phí khác:</div>
+                      <div className="text-xl font-bold text-pink-800">
+                        <Input
+                          type="number"
+                          value={dailyUpdateData.otherCosts}
+                          onChange={(e) => setDailyUpdateData(prev => ({ 
+                            ...prev, 
+                            otherCosts: Number(e.target.value) || 0
+                          }))}
+                          className="w-32 h-10 text-center text-xl font-bold bg-white border-pink-300"
+                          placeholder="0"
+                        />
+                        <span className="text-sm ml-1">đ</span>
+                      </div>
+                      <div className="text-xs text-pink-600 mt-1">
+                        (Điện, nước, nhân công)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Price section - 2 boxes for soybean and tofu prices */}
               <div className="grid grid-cols-2 gap-6 mt-6">
                 {/* Giá đậu tương */}
@@ -1036,7 +1132,10 @@ export function TofuProcessing() {
                             tofuInput: dailyTofuProcessing.tofuInput,
                             note: dailyTofuProcessing.note || "",
                             soybeanPrice: dailyTofuProcessing.soybeanPrice || 0,
-                            tofuPrice: dailyTofuProcessing.tofuPrice || 0
+                            tofuPrice: dailyTofuProcessing.tofuPrice || 0,
+                            byProductQuantity: dailyTofuProcessing.byProductQuantity || 0,
+                            byProductPrice: dailyTofuProcessing.byProductPrice || 5000,
+                            otherCosts: dailyTofuProcessing.otherCosts || 0
                           })
                         }}
                       >
@@ -1156,55 +1255,76 @@ export function TofuProcessing() {
           ) : (
             <div className="space-y-4">
               <div className="overflow-x-auto">
-                <table className="w-full border-2 border-gray-300">
+                <table className="w-full border-2 border-black">
                   <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border border-gray-300 p-3 text-center font-bold">Ngày</th>
-                      <th className="border border-gray-300 p-3 text-center font-bold">Thứ</th>
-                      <th className="border border-gray-300 p-3 text-center font-bold bg-green-50">
-                        Đậu tương chi<br/><span className="text-xs font-normal">(kg)</span>
-                      </th>
-                      <th className="border border-gray-300 p-3 text-center font-bold bg-yellow-50">
-                        Đậu phụ thu<br/><span className="text-xs font-normal">(kg)</span>
-                      </th>
-                      <th className="border border-gray-300 p-3 text-center font-bold bg-red-50">
-                        Đậu phụ đã xuất<br/><span className="text-xs font-normal">(kg)</span>
-                      </th>
-                      <th className="border border-gray-300 p-3 text-center font-bold bg-purple-50">
-                        Đậu phụ tồn<br/><span className="text-xs font-normal">(kg)</span>
-                      </th>
+                    <tr>
+                      <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">NGÀY</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">THỨ</th>
+                      <th colSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU</th>
+                      <th colSpan={3} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-blue-100 font-bold">THU-<br/>CHI<br/>(LÃI)</th>
+                    </tr>
+                    <tr>
+                      <th colSpan={2} className="border border-black p-1 bg-green-50 text-sm">Đậu phụ</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-green-50 text-sm">Sản<br/>phẩm<br/>phụ<br/>(1.000đ)</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Đậu tương</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
+                    </tr>
+                    <tr>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {weeklyTracking.map((day, index) => {
                       const isToday = format(new Date(), "yyyy-MM-dd") === day.date
+                      
+                      // Financial calculations for this day
+                      const tofuRevenue = (day.tofuInput * day.tofuPrice) / 1000 // Convert to thousands
+                      const byProductRevenue = (day.byProductQuantity * day.byProductPrice) / 1000 // Convert to thousands
+                      const soybeanCost = (day.soybeanInput * day.soybeanPrice) / 1000 // Convert to thousands
+                      const otherCosts = day.otherCosts / 1000 // Convert to thousands
+                      const dailyProfit = tofuRevenue + byProductRevenue - soybeanCost - otherCosts
+                      
                       return (
-                        <tr key={index} className={isToday ? "bg-blue-50 font-semibold" : ""}>
-                          <td className="border border-gray-300 p-2 text-center">
+                        <tr key={index} className={isToday ? "bg-blue-50" : ""}>
+                          <td className="border border-black p-2 text-center font-medium">
                             {format(new Date(day.date), "dd/MM", { locale: vi })}
-                            {isToday && <div className="text-xs text-blue-600">(Hôm nay)</div>}
+                            {isToday && <div className="text-xs text-blue-600 mt-1">(Hôm nay)</div>}
                           </td>
-                          <td className="border border-gray-300 p-2 text-center">
+                          <td className="border border-black p-2 text-center font-medium">
                             {day.dayOfWeek}
                           </td>
-                          <td className="border border-gray-300 p-2 text-center bg-green-25">
-                            <span className="font-semibold text-green-700">
-                              {day.soybeanInput.toLocaleString()}
-                            </span>
+                          {/* THU - Đậu phụ */}
+                          <td className="border border-black p-1 text-center font-semibold text-green-600">
+                            {day.tofuInput.toLocaleString()}
                           </td>
-                          <td className="border border-gray-300 p-2 text-center bg-yellow-25">
-                            <span className="font-semibold text-yellow-700">
-                              {day.tofuInput.toLocaleString()}
-                            </span>
+                          <td className="border border-black p-1 text-center font-semibold text-green-600">
+                            {tofuRevenue.toFixed(0)}
                           </td>
-                          <td className="border border-gray-300 p-2 text-center bg-red-25">
-                            <span className="font-semibold text-red-700">
-                              {day.tofuOutput.toLocaleString()}
-                            </span>
+                          {/* THU - Sản phẩm phụ */}
+                          <td className="border border-black p-1 text-center font-semibold text-green-600">
+                            {byProductRevenue.toFixed(0)}
                           </td>
-                          <td className="border border-gray-300 p-2 text-center bg-purple-25">
-                            <span className="font-semibold text-purple-700">
-                              {day.tofuRemaining.toLocaleString()}
+                          {/* CHI - Đậu tương */}
+                          <td className="border border-black p-1 text-center font-semibold text-red-600">
+                            {day.soybeanInput.toLocaleString()}
+                          </td>
+                          <td className="border border-black p-1 text-center font-semibold text-red-600">
+                            {soybeanCost.toFixed(0)}
+                          </td>
+                          {/* CHI - Chi khác */}
+                          <td className="border border-black p-1 text-center font-semibold text-red-600">
+                            {otherCosts.toFixed(0)}
+                          </td>
+                          {/* THU-CHI (LÃI) */}
+                          <td className="border border-black p-1 text-center bg-blue-50">
+                            <span className={`font-bold ${
+                              dailyProfit >= 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {dailyProfit.toFixed(0)}
                             </span>
                           </td>
                         </tr>
@@ -1213,27 +1333,56 @@ export function TofuProcessing() {
                     
                     {/* Weekly Total Row */}
                     <tr className="bg-gray-200 font-bold border-t-2 border-gray-400">
-                      <td colSpan={2} className="border border-gray-300 p-2 text-center">
+                      <td colSpan={2} className="border border-black p-2 text-center">
                         TỔNG TUẦN
                       </td>
-                      <td className="border border-gray-300 p-2 text-center bg-green-100">
+                      <td className="border border-black p-1 text-center bg-green-100">
                         <span className="text-green-800">
-                          {weeklyTracking.reduce((sum, day) => sum + day.soybeanInput, 0).toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="border border-gray-300 p-2 text-center bg-yellow-100">
-                        <span className="text-yellow-800">
                           {weeklyTracking.reduce((sum, day) => sum + day.tofuInput, 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="border border-gray-300 p-2 text-center bg-red-100">
-                        <span className="text-red-800">
-                          {weeklyTracking.reduce((sum, day) => sum + day.tofuOutput, 0).toLocaleString()}
+                      <td className="border border-black p-1 text-center bg-green-100">
+                        <span className="text-green-800">
+                          {weeklyTracking.reduce((sum, day) => sum + (day.tofuInput * day.tofuPrice / 1000), 0).toFixed(0)}
                         </span>
                       </td>
-                      <td className="border border-gray-300 p-2 text-center bg-purple-100">
-                        <span className="text-purple-800">
-                          {weeklyTracking.reduce((sum, day) => sum + day.tofuRemaining, 0).toLocaleString()}
+                      <td className="border border-black p-1 text-center bg-green-100">
+                        <span className="text-green-800">
+                          {weeklyTracking.reduce((sum, day) => sum + (day.byProductQuantity * day.byProductPrice / 1000), 0).toFixed(0)}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-red-100">
+                        <span className="text-red-800">
+                          {weeklyTracking.reduce((sum, day) => sum + day.soybeanInput, 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-red-100">
+                        <span className="text-red-800">
+                          {weeklyTracking.reduce((sum, day) => sum + (day.soybeanInput * day.soybeanPrice / 1000), 0).toFixed(0)}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-red-100">
+                        <span className="text-red-800">
+                          {weeklyTracking.reduce((sum, day) => sum + (day.otherCosts / 1000), 0).toFixed(0)}
+                        </span>
+                      </td>
+                      <td className="border border-black p-1 text-center bg-blue-100">
+                        <span className={`font-bold ${
+                          weeklyTracking.reduce((sum, day) => {
+                            const tofuRev = (day.tofuInput * day.tofuPrice / 1000)
+                            const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                            const soybeanCost = (day.soybeanInput * day.soybeanPrice / 1000)
+                            const otherCost = (day.otherCosts / 1000)
+                            return sum + (tofuRev + byProductRev - soybeanCost - otherCost)
+                          }, 0) >= 0 ? 'text-green-800' : 'text-red-800'
+                        }`}>
+                          {weeklyTracking.reduce((sum, day) => {
+                            const tofuRev = (day.tofuInput * day.tofuPrice / 1000)
+                            const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                            const soybeanCost = (day.soybeanInput * day.soybeanPrice / 1000)
+                            const otherCost = (day.otherCosts / 1000)
+                            return sum + (tofuRev + byProductRev - soybeanCost - otherCost)
+                          }, 0).toFixed(0)}
                         </span>
                       </td>
                     </tr>
@@ -1241,30 +1390,68 @@ export function TofuProcessing() {
                 </table>
               </div>
 
-              {/* Summary Statistics */}
+              {/* Financial Summary Statistics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                 <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                  <div className="text-xs text-green-600">Tổng đậu tương chi</div>
+                  <div className="text-xs text-green-600">Tổng THU (1.000đ)</div>
                   <div className="text-lg font-bold text-green-700">
-                    {weeklyTracking.reduce((sum, day) => sum + day.soybeanInput, 0).toLocaleString()} kg
+                    {weeklyTracking.reduce((sum, day) => {
+                      const tofuRev = (day.tofuInput * day.tofuPrice / 1000)
+                      const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                      return sum + tofuRev + byProductRev
+                    }, 0).toFixed(0)}
                   </div>
-                </div>
-                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                  <div className="text-xs text-yellow-600">Tổng đậu phụ thu</div>
-                  <div className="text-lg font-bold text-yellow-700">
-                    {weeklyTracking.reduce((sum, day) => sum + day.tofuInput, 0).toLocaleString()} kg
+                  <div className="text-xs text-gray-500 mt-1">
+                    Đậu phụ + Sản phẩm phụ
                   </div>
                 </div>
                 <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                  <div className="text-xs text-red-600">Tổng đậu phụ đã xuất</div>
+                  <div className="text-xs text-red-600">Tổng CHI (1.000đ)</div>
                   <div className="text-lg font-bold text-red-700">
-                    {weeklyTracking.reduce((sum, day) => sum + day.tofuOutput, 0).toLocaleString()} kg
+                    {weeklyTracking.reduce((sum, day) => {
+                      const soybeanCost = (day.soybeanInput * day.soybeanPrice / 1000)
+                      const otherCosts = (day.otherCosts / 1000)
+                      return sum + soybeanCost + otherCosts
+                    }, 0).toFixed(0)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Đậu tương + Chi khác
                   </div>
                 </div>
-                <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
-                  <div className="text-xs text-purple-600">Tổng đậu phụ tồn</div>
-                  <div className="text-lg font-bold text-purple-700">
-                    {weeklyTracking.reduce((sum, day) => sum + day.tofuRemaining, 0).toLocaleString()} kg
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <div className="text-xs text-blue-600">LÃI/LỖ (1.000đ)</div>
+                  <div className={`text-lg font-bold ${
+                    weeklyTracking.reduce((sum, day) => {
+                      const tofuRev = (day.tofuInput * day.tofuPrice / 1000)
+                      const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                      const soybeanCost = (day.soybeanInput * day.soybeanPrice / 1000)
+                      const otherCost = (day.otherCosts / 1000)
+                      return sum + (tofuRev + byProductRev - soybeanCost - otherCost)
+                    }, 0) >= 0 ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {weeklyTracking.reduce((sum, day) => {
+                      const tofuRev = (day.tofuInput * day.tofuPrice / 1000)
+                      const byProductRev = (day.byProductQuantity * day.byProductPrice / 1000)
+                      const soybeanCost = (day.soybeanInput * day.soybeanPrice / 1000)
+                      const otherCost = (day.otherCosts / 1000)
+                      return sum + (tofuRev + byProductRev - soybeanCost - otherCost)
+                    }, 0).toFixed(0)}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Thu - Chi
+                  </div>
+                </div>
+                <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                  <div className="text-xs text-yellow-600">Hiệu suất (%)</div>
+                  <div className="text-lg font-bold text-yellow-700">
+                    {weeklyTracking.length > 0 ? (
+                      weeklyTracking.reduce((sum, day) => {
+                        return sum + (day.soybeanInput > 0 ? (day.tofuInput / day.soybeanInput) * 100 : 0)
+                      }, 0) / weeklyTracking.filter(day => day.soybeanInput > 0).length
+                    ).toFixed(1) : '0'}%
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Tỷ lệ đậu tương → đậu phụ
                   </div>
                 </div>
               </div>

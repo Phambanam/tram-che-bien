@@ -694,7 +694,13 @@ export const getWeeklyTofuTracking = async (req: Request, res: Response) => {
           soybeanInput: processingData.soybeanInput || 0,
           tofuInput: processingData.tofuInput || 0,
           tofuOutput: tofuReq.totalTofuRequired / 1000, // Convert grams to kg
-          tofuRemaining: Math.max(0, (processingData.tofuInput || 0) - (tofuReq.totalTofuRequired / 1000))
+          tofuRemaining: Math.max(0, (processingData.tofuInput || 0) - (tofuReq.totalTofuRequired / 1000)),
+          // Financial fields
+          byProductQuantity: processingData.byProductQuantity || 0,
+          byProductPrice: processingData.byProductPrice || 5000,
+          soybeanPrice: processingData.soybeanPrice || 12000,
+          tofuPrice: processingData.tofuPrice || 15000,
+          otherCosts: processingData.otherCosts || 0
         })
       } catch (error) {
         // If no data for this date, use zeros
@@ -704,7 +710,13 @@ export const getWeeklyTofuTracking = async (req: Request, res: Response) => {
           soybeanInput: 0,
           tofuInput: 0,
           tofuOutput: 0,
-          tofuRemaining: 0
+          tofuRemaining: 0,
+          // Financial fields
+          byProductQuantity: 0,
+          byProductPrice: 5000,
+          soybeanPrice: 12000,
+          tofuPrice: 15000,
+          otherCosts: 0
         })
       }
     }

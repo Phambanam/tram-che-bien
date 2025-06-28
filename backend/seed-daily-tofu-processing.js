@@ -42,6 +42,10 @@ async function seedDailyTofuProcessing() {
         note: Math.random() < 0.1 ? "Chế biến thêm giờ" : "", // 10% chance of note
         soybeanPrice: 12000 + Math.round(Math.random() * 2000), // 12-14k VND/kg
         tofuPrice: 15000 + Math.round(Math.random() * 3000), // 15-18k VND/kg
+        // By-products and other costs
+        byProductQuantity: Math.round(tofuInput * (0.08 + Math.random() * 0.04)), // 8-12% of tofu as by-products
+        byProductPrice: 4000 + Math.round(Math.random() * 2000), // 4-6k VND/kg
+        otherCosts: Math.round(soybeanInput * (10 + Math.random() * 10)), // 10-20 VND per kg soybean
         createdAt: new Date(),
         updatedAt: new Date()
       });

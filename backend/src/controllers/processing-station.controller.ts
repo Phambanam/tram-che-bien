@@ -563,7 +563,10 @@ export const getDailyTofuData = async (req: Request, res: Response) => {
           tofuInput: 0,
           note: "",
           soybeanPrice: 0,
-          tofuPrice: 0
+          tofuPrice: 0,
+          byProductQuantity: 0,
+          byProductPrice: 5000,
+          otherCosts: 0
         }
       })
     }
@@ -576,7 +579,10 @@ export const getDailyTofuData = async (req: Request, res: Response) => {
         tofuInput: dailyData.tofuInput || 0,
         note: dailyData.note || "",
         soybeanPrice: dailyData.soybeanPrice || 0,
-        tofuPrice: dailyData.tofuPrice || 0
+        tofuPrice: dailyData.tofuPrice || 0,
+        byProductQuantity: dailyData.byProductQuantity || 0,
+        byProductPrice: dailyData.byProductPrice || 5000,
+        otherCosts: dailyData.otherCosts || 0
       }
     })
   } catch (error) {
@@ -594,7 +600,16 @@ export const getDailyTofuData = async (req: Request, res: Response) => {
 export const updateDailyTofuData = async (req: Request, res: Response) => {
   try {
     const { date } = req.params
-    const { soybeanInput, tofuInput, note, soybeanPrice, tofuPrice } = req.body
+    const { 
+      soybeanInput, 
+      tofuInput, 
+      note, 
+      soybeanPrice, 
+      tofuPrice,
+      byProductQuantity,
+      byProductPrice,
+      otherCosts
+    } = req.body
     const db = await getDb()
 
     // Validate input
@@ -616,6 +631,9 @@ export const updateDailyTofuData = async (req: Request, res: Response) => {
           note: note || "",
           soybeanPrice: Number(soybeanPrice) || 0,
           tofuPrice: Number(tofuPrice) || 0,
+          byProductQuantity: Number(byProductQuantity) || 0,
+          byProductPrice: Number(byProductPrice) || 5000,
+          otherCosts: Number(otherCosts) || 0,
           updatedAt: new Date(),
           updatedBy: req.user._id
         },
@@ -636,7 +654,10 @@ export const updateDailyTofuData = async (req: Request, res: Response) => {
         tofuInput: Number(tofuInput) || 0,
         note: note || "",
         soybeanPrice: Number(soybeanPrice) || 0,
-        tofuPrice: Number(tofuPrice) || 0
+        tofuPrice: Number(tofuPrice) || 0,
+        byProductQuantity: Number(byProductQuantity) || 0,
+        byProductPrice: Number(byProductPrice) || 5000,
+        otherCosts: Number(otherCosts) || 0
       }
     })
   } catch (error) {
