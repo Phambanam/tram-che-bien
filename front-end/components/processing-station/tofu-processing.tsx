@@ -255,15 +255,35 @@ export function TofuProcessing() {
       try {
         console.log(`🔄 Checking tofu carry over from ${previousDateStr} to ${dateStr}`)
         const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
-        if (previousStationResponse && previousStationResponse.data) {
-          const previousTofuInput = previousStationResponse.data.tofuInput || 0
-          const previousTofuOutput = previousStationResponse.data.tofuOutput || 0
-          carryOverAmount = Math.max(0, previousTofuInput - previousTofuOutput)
+        console.log('🔍 Previous API Response:', previousStationResponse)
+        
+        // Fix nested structure access
+        const previousData = previousStationResponse?.data?.data || previousStationResponse?.data || {}
+        console.log('🔍 Previous Data Extracted:', previousData)
+        
+        if (previousData && Object.keys(previousData).length > 0) {
+          const previousTofuInput = previousData.tofuInput || 0
+          const previousTofuOutput = previousData.tofuOutput || 0
+          // If no tofuOutput in data, try to calculate from planned outputs
+          let calculatedPreviousTofuOutput = previousTofuOutput
+          if (calculatedPreviousTofuOutput === 0) {
+            console.log(`🔍 No tofuOutput found, calculating from planned outputs for ${previousDateStr}`)
+            calculatedPreviousTofuOutput = await calculateTofuOutputFromAPI(previousDateStr)
+            console.log(`🔍 Calculated previous tofu output: ${calculatedPreviousTofuOutput}kg`)
+          }
+          
+          carryOverAmount = Math.max(0, previousTofuInput - calculatedPreviousTofuOutput)
+          
+          console.log(`🔍 Carry over calculation: ${previousTofuInput} - ${calculatedPreviousTofuOutput} = ${carryOverAmount}kg`)
           
           if (carryOverAmount > 0) {
             carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: +${carryOverAmount}kg đậu phụ`
             console.log(`✅ Tofu carry over found: ${carryOverAmount}kg from ${previousDateStr}`)
+          } else {
+            console.log(`❌ No carry over: ${carryOverAmount}kg (≤ 0)`)
           }
+        } else {
+          console.log('❌ No previous day data found for carry over')
         }
       } catch (error) {
         console.log("No tofu carry over data from previous day:", error)
@@ -271,14 +291,21 @@ export function TofuProcessing() {
       
       try {
         const stationResponse = await processingStationApi.getDailyData(dateStr)
-        if (stationResponse && stationResponse.data) {
+        console.log('🔍 Current day API Response:', stationResponse)
+        
+        // Fix nested structure access for current day
+        const currentData = stationResponse?.data?.data || stationResponse?.data || {}
+        console.log('🔍 Current Data Extracted:', currentData)
+        
+        if (currentData && Object.keys(currentData).length > 0) {
           stationData = {
-            soybeanInput: stationResponse.data.soybeanInput || 0,
-            tofuInput: (stationResponse.data.tofuInput || 0) + carryOverAmount, // Add carry over
-            note: (stationResponse.data.note || "") + carryOverNote, // Add carry over note
-            soybeanPrice: stationResponse.data.soybeanPrice || 0,
-            tofuPrice: stationResponse.data.tofuPrice || 0
+            soybeanInput: currentData.soybeanInput || 0,
+            tofuInput: (currentData.tofuInput || 0) + carryOverAmount, // Add carry over
+            note: (currentData.note || "") + carryOverNote, // Add carry over note
+            soybeanPrice: currentData.soybeanPrice || 0,
+            tofuPrice: currentData.tofuPrice || 0
           }
+          console.log('🔍 Station data with carry over:', stationData)
         } else if (carryOverAmount > 0) {
           // If no current data but have carry over, apply it to defaults
           stationData.tofuInput = carryOverAmount

@@ -254,11 +254,17 @@ export function SaltProcessing() {
       let carryOverNote = ""
       
       try {
-        console.log(`🔄 Checking carry over from ${previousDateStr} to ${dateStr}`)
+        console.log(`🔄 Checking salt carry over from ${previousDateStr} to ${dateStr}`)
         const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
-        if (previousStationResponse && previousStationResponse.data) {
-          const previousSaltInput = previousStationResponse.data.saltInput || 0
-          const previousSaltOutput = previousStationResponse.data.saltOutput || 0
+        console.log('🔍 Salt Previous API Response:', previousStationResponse)
+        
+        // Fix nested structure access
+        const previousData = previousStationResponse?.data?.data || previousStationResponse?.data || {}
+        console.log('🔍 Salt Previous Data Extracted:', previousData)
+        
+        if (previousData && Object.keys(previousData).length > 0) {
+          const previousSaltInput = previousData.saltInput || 0
+          const previousSaltOutput = previousData.saltOutput || 0
           carryOverAmount = Math.max(0, previousSaltInput - previousSaltOutput)
           
           if (carryOverAmount > 0) {
@@ -272,14 +278,21 @@ export function SaltProcessing() {
       
       try {
         const stationResponse = await processingStationApi.getDailyData(dateStr)
-        if (stationResponse && stationResponse.data) {
+        console.log('🔍 Salt Current day API Response:', stationResponse)
+        
+        // Fix nested structure access for current day
+        const currentData = stationResponse?.data?.data || stationResponse?.data || {}
+        console.log('🔍 Salt Current Data Extracted:', currentData)
+        
+        if (currentData && Object.keys(currentData).length > 0) {
           stationData = {
-            cabbageInput: stationResponse.data.cabbageInput || 0,
-            saltInput: (stationResponse.data.saltInput || 0) + carryOverAmount, // Add carry over
-            note: (stationResponse.data.note || "") + carryOverNote, // Add carry over note
-            cabbagePrice: stationResponse.data.cabbagePrice || 0,
-            saltPrice: stationResponse.data.saltPrice || 0
+            cabbageInput: currentData.cabbageInput || 0,
+            saltInput: (currentData.saltInput || 0) + carryOverAmount, // Add carry over
+            note: (currentData.note || "") + carryOverNote, // Add carry over note
+            cabbagePrice: currentData.cabbagePrice || 0,
+            saltPrice: currentData.saltPrice || 0
           }
+          console.log('🔍 Salt Station data with carry over:', stationData)
         } else if (carryOverAmount > 0) {
           // If no current data but have carry over, apply it to defaults
           stationData.saltInput = carryOverAmount
