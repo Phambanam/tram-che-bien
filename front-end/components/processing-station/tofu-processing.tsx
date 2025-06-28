@@ -61,6 +61,11 @@ export function TofuProcessing() {
     soybeanPrice: 0,
     tofuPrice: 0
   })
+  
+  // Detection test states
+  const [detectionResult, setDetectionResult] = useState<any>(null)
+  const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"))
+  const [isTestingDetection, setIsTestingDetection] = useState(false)
 
   const { toast } = useToast()
   const { user } = useAuth()
@@ -726,6 +731,44 @@ export function TofuProcessing() {
     return result
   }
 
+  // Test detection with custom date
+  const testTofuDetection = async (targetDate?: string) => {
+    setIsTestingDetection(true)
+    try {
+      const dateToTest = targetDate || testDate
+      console.log("🧪 Testing tofu detection for date:", dateToTest)
+      
+      const result = await exampleTofuDetectionFlow(dateToTest)
+      setDetectionResult(result)
+      
+      toast({
+        title: "🧪 Test Detection Completed",
+        description: result.found ? 
+          `Tìm thấy ${result.ingredients?.length} loại đậu phụ. Cần xuất: ${result.finalOutput?.toFixed(2)} kg` :
+          `Không tìm thấy đậu phụ: ${result.reason}`,
+        variant: result.found ? "default" : "destructive"
+      })
+      
+      // If found tofu for today, refresh the daily data
+      if (result.found && dateToTest === format(new Date(), "yyyy-MM-dd")) {
+        console.log("🔄 Refreshing daily data with new detection results...")
+        await fetchDailyTofuProcessing(new Date())
+        await fetchWeeklyTracking()
+      }
+      
+      return result
+    } catch (error) {
+      console.error("❌ Detection test error:", error)
+      toast({
+        title: "❌ Test Error",
+        description: "Lỗi khi test detection",
+        variant: "destructive"
+      })
+    } finally {
+      setIsTestingDetection(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-4">
@@ -1029,12 +1072,22 @@ export function TofuProcessing() {
                       </Button>
                     </>
                   ) : (
-                    <Button 
-                      variant="outline"
-                      onClick={() => setEditingDailyData(true)}
-                    >
-                      Chỉnh sửa
-                    </Button>
+                    <>
+                      <Button 
+                        variant="outline"
+                        onClick={() => setEditingDailyData(true)}
+                      >
+                        Chỉnh sửa
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => testTofuDetection()}
+                        disabled={isTestingDetection}
+                        className="bg-purple-100 text-purple-700 hover:bg-purple-200"
+                      >
+                        {isTestingDetection ? "🔄 Đang test..." : "🧪 Test Detection"}
+                      </Button>
+                    </>
                   )}
                 </div>
               )}
@@ -1276,6 +1329,110 @@ export function TofuProcessing() {
           )}
         </CardContent>
       </Card>
+
+      {/* Detection Test Results */}
+      {detectionResult && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-center text-xl font-bold">
+              🧪 KẾT QUẢ TEST DETECTION ĐẬU PHỤ
+            </CardTitle>
+            <p className="text-sm text-gray-600 text-center">
+              Ngày test: {testDate} • {detectionResult.found ? "✅ Có đậu phụ" : "❌ Không có đậu phụ"}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Test Date Selector */}
+              <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-lg border">
+                <label className="text-sm font-medium text-purple-700">Ngày test:</label>
+                <Input
+                  type="date"
+                  value={testDate}
+                  onChange={(e) => setTestDate(e.target.value)}
+                  className="w-40"
+                />
+                <Button
+                  onClick={() => testTofuDetection(testDate)}
+                  disabled={isTestingDetection}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  {isTestingDetection ? "🔄 Đang test..." : "🧪 Test ngày này"}
+                </Button>
+              </div>
+
+              {detectionResult.found ? (
+                <div className="space-y-4">
+                  {/* Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <div className="text-sm text-green-600 mb-1">Số loại đậu phụ</div>
+                      <div className="text-2xl font-bold text-green-700">
+                        {detectionResult.ingredients?.length || 0}
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div className="text-sm text-blue-600 mb-1">Tổng số người ăn</div>
+                      <div className="text-2xl font-bold text-blue-700">
+                        {detectionResult.totalPersonnel || 0}
+                      </div>
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                      <div className="text-sm text-orange-600 mb-1">Cần xuất (kg)</div>
+                      <div className="text-2xl font-bold text-orange-700">
+                        {detectionResult.finalOutput?.toFixed(2) || 0}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ingredients Breakdown */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-3">Chi tiết từng loại đậu phụ:</h4>
+                    <div className="space-y-2">
+                      {detectionResult.breakdown?.map((item: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-white rounded border">
+                          <div>
+                            <span className="font-medium">{item.name}</span>
+                            <div className="text-xs text-gray-600">
+                              Dùng trong: {item.dishes.join(", ")}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">{item.output.toFixed(2)} kg</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Formula Explanation */}
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <h4 className="font-medium text-yellow-800 mb-2">📊 Công thức tính toán:</h4>
+                    <div className="text-sm text-yellow-700">
+                      <div>Tổng lượng đậu phụ cho 100 người: <strong>{detectionResult.totalTofuQuantity?.toFixed(2)} kg</strong></div>
+                      <div>Số người ăn thực tế: <strong>{detectionResult.totalPersonnel} người</strong></div>
+                      <div className="mt-2 p-2 bg-yellow-100 rounded">
+                        Công thức: ({detectionResult.totalPersonnel} người × {detectionResult.totalTofuQuantity?.toFixed(2)} kg/100 người) ÷ 100 = <strong>{detectionResult.finalOutput?.toFixed(2)} kg</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">😔</div>
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">Không tìm thấy đậu phụ</h3>
+                  <p className="text-gray-600">
+                    Lý do: <span className="font-medium">{detectionResult.reason}</span>
+                  </p>
+                  <div className="mt-4 text-sm text-gray-500">
+                    Có thể thực đơn ngày này không có món nào sử dụng đậu phụ, hoặc chưa có thực đơn được lập.
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 } 
