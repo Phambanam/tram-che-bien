@@ -23,7 +23,7 @@ async function seedDailyTofuProcessing() {
       const dateStr = d.toISOString().split('T')[0];
       
       // Skip some days randomly to make it more realistic
-      if (Math.random() < 0.15) continue; // Skip ~15% of days
+      if (Math.random() < 0.03) continue; // Skip ~3% of days (for maintenance/holidays)
       
       // Generate realistic data with some patterns
       const baseQuantity = 150 + Math.sin(d.getTime() / 86400000 / 7) * 50; // Weekly pattern

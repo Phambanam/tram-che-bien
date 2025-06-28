@@ -681,44 +681,23 @@ export const getWeeklyTofuTracking = async (req: Request, res: Response) => {
     for (const date of weekDates) {
       const dateStr = date.toISOString().split('T')[0]
       
-      try {
-        // Get tofu requirements for this date
-        const tofuReq = await calculateDailyTofuForDate(db, dateStr)
-        
-        // Get station processing data (soybean input, tofu input)
-        const processingData = await getProcessingStationData(db, dateStr)
+      // Get station processing data (this is the main source of truth)
+      const processingData = await getProcessingStationData(db, dateStr)
 
-        weeklyData.push({
-          date: dateStr,
-          dayOfWeek: getDayNameVi(date.getDay()),
-          soybeanInput: processingData.soybeanInput || 0,
-          tofuInput: processingData.tofuInput || 0,
-          tofuOutput: tofuReq.totalTofuRequired / 1000, // Convert grams to kg
-          tofuRemaining: Math.max(0, (processingData.tofuInput || 0) - (tofuReq.totalTofuRequired / 1000)),
-          // Financial fields
-          byProductQuantity: processingData.byProductQuantity || 0,
-          byProductPrice: processingData.byProductPrice || 5000,
-          soybeanPrice: processingData.soybeanPrice || 12000,
-          tofuPrice: processingData.tofuPrice || 15000,
-          otherCosts: processingData.otherCosts || 0
-        })
-      } catch (error) {
-        // If no data for this date, use zeros
-        weeklyData.push({
-          date: dateStr,
-          dayOfWeek: getDayNameVi(date.getDay()),
-          soybeanInput: 0,
-          tofuInput: 0,
-          tofuOutput: 0,
-          tofuRemaining: 0,
-          // Financial fields
-          byProductQuantity: 0,
-          byProductPrice: 5000,
-          soybeanPrice: 12000,
-          tofuPrice: 15000,
-          otherCosts: 0
-        })
-      }
+      weeklyData.push({
+        date: dateStr,
+        dayOfWeek: getDayNameVi(date.getDay()),
+        soybeanInput: processingData.soybeanInput || 0,
+        tofuInput: processingData.tofuInput || 0,
+        tofuOutput: processingData.tofuOutput || 0, // Use actual output from processing data
+        tofuRemaining: Math.max(0, (processingData.tofuInput || 0) - (processingData.tofuOutput || 0)),
+        // Financial fields
+        byProductQuantity: processingData.byProductQuantity || 0,
+        byProductPrice: processingData.byProductPrice || 5000,
+        soybeanPrice: processingData.soybeanPrice || 12000,
+        tofuPrice: processingData.tofuPrice || 15000,
+        otherCosts: processingData.otherCosts || 0
+      })
     }
 
     // Calculate weekly totals
@@ -893,6 +872,12 @@ async function getProcessingStationData(db: any, dateStr: string) {
       return {
         soybeanInput: processingData.soybeanInput || 0,
         tofuInput: processingData.tofuInput || 0,
+        tofuOutput: processingData.tofuOutput || 0,
+        byProductQuantity: processingData.byProductQuantity || 0,
+        byProductPrice: processingData.byProductPrice || 5000,
+        soybeanPrice: processingData.soybeanPrice || 12000,
+        tofuPrice: processingData.tofuPrice || 15000,
+        otherCosts: processingData.otherCosts || 0,
         note: processingData.note || ""
       }
     }
@@ -906,6 +891,12 @@ async function getProcessingStationData(db: any, dateStr: string) {
     return {
       soybeanInput: genericData?.soybeanInput || 0,
       tofuInput: genericData?.tofuInput || 0,
+      tofuOutput: genericData?.tofuOutput || 0,
+      byProductQuantity: genericData?.byProductQuantity || 0,
+      byProductPrice: genericData?.byProductPrice || 5000,
+      soybeanPrice: genericData?.soybeanPrice || 12000,
+      tofuPrice: genericData?.tofuPrice || 15000,
+      otherCosts: genericData?.otherCosts || 0,
       note: genericData?.note || ""
     }
   } catch (error) {
@@ -913,6 +904,12 @@ async function getProcessingStationData(db: any, dateStr: string) {
     return {
       soybeanInput: 0,
       tofuInput: 0,
+      tofuOutput: 0,
+      byProductQuantity: 0,
+      byProductPrice: 5000,
+      soybeanPrice: 12000,
+      tofuPrice: 15000,
+      otherCosts: 0,
       note: ""
     }
   }
