@@ -1170,6 +1170,85 @@ export const tofuCalculationApi = {
   },
 }
 
+// Bean Sprouts Calculation API
+export const beanSproutsCalculationApi = {
+  getBeanSproutsRequirements: async (params: {
+    date?: string
+    week?: number
+    year?: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params.date) queryParams.append("date", params.date)
+    if (params.week) queryParams.append("week", params.week.toString())
+    if (params.year) queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/requirements${query}`)
+  },
+
+  getWeeklyBeanSproutsRequirements: async (params: {
+    week: number
+    year: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/weekly-requirements${query}`)
+  },
+
+  getBeanSproutsUsageStatistics: async (params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("startDate", params.startDate)
+    queryParams.append("endDate", params.endDate)
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/statistics${query}`)
+  },
+
+  // Get weekly bean sprouts tracking data for frontend table
+  getWeeklyBeanSproutsTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/weekly-tracking${query}`)
+  },
+
+  // Get monthly bean sprouts summary for frontend table
+  getMonthlyBeanSproutsSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/monthly-summary${query}`)
+  },
+}
+
 // Export all APIs for convenience
 export const api = {
   auth: authApi,
@@ -1194,4 +1273,5 @@ export const api = {
   menuPlanning: menuPlanningApi,
   unitPersonnelDaily: unitPersonnelDailyApi,
   tofuCalculation: tofuCalculationApi,
+  beanSproutsCalculation: beanSproutsCalculationApi,
 }

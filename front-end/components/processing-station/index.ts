@@ -1,4 +1,5 @@
 export { TofuProcessing } from './tofu-processing'
+export { BeanSproutsProcessing } from './bean-sprouts-processing'
 export { SausageProcessing } from './sausage-processing'
 export { LivestockProcessing } from './livestock-processing'
 export { LttpManagement } from './lttp-management' 
