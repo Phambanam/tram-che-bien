@@ -449,13 +449,29 @@ export function TofuProcessing() {
               {/* Lãi trong ngày */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg p-4">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-blue-700 mb-2">🏆 LÃI TRONG NGÀY:</div>
+                  <div className="text-lg font-bold text-blue-700 mb-2">
+                    🏆 LÃI TRONG NGÀY:
+                    {editingDailyData && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full ml-2">
+                        Live
+                      </span>
+                    )}
+                  </div>
                   <div className="text-3xl font-bold text-blue-900">
                     {(() => {
-                      const tofuPrice = dailyTofuProcessing.tofuPrice || 0
-                      const soybeanPrice = dailyTofuProcessing.soybeanPrice || 0
+                      // Use real-time data from editing state if in edit mode, otherwise use saved data
+                      const currentTofuPrice = editingDailyData ? 
+                        (dailyTofuProcessing.tofuPriceFromSupply ? dailyTofuProcessing.tofuPrice : dailyUpdateData.tofuPrice) || 0 :
+                        dailyTofuProcessing.tofuPrice || 0
                       
-                      if (tofuPrice === 0 || soybeanPrice === 0) {
+                      const currentSoybeanPrice = editingDailyData ? 
+                        (dailyTofuProcessing.soybeanPriceFromSupply ? dailyTofuProcessing.soybeanPrice : dailyUpdateData.soybeanPrice) || 0 :
+                        dailyTofuProcessing.soybeanPrice || 0
+                      
+                      const currentTofuInput = editingDailyData ? dailyUpdateData.tofuInput : dailyTofuProcessing.tofuInput
+                      const currentSoybeanInput = editingDailyData ? dailyUpdateData.soybeanInput : dailyTofuProcessing.soybeanInput
+                      
+                      if (currentTofuPrice === 0 || currentSoybeanPrice === 0) {
                         return (
                           <span className="text-gray-500 text-xl">
                             Chưa có giá
@@ -463,8 +479,8 @@ export function TofuProcessing() {
                         )
                       }
                       
-                      const tofuRevenue = dailyTofuProcessing.tofuInput * tofuPrice
-                      const soybeanCost = dailyTofuProcessing.soybeanInput * soybeanPrice
+                      const tofuRevenue = currentTofuInput * currentTofuPrice
+                      const soybeanCost = currentSoybeanInput * currentSoybeanPrice
                       const dailyProfit = tofuRevenue - soybeanCost
                       
                       return (
@@ -476,11 +492,28 @@ export function TofuProcessing() {
                     <span className="text-lg ml-1">đ</span>
                   </div>
                   <div className="text-xs text-blue-600 mt-1">
-                    {dailyTofuProcessing.tofuPrice && dailyTofuProcessing.soybeanPrice ? (
-                      <>Thu: {(dailyTofuProcessing.tofuInput * dailyTofuProcessing.tofuPrice).toLocaleString('vi-VN')}đ - Chi: {(dailyTofuProcessing.soybeanInput * dailyTofuProcessing.soybeanPrice).toLocaleString('vi-VN')}đ</>
-                    ) : (
-                      "Cần nhập đầy đủ giá đậu phụ và đậu tương"
-                    )}
+                    {(() => {
+                      // Calculate breakdown using current values (real-time)
+                      const currentTofuPrice = editingDailyData ? 
+                        (dailyTofuProcessing.tofuPriceFromSupply ? dailyTofuProcessing.tofuPrice : dailyUpdateData.tofuPrice) || 0 :
+                        dailyTofuProcessing.tofuPrice || 0
+                      
+                      const currentSoybeanPrice = editingDailyData ? 
+                        (dailyTofuProcessing.soybeanPriceFromSupply ? dailyTofuProcessing.soybeanPrice : dailyUpdateData.soybeanPrice) || 0 :
+                        dailyTofuProcessing.soybeanPrice || 0
+                      
+                      const currentTofuInput = editingDailyData ? dailyUpdateData.tofuInput : dailyTofuProcessing.tofuInput
+                      const currentSoybeanInput = editingDailyData ? dailyUpdateData.soybeanInput : dailyTofuProcessing.soybeanInput
+                      
+                      if (currentTofuPrice && currentSoybeanPrice) {
+                        const revenue = currentTofuInput * currentTofuPrice
+                        const cost = currentSoybeanInput * currentSoybeanPrice
+                        return (
+                          <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
+                        )
+                      }
+                      return "Cần nhập đầy đủ giá đậu phụ và đậu tương"
+                    })()}
                   </div>
                 </div>
               </div>
