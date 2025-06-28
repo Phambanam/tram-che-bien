@@ -6,13 +6,12 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "nodemon src/index.ts",
     "lint": "eslint . --ext .ts",
     "test": "jest",
-    "seed": "ts-node --project tsconfig.json scripts/seed.ts",
-    "seed-content": "ts-node --project tsconfig.json scripts/seed-content.ts",
-    "generate-dishes": "node scripts/generate-dishes.js",
-    "clear-dishes": "node scripts/clear-dishes.js"
+    "seed": "node simple-seed.js",
+    "seed:comprehensive": "node run-seed.js",
+    "clear-db": "node -e \"require('mongoose').connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/military-logistics').then(() => require('mongoose').connection.db.dropDatabase()).then(() => console.log('Database cleared')).then(() => process.exit(0))\""
   },
   "dependencies": {
     "@types/multer": "^1.4.13",
