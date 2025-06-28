@@ -5,8 +5,11 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Utensils } from "lucide-react"
-import { format } from "date-fns"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Utensils, Calendar, TrendingUp } from "lucide-react"
+import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
@@ -24,6 +27,35 @@ interface DailySausageProcessing {
   leanMeatPrice?: number
   fatMeatPrice?: number
   sausagePrice?: number
+}
+
+interface WeeklySausageTracking {
+  date: string
+  dayOfWeek: string
+  leanMeatInput: number
+  fatMeatInput: number
+  sausageInput: number
+  sausageOutput: number
+  sausageRemaining: number
+  leanMeatPrice: number
+  fatMeatPrice: number
+  sausagePrice: number
+}
+
+interface MonthlySausageSummary {
+  month: string
+  year: number
+  monthNumber: number
+  totalLeanMeatInput: number
+  totalFatMeatInput: number
+  totalSausageInput: number
+  totalSausageOutput: number
+  totalSausageRemaining: number
+  processingEfficiency: number
+  sausageRevenue: number
+  meatCost: number
+  otherCosts: number
+  netProfit: number
 }
 
 export function SausageProcessing() {
@@ -55,6 +87,21 @@ export function SausageProcessing() {
     fatMeatPrice: 0,
     sausagePrice: 0
   })
+
+  // Weekly and Monthly tracking states
+  const [weeklySausageTracking, setWeeklySausageTracking] = useState<WeeklySausageTracking[]>([])
+  const [monthlySausageSummary, setMonthlySausageSummary] = useState<MonthlySausageSummary[]>([])
+
+  // Helper function to get current week of year using date-fns
+  const getCurrentWeekOfYear = (date: Date = new Date()) => {
+    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
+  }
+
+  // Filter states
+  const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [selectedMonthYear, setSelectedMonthYear] = useState(new Date().getFullYear())
 
   // Fetch daily sausage processing data with carry over
   const fetchDailySausageProcessing = async (date: Date) => {
@@ -158,6 +205,49 @@ export function SausageProcessing() {
     }
   }
 
+  // Fetch weekly sausage tracking data
+  const fetchWeeklySausageTracking = async () => {
+    try {
+      const response = await processingStationApi.getWeeklySausageTracking({
+        week: selectedWeek,
+        year: selectedYear
+      })
+
+      if (response.success && response.data) {
+        setWeeklySausageTracking(response.data.dailyData)
+      }
+    } catch (error) {
+      console.error("Error fetching weekly sausage tracking:", error)
+      toast({
+        title: "❌ Lỗi",
+        description: "Không thể tải dữ liệu theo tuần",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Fetch monthly sausage summary data
+  const fetchMonthlySausageSummary = async () => {
+    try {
+      const response = await processingStationApi.getMonthlySausageSummary({
+        month: selectedMonth,
+        year: selectedMonthYear,
+        monthCount: 6
+      })
+
+      if (response.success && response.data) {
+        setMonthlySausageSummary(response.data.monthlySummaries)
+      }
+    } catch (error) {
+      console.error("Error fetching monthly sausage summary:", error)
+      toast({
+        title: "❌ Lỗi", 
+        description: "Không thể tải dữ liệu theo tháng",
+        variant: "destructive"
+      })
+    }
+  }
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
@@ -167,15 +257,43 @@ export function SausageProcessing() {
     loadData()
   }, [])
 
+  // Load weekly data when week/year changes
+  useEffect(() => {
+    fetchWeeklySausageTracking()
+  }, [selectedWeek, selectedYear])
+
+  // Load monthly data when month/year changes
+  useEffect(() => {
+    fetchMonthlySausageSummary()
+  }, [selectedMonth, selectedMonthYear])
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-4">
         <Utensils className="h-6 w-6 text-orange-600" />
         <h2 className="text-2xl font-bold text-orange-800">Làm giò chả</h2>
         <Badge className="bg-orange-100 text-orange-800">
-          Chỉ do Trạm trưởng chỉnh sửa
+          Quản lý chế biến thịt lợn
         </Badge>
       </div>
+
+      <Tabs defaultValue="daily" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="daily" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Theo ngày
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tuần
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tháng
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily">
 
       {/* Daily Sausage Processing */}
       <Card className="mb-6">
@@ -379,13 +497,187 @@ export function SausageProcessing() {
             {/* Info message */}
             <div className="pt-4 border-t">
               <p className="text-sm text-gray-500 text-center">
-                Chức năng làm giò chả đang được phát triển. Hiện tại chỉ hiển thị giao diện mẫu.
+                Dữ liệu thực tế từ API. Chức năng chỉnh sửa và xuất giò chả đang được phát triển.
               </p>
             </div>
           </div>
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="weekly">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Theo dõi giò chả theo tuần
+              </CardTitle>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Tuần:</label>
+                  <Select
+                    value={selectedWeek.toString()}
+                    onValueChange={(value) => setSelectedWeek(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 53 }, (_, i) => i + 1).map((week) => (
+                        <SelectItem key={week} value={week.toString()}>
+                          {week}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Năm:</label>
+                  <Select
+                    value={selectedYear.toString()}
+                    onValueChange={(value) => setSelectedYear(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ngày</TableHead>
+                    <TableHead>Thứ</TableHead>
+                    <TableHead>Thịt nạc chi (kg)</TableHead>
+                    <TableHead>Thịt mỡ chi (kg)</TableHead>
+                    <TableHead>Giò chả thu (kg)</TableHead>
+                    <TableHead>Giò chả xuất (kg)</TableHead>
+                    <TableHead>Giò chả tồn (kg)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {weeklySausageTracking.length > 0 ? (
+                    weeklySausageTracking.map((day) => (
+                      <TableRow key={day.date}>
+                        <TableCell>{format(new Date(day.date), "dd/MM")}</TableCell>
+                        <TableCell>{day.dayOfWeek}</TableCell>
+                        <TableCell>{day.leanMeatInput}</TableCell>
+                        <TableCell>{day.fatMeatInput}</TableCell>
+                        <TableCell>{day.sausageInput}</TableCell>
+                        <TableCell>{day.sausageOutput}</TableCell>
+                        <TableCell>{day.sausageRemaining}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-gray-500">
+                        Không có dữ liệu cho tuần đã chọn
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="monthly">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Tổng hợp giò chả theo tháng
+              </CardTitle>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Tháng:</label>
+                  <Select
+                    value={selectedMonth.toString()}
+                    onValueChange={(value) => setSelectedMonth(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                        <SelectItem key={month} value={month.toString()}>
+                          {month}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Năm:</label>
+                  <Select
+                    value={selectedMonthYear.toString()}
+                    onValueChange={(value) => setSelectedMonthYear(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tháng</TableHead>
+                    <TableHead>Thịt nạc (kg)</TableHead>
+                    <TableHead>Thịt mỡ (kg)</TableHead>
+                    <TableHead>Giò chả thu (kg)</TableHead>
+                    <TableHead>Giò chả xuất (kg)</TableHead>
+                    <TableHead>Hiệu suất (%)</TableHead>
+                    <TableHead>Lãi ròng (đ)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {monthlySausageSummary.length > 0 ? (
+                    monthlySausageSummary.map((month) => (
+                      <TableRow key={month.month}>
+                        <TableCell>{month.month}</TableCell>
+                        <TableCell>{month.totalLeanMeatInput}</TableCell>
+                        <TableCell>{month.totalFatMeatInput}</TableCell>
+                        <TableCell>{month.totalSausageInput}</TableCell>
+                        <TableCell>{month.totalSausageOutput}</TableCell>
+                        <TableCell>{month.processingEfficiency}%</TableCell>
+                        <TableCell className={month.netProfit >= 0 ? "text-green-600" : "text-red-600"}>
+                          {month.netProfit >= 0 ? "+" : ""}{month.netProfit.toLocaleString('vi-VN')}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-gray-500">
+                        Không có dữ liệu cho tháng đã chọn
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 } 

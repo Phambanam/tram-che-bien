@@ -11,6 +11,10 @@ import {
   updateDailyTofuData,
   getDailySausageData,
   updateDailySausageData,
+  getWeeklySausageTracking,
+  getMonthlySausageSummary,
+  getWeeklyLivestockTracking,
+  getMonthlyLivestockSummary,
 } from "../controllers/processing-station.controller"
 import { protect, authorize } from "../middleware/auth.middleware"
 
@@ -24,6 +28,10 @@ router.get("/", getProcessingStationItems)
 router.get("/food-inventory", getFoodInventory)
 router.get("/daily/:date", getDailyTofuData)
 router.get("/sausage/:date", getDailySausageData)
+router.get("/sausage/weekly-tracking", getWeeklySausageTracking)
+router.get("/sausage/monthly-summary", getMonthlySausageSummary)
+router.get("/livestock/weekly-tracking", getWeeklyLivestockTracking)
+router.get("/livestock/monthly-summary", getMonthlyLivestockSummary)
 router.get("/:id", getProcessingStationItemById)
 
 // Routes for admin and station manager

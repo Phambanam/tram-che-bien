@@ -835,6 +835,60 @@ export const processingStationApi = {
       body: JSON.stringify(data),
     })
   },
+
+  // New methods for sausage weekly/monthly tracking
+  getWeeklySausageTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/sausage/weekly-tracking${query}`)
+  },
+
+  getMonthlySausageSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/sausage/monthly-summary${query}`)
+  },
+
+  // New methods for livestock weekly/monthly tracking
+  getWeeklyLivestockTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/livestock/weekly-tracking${query}`)
+  },
+
+  getMonthlyLivestockSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/livestock/monthly-summary${query}`)
+  },
 }
 
 // Supply Outputs API

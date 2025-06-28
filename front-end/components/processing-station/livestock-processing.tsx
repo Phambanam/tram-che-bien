@@ -5,8 +5,11 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Beef } from "lucide-react"
-import { format } from "date-fns"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Beef, Calendar, TrendingUp } from "lucide-react"
+import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
@@ -22,6 +25,32 @@ interface DailyLivestockProcessing {
   // Price fields
   liveAnimalPrice?: number
   meatPrice?: number
+}
+
+interface WeeklyLivestockTracking {
+  date: string
+  dayOfWeek: string
+  liveAnimalsInput: number
+  meatOutput: number
+  actualMeatOutput: number
+  meatRemaining: number
+  liveAnimalPrice: number
+  meatPrice: number
+}
+
+interface MonthlyLivestockSummary {
+  month: string
+  year: number
+  monthNumber: number
+  totalLiveAnimalsInput: number
+  totalMeatOutput: number
+  totalActualMeatOutput: number
+  totalMeatRemaining: number
+  processingEfficiency: number
+  meatRevenue: number
+  livestockCost: number
+  otherCosts: number
+  netProfit: number
 }
 
 export function LivestockProcessing() {
@@ -49,6 +78,21 @@ export function LivestockProcessing() {
     liveAnimalPrice: 0,
     meatPrice: 0
   })
+
+  // Weekly and Monthly tracking states
+  const [weeklyLivestockTracking, setWeeklyLivestockTracking] = useState<WeeklyLivestockTracking[]>([])
+  const [monthlyLivestockSummary, setMonthlyLivestockSummary] = useState<MonthlyLivestockSummary[]>([])
+
+  // Helper function to get current week of year using date-fns
+  const getCurrentWeekOfYear = (date: Date = new Date()) => {
+    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
+  }
+
+  // Filter states
+  const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [selectedMonthYear, setSelectedMonthYear] = useState(new Date().getFullYear())
 
   // Fetch daily livestock processing data with carry over
   const fetchDailyLivestockProcessing = async (date: Date) => {
@@ -144,6 +188,49 @@ export function LivestockProcessing() {
     }
   }
 
+  // Fetch weekly livestock tracking data
+  const fetchWeeklyLivestockTracking = async () => {
+    try {
+      const response = await processingStationApi.getWeeklyLivestockTracking({
+        week: selectedWeek,
+        year: selectedYear
+      })
+
+      if (response.success && response.data) {
+        setWeeklyLivestockTracking(response.data.dailyData)
+      }
+    } catch (error) {
+      console.error("Error fetching weekly livestock tracking:", error)
+      toast({
+        title: "❌ Lỗi",
+        description: "Không thể tải dữ liệu theo tuần",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Fetch monthly livestock summary data
+  const fetchMonthlyLivestockSummary = async () => {
+    try {
+      const response = await processingStationApi.getMonthlyLivestockSummary({
+        month: selectedMonth,
+        year: selectedMonthYear,
+        monthCount: 6
+      })
+
+      if (response.success && response.data) {
+        setMonthlyLivestockSummary(response.data.monthlySummaries)
+      }
+    } catch (error) {
+      console.error("Error fetching monthly livestock summary:", error)
+      toast({
+        title: "❌ Lỗi", 
+        description: "Không thể tải dữ liệu theo tháng",
+        variant: "destructive"
+      })
+    }
+  }
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
@@ -152,6 +239,16 @@ export function LivestockProcessing() {
     }
     loadData()
   }, [])
+
+  // Load weekly data when week/year changes
+  useEffect(() => {
+    fetchWeeklyLivestockTracking()
+  }, [selectedWeek, selectedYear])
+
+  // Load monthly data when month/year changes
+  useEffect(() => {
+    fetchMonthlyLivestockSummary()
+  }, [selectedMonth, selectedMonthYear])
 
   return (
     <div className="space-y-6">
@@ -162,6 +259,24 @@ export function LivestockProcessing() {
           Quản lý phân phối thịt lợn
         </Badge>
       </div>
+
+      <Tabs defaultValue="daily" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="daily" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Theo ngày
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tuần
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tháng
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily">
 
       <Card>
         <CardHeader>
@@ -319,13 +434,183 @@ export function LivestockProcessing() {
               {/* Info message */}
               <div className="pt-4 border-t">
                 <p className="text-sm text-gray-500 text-center">
-                  Chức năng giết mổ lợn đang được phát triển. Hiện tại chỉ hiển thị giao diện mẫu với tính năng chuyển kho.
+                  Dữ liệu thực tế từ API. Chức năng chỉnh sửa và phân phối thịt đang được phát triển.
                 </p>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="weekly">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Theo dõi giết mổ lợn theo tuần
+              </CardTitle>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Tuần:</label>
+                  <Select
+                    value={selectedWeek.toString()}
+                    onValueChange={(value) => setSelectedWeek(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 53 }, (_, i) => i + 1).map((week) => (
+                        <SelectItem key={week} value={week.toString()}>
+                          {week}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Năm:</label>
+                  <Select
+                    value={selectedYear.toString()}
+                    onValueChange={(value) => setSelectedYear(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ngày</TableHead>
+                    <TableHead>Thứ</TableHead>
+                    <TableHead>Lợn sống chi (con)</TableHead>
+                    <TableHead>Thịt thu (kg)</TableHead>
+                    <TableHead>Thịt xuất (kg)</TableHead>
+                    <TableHead>Thịt tồn (kg)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {weeklyLivestockTracking.length > 0 ? (
+                    weeklyLivestockTracking.map((day) => (
+                      <TableRow key={day.date}>
+                        <TableCell>{format(new Date(day.date), "dd/MM")}</TableCell>
+                        <TableCell>{day.dayOfWeek}</TableCell>
+                        <TableCell>{day.liveAnimalsInput}</TableCell>
+                        <TableCell>{day.meatOutput}</TableCell>
+                        <TableCell>{day.actualMeatOutput}</TableCell>
+                        <TableCell>{day.meatRemaining}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-gray-500">
+                        Không có dữ liệu cho tuần đã chọn
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="monthly">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Tổng hợp giết mổ lợn theo tháng
+              </CardTitle>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Tháng:</label>
+                  <Select
+                    value={selectedMonth.toString()}
+                    onValueChange={(value) => setSelectedMonth(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                        <SelectItem key={month} value={month.toString()}>
+                          {month}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">Năm:</label>
+                  <Select
+                    value={selectedMonthYear.toString()}
+                    onValueChange={(value) => setSelectedMonthYear(parseInt(value))}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tháng</TableHead>
+                    <TableHead>Lợn sống (con)</TableHead>
+                    <TableHead>Thịt thu (kg)</TableHead>
+                    <TableHead>Thịt xuất (kg)</TableHead>
+                    <TableHead>Hiệu suất (%)</TableHead>
+                    <TableHead>Lãi ròng (đ)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {monthlyLivestockSummary.length > 0 ? (
+                    monthlyLivestockSummary.map((month) => (
+                      <TableRow key={month.month}>
+                        <TableCell>{month.month}</TableCell>
+                        <TableCell>{month.totalLiveAnimalsInput}</TableCell>
+                        <TableCell>{month.totalMeatOutput}</TableCell>
+                        <TableCell>{month.totalActualMeatOutput}</TableCell>
+                        <TableCell>{month.processingEfficiency}%</TableCell>
+                        <TableCell className={month.netProfit >= 0 ? "text-green-600" : "text-red-600"}>
+                          {month.netProfit >= 0 ? "+" : ""}{month.netProfit.toLocaleString('vi-VN')}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-gray-500">
+                        Không có dữ liệu cho tháng đã chọn
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 } 
