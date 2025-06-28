@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Package } from "lucide-react"
-import { format } from "date-fns"
+import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, tofuCalculationApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
@@ -71,11 +71,13 @@ export function TofuProcessing() {
   const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isTestingDetection, setIsTestingDetection] = useState(false)
 
+  // Helper function to get current week of year using date-fns
+  const getCurrentWeekOfYear = (date: Date = new Date()) => {
+    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
+  }
+
   // Filter states
-  const [selectedWeek, setSelectedWeek] = useState(() => {
-    const now = new Date()
-    return Math.ceil(now.getDate() / 7)
-  })
+  const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedMonthYear, setSelectedMonthYear] = useState(new Date().getFullYear())
@@ -1133,15 +1135,18 @@ export function TofuProcessing() {
               size="sm"
               onClick={() => {
                 const now = new Date()
-                const currentWeek = Math.ceil(now.getDate() / 7)
+                const currentWeek = getCurrentWeekOfYear(now)
                 const currentYear = now.getFullYear()
+                
+                console.log(`🔄 Reset to current week: ${currentWeek}/${currentYear}`)
+                
                 setSelectedWeek(currentWeek)
                 setSelectedYear(currentYear)
                 fetchWeeklyTracking(currentWeek, currentYear)
               }}
               className="text-blue-600 hover:text-blue-800"
             >
-              📅 Tuần hiện tại
+              📅 Tuần hiện tại (Tuần {getCurrentWeekOfYear()})
             </Button>
           </div>
         </CardHeader>
