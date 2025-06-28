@@ -193,7 +193,17 @@ export function TofuProcessing() {
         console.log("🔍 Supply outputs response:", {
           isArray: Array.isArray(outputsResponse),
           totalOutputs: outputs.length,
-          rawResponse: outputsResponse
+          rawResponse: outputsResponse,
+          apiUrl: `http://localhost:5001/api/supply-outputs?startDate=${dateStr}&endDate=${dateStr}`
+        })
+        
+        // Also test without date filter to see if there's any data at all
+        console.log("🔍 Testing API without date filter...")
+        const allOutputsResponse = await supplyOutputsApi.getSupplyOutputs({})
+        const allOutputs = Array.isArray(allOutputsResponse) ? allOutputsResponse : (allOutputsResponse as any).data || []
+        console.log("🔍 All supply outputs (no filter):", {
+          totalCount: allOutputs.length,
+          sample: allOutputs.slice(0, 3)
         })
         
         // Log all outputs to see what's available
