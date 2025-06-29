@@ -353,31 +353,31 @@ export function TofuProcessing() {
         // Fallback method: If API returns 0, try to get from supply outputs (legacy)
         if (plannedTofuOutput === 0) {
           console.log("🔍 API returned 0, trying fallback to supply outputs...")
-          const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-            startDate: dateStr,
-            endDate: dateStr
-          })
-          const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+          startDate: dateStr,
+          endDate: dateStr
+        })
+        const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        
+        // Calculate planned tofu outputs for this date (type: "planned")
+        const filteredOutputs = outputs.filter((output: any) => {
+          const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
+          const dateMatch = outputDate === dateStr
+          const isPlanned = output.type === "planned"
           
-          // Calculate planned tofu outputs for this date (type: "planned")
-          const filteredOutputs = outputs.filter((output: any) => {
-            const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
-            const dateMatch = outputDate === dateStr
-            const isPlanned = output.type === "planned"
-            
-            // Check both product name and sourceIngredient name
-            const productName = (output.product?.name || "").toLowerCase()
-            const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
-            const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu") ||
-                             ingredientName.includes("đậu phụ") || ingredientName.includes("tofu")
-            
-            return dateMatch && isPlanned && nameMatch
-          })
+          // Check both product name and sourceIngredient name
+          const productName = (output.product?.name || "").toLowerCase()
+          const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
+          const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu") ||
+                           ingredientName.includes("đậu phụ") || ingredientName.includes("tofu")
           
-          plannedTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
-          
+          return dateMatch && isPlanned && nameMatch
+        })
+        
+        plannedTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        
           console.log("🔄 Fallback result:", {
-            filteredCount: filteredOutputs.length,
+          filteredCount: filteredOutputs.length,
             fallbackTofuOutput: plannedTofuOutput
           })
         }
@@ -422,13 +422,13 @@ export function TofuProcessing() {
         const dailyApiResponse = await processingStationApi.getDailyData(dateStr)
         const apiData = dailyApiResponse?.data || {}
         
-        setDailyUpdateData({
-          soybeanInput: stationData.soybeanInput,
-          tofuInput: stationData.tofuInput,
-          note: stationData.note,
-          soybeanPrice: finalSoybeanPrice || 0,
-          tofuPrice: finalTofuPrice || 0
-        })
+      setDailyUpdateData({
+        soybeanInput: stationData.soybeanInput,
+        tofuInput: stationData.tofuInput,
+        note: stationData.note,
+        soybeanPrice: finalSoybeanPrice || 0,
+        tofuPrice: finalTofuPrice || 0
+      })
       } catch (error) {
         console.log("Error loading by-products data, using defaults:", error)
         setDailyUpdateData({
@@ -1384,7 +1384,7 @@ export function TofuProcessing() {
                           </td>
                           {/* CHI - Đậu nành */}
                           <td className="border border-black p-1 text-center font-semibold text-red-600">
-                            {day.soybeanInput.toLocaleString()}
+                              {day.soybeanInput.toLocaleString()}
                           </td>
                           <td className="border border-black p-1 text-center font-semibold text-red-600">
                             {soybeanCost.toFixed(0)}
@@ -1490,8 +1490,8 @@ export function TofuProcessing() {
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     Đậu nành + Chi khác
-                  </div>
                 </div>
+                  </div>
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                   <div className="text-xs text-blue-600">LÃI/LỖ (1.000đ)</div>
                   <div className={`text-lg font-bold ${
@@ -1783,20 +1783,20 @@ export function TofuProcessing() {
                               <span className="font-medium">{unit.unitName}</span>
                               <div className="text-xs text-gray-600">
                                 {unit.personnel} người
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-medium">{unit.totalTofuRequired?.toFixed(2)} kg</div>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                          <div className="text-right">
+                              <div className="font-medium">{unit.totalTofuRequired?.toFixed(2)} kg</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  </div>
                   )}
 
                   {/* Summary Statistics */}
                   {detectionResult.summary && (
-                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                       <h4 className="font-medium text-yellow-800 mb-2">📊 Thống kê tổng hợp:</h4>
                       <div className="text-sm text-yellow-700 space-y-1">
                         <div>Tổng món ăn có đậu phụ: <strong>{detectionResult.summary.totalDishesUsingTofu}</strong></div>

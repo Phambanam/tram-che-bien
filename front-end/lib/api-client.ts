@@ -893,6 +893,19 @@ export const processingStationApi = {
 
 // Supply Outputs API
 export const supplyOutputsApi = {
+  getAll: async (filters?: any) => {
+    const queryParams = new URLSearchParams()
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== "all") {
+          queryParams.append(key, value as string)
+        }
+      })
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<any>(`/supply-outputs${query}`)
+  },
+
   getSupplyOutputs: async (filters?: any) => {
     const queryParams = new URLSearchParams()
     if (filters) {
