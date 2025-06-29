@@ -113,17 +113,33 @@ export function SupplyManagementContent() {
       console.log("Raw API Response:", response) // Debug log
         
         // Handle different response formats
+        let processedSupplies: any[] = []
         if (Array.isArray(response)) {
         console.log("Response is array, setting supplies:", response.length, "items")
-        setSupplies(response)
+        processedSupplies = response
       } else if (response && Array.isArray((response as any).data)) {
         console.log("Response has data array, setting supplies:", (response as any).data.length, "items")
-        setSupplies((response as any).data)
+        processedSupplies = (response as any).data
         } else {
         console.warn("Unexpected response format:", response)
-        setSupplies([])
+        processedSupplies = []
       }
       
+      // Debug log specific fields for approved supplies
+      const approvedSupplies = processedSupplies.filter(s => s.status === "approved")
+      if (approvedSupplies.length > 0) {
+        console.log("Approved supplies debug:", approvedSupplies.map(s => ({
+          id: s.id,
+          productName: s.product?.name,
+          status: s.status,
+          requestedQuantity: s.requestedQuantity,
+          unitPrice: s.unitPrice,
+          actualQuantity: s.actualQuantity,
+          stationEntryDate: s.stationEntryDate
+        })))
+      }
+      
+      setSupplies(processedSupplies)
       console.log("Supplies state updated")
       } catch (error) {
         console.error("Error fetching supplies:", error)
@@ -422,7 +438,9 @@ export function SupplyManagementContent() {
 
     setIsApproving(true)
     try {
+      console.log("Sending approval data:", approvalData)
       const response = await suppliesApi.approveSupply(supplyToApprove.id, approvalData)
+      console.log("Approval response:", response)
       
       if (response.success) {
         toast({
@@ -430,8 +448,10 @@ export function SupplyManagementContent() {
           description: "Đã phê duyệt nguồn nhập thành công! Thông tin đã được cập nhật vào hệ thống trạm chế biến",
         })
         
-        // Refresh supplies list
-        fetchSupplies()
+        // Refresh supplies list and wait for completion
+        console.log("Refreshing supplies list after approval...")
+        await fetchSupplies()
+        console.log("Supplies list refreshed")
       }
     } catch (error) {
       console.error("Error approving supply:", error)
@@ -745,23 +765,18 @@ export function SupplyManagementContent() {
 
           <TabsContent value="list" className="space-y-4">
             {/* Filter Component */}
-            <SuppliesFilter onFilterChange={handleFilterChange} />
+            <SuppliesFilter 
+              onFilterChange={handleFilterChange} 
+              onExportExcel={handleExportExcel}
+            />
             
             <div className="flex justify-between items-center">
               <div></div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex items-center gap-2"
-                  onClick={handleExportExcel}
-                >
-                  <FileDown className="h-4 w-4" />
-                  Xuất Excel
-                </Button>
-                <Button variant="outline" className="flex items-center gap-2">
+                {/* <Button variant="outline" className="flex items-center gap-2">
                   <FileUp className="h-4 w-4" />
                   Nhập Excel
-                </Button>
+                </Button> */}
               </div>
             </div>
 
@@ -788,9 +803,9 @@ export function SupplyManagementContent() {
                         <TableHead>Tên hàng</TableHead>
                         <TableHead>Đơn vị</TableHead>
                         <TableHead>Số lượng dự kiến</TableHead>
-                        {shouldShowAdditionalColumns() && <TableHead>SL nhập yêu cầu</TableHead>}
-                        {shouldShowAdditionalColumns() && <TableHead>SL nhập thực tế</TableHead>}
-                        {shouldShowAdditionalColumns() && <TableHead>SL thực nhận</TableHead>}
+                        {shouldShowAdditionalColumns() && <TableHead>SL cung cấp (kg)</TableHead>}
+                        {shouldShowAdditionalColumns() && <TableHead>SL nhập kho (kg)</TableHead>}
+                        {shouldShowAdditionalColumns() && <TableHead>SL thực nhận (kg)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Đơn giá (VND)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Thành tiền (VND)</TableHead>}
                         {shouldShowAdditionalColumns() && <TableHead>Hạn sử dụng</TableHead>}
@@ -803,7 +818,30 @@ export function SupplyManagementContent() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {supplies.map((supply, index) => (
+                      {supplies.map((supply, index) => {
+                        // Debug log for each supply row
+                        if (supply.status === "approved") {
+                          const shouldShow = shouldShowSupplyDetails(supply)
+                          console.log(`DEBUG - Rendering approved supply ${index}:`, {
+                            productName: supply.product?.name,
+                            status: supply.status,
+                            unitPrice: supply.unitPrice,
+                            requestedQuantity: supply.requestedQuantity,
+                            actualQuantity: supply.actualQuantity,
+                            shouldShowDetails: shouldShow,
+                            userRole: user?.role,
+                            shouldShowAdditionalColumns: shouldShowAdditionalColumns()
+                          })
+                          
+                          // Debug the display logic
+                          console.log(`DEBUG - Display logic for unitPrice:`, {
+                            shouldShowDetails: shouldShow,
+                            unitPrice: supply.unitPrice,
+                            displayValue: shouldShow ? (supply.unitPrice?.toLocaleString('vi-VN') || "Chưa có") : "Chưa phê duyệt"
+                          })
+                        }
+                        
+                        return (
                         <TableRow key={supply.id}>
                           <TableCell>{index + 1}</TableCell>
                           <TableCell>{supply.product?.name}</TableCell>
@@ -811,17 +849,17 @@ export function SupplyManagementContent() {
                           <TableCell>{supply.supplyQuantity}</TableCell>
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {shouldShowSupplyDetails(supply) ? (supply.requestedQuantity || "Chưa có") : "Chưa phê duyệt"}
+                              {shouldShowSupplyDetails(supply) ? (supply.requestedQuantity || "Chưa phê duyệt") : "Chưa phê duyệt"}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {shouldShowSupplyDetails(supply) ? (supply.actualQuantity || "Chưa có") : "Chưa phê duyệt"}
+                              {supply.status === "received" ? (supply.actualQuantity || "Chưa có") : (supply.status === "approved" ? "Chưa nhập kho" : "Chưa phê duyệt")}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {shouldShowSupplyDetails(supply) ? (supply.receivedQuantity || "Chưa có") : "Chưa phê duyệt"}
+                              {supply.status === "received" ? (supply.receivedQuantity || "Chưa có") : (supply.status === "approved" ? "Chưa nhận hàng" : "Chưa phê duyệt")}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
@@ -832,7 +870,11 @@ export function SupplyManagementContent() {
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
                               {shouldShowSupplyDetails(supply) ? 
-                                ((supply.actualQuantity && supply.unitPrice) ? (supply.actualQuantity * supply.unitPrice).toLocaleString('vi-VN') : "Chưa có") 
+                                (() => {
+                                  // For approved status, use requestedQuantity, for received status use actualQuantity
+                                  const quantity = supply.status === "received" ? supply.actualQuantity : supply.requestedQuantity;
+                                  return (quantity && supply.unitPrice) ? (quantity * supply.unitPrice).toLocaleString('vi-VN') : "Chưa có";
+                                })()
                                 : "Chưa phê duyệt"}
                             </TableCell>
                           )}
@@ -954,7 +996,8 @@ export function SupplyManagementContent() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        )
+                      })}
                     </TableBody>
                   </Table>
                   </div>
@@ -1138,7 +1181,7 @@ export function SupplyManagementContent() {
               </div>
               <div className="space-y-2">
                 <label htmlFor="approval-requested-quantity" className="font-medium">
-                  Số lượng phải nhập (kg) *
+                  Số lượng cung cấp (kg) *
                 </label>
                 <Input
                   id="approval-requested-quantity"
@@ -1184,7 +1227,7 @@ export function SupplyManagementContent() {
                   className="bg-gray-50"
                 />
                 <p className="text-sm text-gray-600">
-                  Tự động tính: {approvalData.requestedQuantity || 0} kg × {(approvalData.unitPrice || 0).toLocaleString('vi-VN')} VND/kg
+                  Tự động tính: {approvalData.requestedQuantity || 0} kg × {(approvalData.unitPrice || 0).toLocaleString('vi-VN')} VND/kg = Thành tiền cung cấp
                 </p>
               </div>
               <div className="space-y-2">
@@ -1232,7 +1275,7 @@ export function SupplyManagementContent() {
                 <label className="font-medium">Thông tin nguồn nhập</label>
                 <div className="bg-gray-50 p-3 rounded-md space-y-1 text-sm">
                   <p>Đơn vị: {supplyToReceive?.unit?.name}</p>
-                  <p>Số lượng phải nhập: {supplyToReceive?.requestedQuantity} kg</p>
+                  <p>Số lượng cung cấp: {supplyToReceive?.requestedQuantity} kg</p>
                   <p>Đơn giá: {supplyToReceive?.unitPrice?.toLocaleString('vi-VN')} VND/kg</p>
                   <p>Ngày nhập trạm: {supplyToReceive?.stationEntryDate ? format(new Date(supplyToReceive.stationEntryDate), "dd/MM/yyyy") : ""}</p>
                 </div>

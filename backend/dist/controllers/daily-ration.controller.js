@@ -30,10 +30,24 @@ const getDailyRations = async (req, res) => {
             },
             {
                 $lookup: {
-                    from: "categories",
-                    let: { categoryId: { $toObjectId: "$categoryId" } },
+                    from: "productCategories",
+                    let: { categoryId: "$categoryId" },
                     pipeline: [
-                        { $match: { $expr: { $eq: ["$_id", "$$categoryId"] } } }
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$_id", "$$categoryId"] }, // Direct string match
+                                        {
+                                            $and: [
+                                                { $eq: [{ $type: "$$categoryId" }, "string"] },
+                                                { $eq: ["$_id", "$$categoryId"] }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
                     ],
                     as: "categoryInfo",
                 },

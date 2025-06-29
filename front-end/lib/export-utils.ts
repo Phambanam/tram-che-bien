@@ -39,7 +39,7 @@ export const exportMenuToExcel = (menuData: MenuExportData) => {
   
   // Create menu overview sheet
   const menuOverviewData = [
-    ['BÁO CÁO THỰC ĐƠN TUẦN'],
+    ['THỰC ĐƠN TUẦN'],
     [`Tuần ${menuData.week}, ${menuData.year}`],
     [`Từ ngày ${format(new Date(menuData.startDate), 'dd/MM/yyyy')} đến ${format(new Date(menuData.endDate), 'dd/MM/yyyy')}`],
     [],
@@ -58,7 +58,7 @@ export const exportMenuToExcel = (menuData: MenuExportData) => {
       morningDishes,
       noonDishes,
       eveningDishes,
-      dailyMenu.status === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'
+      'Đã duyệt' // Always approved when created by brigade assistant
     ])
   })
   
@@ -294,7 +294,7 @@ export const printMenu = (menuData: MenuExportData) => {
     </head>
     <body>
       <div class="header">
-        <h1>Báo cáo thực đơn tuần</h1>
+        <h1>Thực đơn tuần</h1>
         <h2>Tuần ${menuData.week}, ${menuData.year}</h2>
         <div class="period">
           Từ ngày ${format(new Date(menuData.startDate), 'dd/MM/yyyy')} đến ${format(new Date(menuData.endDate), 'dd/MM/yyyy')}
@@ -344,7 +344,7 @@ export const printMenu = (menuData: MenuExportData) => {
                   }
                 </td>
                 <td style="text-align: center;">
-                  ${dailyMenu.status === 'approved' ? 'Đã duyệt' : 'Chờ duyệt'}
+                  Đã duyệt
                 </td>
               </tr>
             `

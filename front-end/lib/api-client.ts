@@ -1,5 +1,5 @@
 // API client for communicating with the backend server
-const API_BASE_URL =  "http://localhost:5001/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api"
 
 // Helper function to get auth token
 const getAuthToken = () => {
@@ -125,12 +125,27 @@ export const authApi = {
   },
 
   register: async (userData: any) => {
+    console.log('🚀 API client register called with:', userData)
+    
     try {
-      return await apiRequest<{ success: boolean; message: string }>("/auth/register", {
+      const response = await apiRequest<{ success: boolean; message: string }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(userData),
       })
+      
+      console.log('✅ API client register response:', response)
+      return response
     } catch (error: any) {
+      console.error('🔥 API client register error:', error)
+      
+      // Check if it's a network error
+      if (error.message.includes('Failed to fetch') || error.message.includes('Unable to connect')) {
+        return {
+          success: false,
+          message: "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại."
+        }
+      }
+      
       return {
         success: false,
         message: error.message || "Đã xảy ra lỗi khi đăng ký"
@@ -384,11 +399,10 @@ export const suppliesApi = {
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     
     const token = getAuthToken()
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
-    const url = `${baseUrl}/api/supplies/export${query}`
     
     try {
-      const response = await fetch(url, {
+      // Use Next.js API proxy instead of direct backend call
+      const response = await fetch(`/api/supplies/export${query}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -396,7 +410,9 @@ export const suppliesApi = {
       })
       
       if (!response.ok) {
-        throw new Error("Failed to export Excel")
+        console.error("Export failed with status:", response.status)
+        console.error("Response headers:", [...response.headers.entries()])
+        throw new Error(`Failed to export Excel: ${response.status} ${response.statusText}`)
       }
       
       const blob = await response.blob()
@@ -741,6 +757,18 @@ export const menusApi = {
       method: "DELETE",
     })
   },
+
+  approveDailyMenu: async (dailyMenuId: string) => {
+    return apiRequest<{ success: boolean; message: string }>(`/menus/daily-menus/${dailyMenuId}/approve`, {
+      method: "POST",
+    })
+  },
+
+  rejectDailyMenu: async (dailyMenuId: string) => {
+    return apiRequest<{ success: boolean; message: string }>(`/menus/daily-menus/${dailyMenuId}/reject`, {
+      method: "POST",
+    })
+  },
 }
 
 // Processing Station API
@@ -791,7 +819,7 @@ export const processingStationApi = {
 
   updateDailyData: async (date: string, data: any) => {
     return apiRequest<{ success: boolean; message: string }>(`/processing-station/daily/${date}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(data),
     })
   },
@@ -803,9 +831,63 @@ export const processingStationApi = {
 
   updateDailySausageData: async (date: string, data: any) => {
     return apiRequest<{ success: boolean; message: string }>(`/processing-station/sausage/${date}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(data),
     })
+  },
+
+  // New methods for sausage weekly/monthly tracking
+  getWeeklySausageTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/sausage/weekly-tracking${query}`)
+  },
+
+  getMonthlySausageSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/sausage/monthly-summary${query}`)
+  },
+
+  // New methods for livestock weekly/monthly tracking
+  getWeeklyLivestockTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/livestock/weekly-tracking${query}`)
+  },
+
+  getMonthlyLivestockSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/livestock/monthly-summary${query}`)
   },
 }
 
@@ -845,6 +927,31 @@ export const supplyOutputsApi = {
   deleteSupplyOutput: async (id: string) => {
     return apiRequest<{ success: boolean; message: string }>(`/supply-outputs/${id}`, {
       method: "DELETE",
+    })
+  },
+
+  // New methods for planned outputs
+  generatePlannedOutputs: async (data: { week: number; year: number; overwriteExisting?: boolean }) => {
+    return apiRequest<{ success: boolean; message: string; data: any }>("/supply-outputs/generate-planned", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  },
+
+  getPlannedVsActual: async (params: { week: number; year: number; unitId?: string; productId?: string }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.unitId) queryParams.append("unitId", params.unitId)
+    if (params.productId) queryParams.append("productId", params.productId)
+    
+    return apiRequest<{ success: boolean; data: any[]; summary: any }>(`/supply-outputs/planned-vs-actual?${queryParams.toString()}`)
+  },
+
+  updatePlannedOutput: async (id: string, data: { quantity?: number; note?: string; status?: string }) => {
+    return apiRequest<{ success: boolean; message: string }>(`/supply-outputs/planned/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
     })
   },
 }
@@ -1038,6 +1145,243 @@ export const unitPersonnelDailyApi = {
   },
 }
 
+// Tofu Calculation API
+export const tofuCalculationApi = {
+  getTofuRequirements: async (params: {
+    date?: string
+    week?: number
+    year?: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params.date) queryParams.append("date", params.date)
+    if (params.week) queryParams.append("week", params.week.toString())
+    if (params.year) queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/requirements${query}`)
+  },
+
+  getWeeklyTofuRequirements: async (params: {
+    week: number
+    year: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/weekly-requirements${query}`)
+  },
+
+  getTofuUsageStatistics: async (params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("startDate", params.startDate)
+    queryParams.append("endDate", params.endDate)
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/statistics${query}`)
+  },
+
+  // Get weekly tofu tracking data for frontend table
+  getWeeklyTofuTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/weekly-tracking${query}`)
+  },
+
+  // Get monthly tofu summary for frontend table
+  getMonthlyTofuSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/tofu-calculation/monthly-summary${query}`)
+  },
+}
+
+// Bean Sprouts Calculation API
+export const beanSproutsCalculationApi = {
+  getBeanSproutsRequirements: async (params: {
+    date?: string
+    week?: number
+    year?: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params.date) queryParams.append("date", params.date)
+    if (params.week) queryParams.append("week", params.week.toString())
+    if (params.year) queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/requirements${query}`)
+  },
+
+  getWeeklyBeanSproutsRequirements: async (params: {
+    week: number
+    year: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/weekly-requirements${query}`)
+  },
+
+  getBeanSproutsUsageStatistics: async (params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("startDate", params.startDate)
+    queryParams.append("endDate", params.endDate)
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/statistics${query}`)
+  },
+
+  // Get weekly bean sprouts tracking data for frontend table
+  getWeeklyBeanSproutsTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/weekly-tracking${query}`)
+  },
+
+  // Get monthly bean sprouts summary for frontend table
+  getMonthlyBeanSproutsSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/monthly-summary${query}`)
+  },
+}
+
+// Salt Calculation API
+export const saltCalculationApi = {
+  getSaltRequirements: async (params: {
+    date?: string
+    week?: number
+    year?: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    if (params.date) queryParams.append("date", params.date)
+    if (params.week) queryParams.append("week", params.week.toString())
+    if (params.year) queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/requirements${query}`)
+  },
+
+  getWeeklySaltRequirements: async (params: {
+    week: number
+    year: number
+    unitIds?: string | string[]
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.unitIds) {
+      const unitIds = Array.isArray(params.unitIds) ? params.unitIds : [params.unitIds]
+      unitIds.forEach(id => queryParams.append("unitIds", id))
+    }
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/weekly-requirements${query}`)
+  },
+
+  getSaltUsageStatistics: async (params: {
+    startDate: string
+    endDate: string
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("startDate", params.startDate)
+    queryParams.append("endDate", params.endDate)
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/statistics${query}`)
+  },
+
+  // Get weekly salt tracking data for frontend table
+  getWeeklySaltTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/weekly-tracking${query}`)
+  },
+
+  // Get monthly salt summary for frontend table
+  getMonthlySaltSummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/salt-calculation/monthly-summary${query}`)
+  },
+}
+
 // Export all APIs for convenience
 export const api = {
   auth: authApi,
@@ -1061,4 +1405,7 @@ export const api = {
   lttp: lttpApi,
   menuPlanning: menuPlanningApi,
   unitPersonnelDaily: unitPersonnelDailyApi,
+  tofuCalculation: tofuCalculationApi,
+  beanSproutsCalculation: beanSproutsCalculationApi,
+  saltCalculation: saltCalculationApi,
 }

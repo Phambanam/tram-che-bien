@@ -2,11 +2,10 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Search, X, Calendar, Filter } from "lucide-react"
+import { Search, FileDown } from "lucide-react"
 import { format } from "date-fns"
 import { unitsApi, suppliesApi } from "@/lib/api-client"
 import { Unit, ProductCategory } from "@/types"
@@ -17,36 +16,31 @@ interface SuppliesFilterProps {
     category?: string
     status?: string
     product?: string
-    stationEntryFromDate?: string
-    stationEntryToDate?: string
-    createdFromDate?: string
-    createdToDate?: string
-    expiryFromDate?: string
+    searchText?: string
+    stationEntryDate?: string
     expiryToDate?: string
   }) => void
+  onExportExcel?: () => void
 }
 
-export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
-  const [expanded, setExpanded] = useState(false)
+export function SuppliesFilter({ onFilterChange, onExportExcel }: SuppliesFilterProps) {
   const [units, setUnits] = useState<Unit[]>([])
   const [categories, setCategories] = useState<ProductCategory[]>([])
   const [filters, setFilters] = useState({
-    unit: "all",
-    category: "all",
-    status: "all",
-    product: "",
-    stationEntryFromDate: format(new Date(), "yyyy-MM-dd"), // Default to today
-    stationEntryToDate: format(new Date(), "yyyy-MM-dd"),
-    createdFromDate: "",
-    createdToDate: "",
-    expiryFromDate: "",
-    expiryToDate: "",
+    stationEntryDate: format(new Date(), "yyyy-MM-dd"), // Ngày nhập trạm mặc định hôm nay
+    unit: "all", // Lọc theo đơn vị
+    expiryToDate: "", // Hạn sử dụng đến ngày
+    category: "all", // Tất cả các LTTP
+    searchText: "", // Tìm kiếm theo tên LTTP
+    status: "all", // Trạng thái
   })
 
   // Fetch units and categories on mount
   useEffect(() => {
     fetchUnits()
     fetchCategories()
+    // Trigger initial search with default date
+    handleSearch()
   }, [])
 
   const fetchUnits = async () => {
@@ -80,217 +74,148 @@ export function SuppliesFilter({ onFilterChange }: SuppliesFilterProps) {
   const handleSearch = useCallback(() => {
     const activeFilters = Object.entries(filters).reduce((acc, [key, value]) => {
       if (value && value !== "all" && value !== "") {
-        acc[key] = value
+        if (key === "searchText") {
+          // For search text, use it as product filter
+          acc["product"] = value
+        } else if (key === "stationEntryDate") {
+          // For station entry date, use both from and to date
+          acc["stationEntryFromDate"] = value
+          acc["stationEntryToDate"] = value
+        } else if (key === "expiryToDate") {
+          // For expiry date, use as expiryToDate
+          acc["expiryToDate"] = value
+        } else {
+          acc[key] = value
+        }
       }
       return acc
     }, {} as any)
     
+    console.log("Applying filters:", activeFilters) // Debug log
     onFilterChange?.(activeFilters)
   }, [filters, onFilterChange])
 
-  const handleReset = useCallback(() => {
-    const resetFilters = {
-      unit: "all",
-      category: "all",
-      status: "all",
-      product: "",
-      stationEntryFromDate: "",
-      stationEntryToDate: "",
-      createdFromDate: "",
-      createdToDate: "",
-      expiryFromDate: "",
-      expiryToDate: "",
-    }
-    setFilters(resetFilters)
-    onFilterChange?.({})
-  }, [onFilterChange])
-
-  // Auto search when station entry date changes
-  useEffect(() => {
-    if (filters.stationEntryFromDate || filters.stationEntryToDate) {
-      handleSearch()
-    }
-  }, [filters.stationEntryFromDate, filters.stationEntryToDate])
-
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          Tìm kiếm nguồn nhập
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-4">
-          {/* Primary filters - always visible */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {/* 1. Ngày nhập trạm (mặc định hôm nay) */}
-            <div className="grid gap-2">
-              <Label htmlFor="station-date">Ngày nhập trạm</Label>
-              <Input 
-                id="station-date" 
-                type="date" 
-                value={filters.stationEntryFromDate}
-                onChange={(e) => {
-                  handleFilterChange("stationEntryFromDate", e.target.value)
-                  handleFilterChange("stationEntryToDate", e.target.value)
-                }}
-              />
-            </div>
-
-            {/* 2. Lọc theo đơn vị */}
-            <div className="grid gap-2">
-              <Label htmlFor="unit">Đơn vị</Label>
-              <Select value={filters.unit} onValueChange={(value) => handleFilterChange("unit", value)}>
-                <SelectTrigger id="unit">
-                  <SelectValue placeholder="Tất cả đơn vị" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả đơn vị</SelectItem>
-                  {units.map((unit) => (
-                    <SelectItem key={unit._id} value={unit._id}>
-                      {unit.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 4. Tất cả LTTP */}
-            <div className="grid gap-2">
-              <Label htmlFor="category">Phân loại LTTP</Label>
-              <Select value={filters.category} onValueChange={(value) => handleFilterChange("category", value)}>
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Tất cả LTTP" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả LTTP</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat._id} value={cat._id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 5. Tìm kiếm theo tên LTTP */}
-            <div className="grid gap-2">
-              <Label htmlFor="product">Tên LTTP</Label>
-              <Input 
-                id="product" 
-                placeholder="Tìm theo tên LTTP" 
-                value={filters.product}
-                onChange={(e) => handleFilterChange("product", e.target.value)}
-              />
-            </div>
+    <Card className="mb-4">
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 items-end">
+          {/* Ngày nhập trạm */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Ngày nhập trạm</label>
+            <Input 
+              type="date" 
+              value={filters.stationEntryDate}
+              onChange={(e) => handleFilterChange("stationEntryDate", e.target.value)}
+              className="text-sm"
+            />
           </div>
 
-          {expanded && (
-            <>
-              {/* 3. Lọc theo hạn sử dụng */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Hạn sử dụng
-                </h4>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="expiry-from-date" className="text-sm">Từ ngày</Label>
-                    <Input 
-                      id="expiry-from-date" 
-                      type="date" 
-                      value={filters.expiryFromDate}
-                      onChange={(e) => handleFilterChange("expiryFromDate", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="expiry-to-date" className="text-sm">Đến ngày</Label>
-                    <Input 
-                      id="expiry-to-date" 
-                      type="date" 
-                      value={filters.expiryToDate}
-                      onChange={(e) => handleFilterChange("expiryToDate", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
+          {/* Lọc theo đơn vị */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Đơn vị</label>
+            <Select value={filters.unit} onValueChange={(value) => handleFilterChange("unit", value)}>
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Tất cả đơn vị" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả đơn vị</SelectItem>
+                {units.map((unit) => (
+                  <SelectItem key={unit._id} value={unit._id}>
+                    {unit.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              {/* Other filters */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="status">Trạng thái</Label>
-                  <Select value={filters.status} onValueChange={(value) => handleFilterChange("status", value)}>
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Tất cả trạng thái" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                      <SelectItem value="pending">Chờ duyệt</SelectItem>
-                      <SelectItem value="approved">Đã duyệt</SelectItem>
-                      <SelectItem value="rejected">Từ chối</SelectItem>
-                      <SelectItem value="received">Đã nhận</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+          {/* Hạn sử dụng đến */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Hạn sử dụng đến</label>
+            <Input 
+              type="date" 
+              value={filters.expiryToDate}
+              onChange={(e) => handleFilterChange("expiryToDate", e.target.value)}
+              className="text-sm"
+            />
+          </div>
 
-              {/* Filter theo ngày tạo */}
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm text-gray-700 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Ngày tạo
-                </h4>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="created-from-date" className="text-sm">Từ ngày</Label>
-                    <Input 
-                      id="created-from-date" 
-                      type="date" 
-                      value={filters.createdFromDate}
-                      onChange={(e) => handleFilterChange("createdFromDate", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="created-to-date" className="text-sm">Đến ngày</Label>
-                    <Input 
-                      id="created-to-date" 
-                      type="date" 
-                      value={filters.createdToDate}
-                      onChange={(e) => handleFilterChange("createdToDate", e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+          {/* Phân loại LTTP */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Tất cả các LTTP</label>
+            <Select value={filters.category} onValueChange={(value) => handleFilterChange("category", value)}>
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Tất cả LTTP" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả LTTP</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat._id} value={cat._id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tìm kiếm */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Tìm kiếm</label>
+            <Input 
+              placeholder="Tìm theo tên LTTP" 
+              value={filters.searchText}
+              onChange={(e) => handleFilterChange("searchText", e.target.value)}
+              className="text-sm"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch()
+                }
+              }}
+            />
+          </div>
+
+          {/* Trạng thái từ chối */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Từ chối</label>
+            <Select value={filters.status} onValueChange={(value) => handleFilterChange("status", value)}>
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="pending">Chờ duyệt</SelectItem>
+                <SelectItem value="approved">Đã duyệt</SelectItem>
+                <SelectItem value="rejected">Từ chối</SelectItem>
+                <SelectItem value="received">Đã nhận</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Nút tìm kiếm */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700 invisible">Search</label>
+            <Button 
+              onClick={handleSearch}
+              className="w-full flex items-center justify-center gap-2 text-sm"
+            >
+              <Search className="h-4 w-4" />
+              Tìm kiếm
+            </Button>
+          </div>
+
+          {/* Nút xuất Excel */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700 invisible">Export</label>
+            <Button 
+              variant="outline" 
+              onClick={onExportExcel}
+              className="w-full flex items-center justify-center gap-2 text-sm"
+            >
+              <FileDown className="h-4 w-4" />
+              Xuất Excel
+            </Button>
+          </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)}>
-            {expanded ? (
-              <>
-                <X className="mr-2 h-4 w-4" />
-                Thu gọn
-              </>
-            ) : (
-              <>
-                <Filter className="mr-2 h-4 w-4" />
-                Mở rộng
-              </>
-            )}
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            <X className="mr-2 h-4 w-4" />
-            Đặt lại
-          </Button>
-        </div>
-        <Button size="sm" onClick={handleSearch}>
-          <Search className="mr-2 h-4 w-4" />
-          Áp dụng lọc
-        </Button>
-      </CardFooter>
     </Card>
   )
 }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateExpiryStatus = exports.getFoodInventory = exports.deleteProcessingStationItem = exports.updateProcessingStationItem = exports.createProcessingStationItem = exports.getProcessingStationItemById = exports.getProcessingStationItems = void 0;
+exports.updateDailySausageData = exports.getDailySausageData = exports.updateDailyTofuData = exports.getDailyTofuData = exports.updateExpiryStatus = exports.getFoodInventory = exports.deleteProcessingStationItem = exports.updateProcessingStationItem = exports.createProcessingStationItem = exports.getProcessingStationItemById = exports.getProcessingStationItems = void 0;
 const mongodb_1 = require("mongodb");
 const database_1 = require("../config/database");
 // @desc    Get processing station items
@@ -507,3 +507,188 @@ const updateExpiryStatus = async (req, res) => {
     }
 };
 exports.updateExpiryStatus = updateExpiryStatus;
+// @desc    Get daily tofu processing data
+// @route   GET /api/processing-station/daily/:date
+// @access  Private
+const getDailyTofuData = async (req, res) => {
+    try {
+        const { date } = req.params;
+        const db = await (0, database_1.getDb)();
+        // Get daily tofu processing data for the specific date
+        const dailyData = await db.collection("dailyTofuProcessing").findOne({
+            date: date
+        });
+        if (!dailyData) {
+            // Return default data if not found
+            return res.status(200).json({
+                success: true,
+                data: {
+                    date: date,
+                    soybeanInput: 0,
+                    tofuInput: 0,
+                    note: ""
+                }
+            });
+        }
+        res.status(200).json({
+            success: true,
+            data: {
+                date: dailyData.date,
+                soybeanInput: dailyData.soybeanInput || 0,
+                tofuInput: dailyData.tofuInput || 0,
+                note: dailyData.note || ""
+            }
+        });
+    }
+    catch (error) {
+        console.error("Error fetching daily tofu data:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Đã xảy ra lỗi khi lấy dữ liệu chế biến đậu phụ hàng ngày"
+        });
+    }
+};
+exports.getDailyTofuData = getDailyTofuData;
+// @desc    Update daily tofu processing data
+// @route   PATCH /api/processing-station/daily/:date
+// @access  Private (Admin, StationManager)
+const updateDailyTofuData = async (req, res) => {
+    try {
+        const { date } = req.params;
+        const { soybeanInput, tofuInput, note } = req.body;
+        const db = await (0, database_1.getDb)();
+        // Validate input
+        if (soybeanInput === undefined || tofuInput === undefined) {
+            return res.status(400).json({
+                success: false,
+                message: "Vui lòng nhập đầy đủ số lượng đậu tương chi và đậu phụ thu"
+            });
+        }
+        // Update or insert daily data
+        const result = await db.collection("dailyTofuProcessing").updateOne({ date: date }, {
+            $set: {
+                date: date,
+                soybeanInput: Number(soybeanInput) || 0,
+                tofuInput: Number(tofuInput) || 0,
+                note: note || "",
+                updatedAt: new Date(),
+                updatedBy: req.user._id
+            },
+            $setOnInsert: {
+                createdAt: new Date(),
+                createdBy: req.user._id
+            }
+        }, { upsert: true });
+        res.status(200).json({
+            success: true,
+            message: "Cập nhật dữ liệu chế biến đậu phụ thành công",
+            data: {
+                date: date,
+                soybeanInput: Number(soybeanInput) || 0,
+                tofuInput: Number(tofuInput) || 0,
+                note: note || ""
+            }
+        });
+    }
+    catch (error) {
+        console.error("Error updating daily tofu data:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Đã xảy ra lỗi khi cập nhật dữ liệu chế biến đậu phụ"
+        });
+    }
+};
+exports.updateDailyTofuData = updateDailyTofuData;
+// @desc    Get daily sausage processing data
+// @route   GET /api/processing-station/sausage/:date
+// @access  Private
+const getDailySausageData = async (req, res) => {
+    try {
+        const { date } = req.params;
+        const db = await (0, database_1.getDb)();
+        // Get daily sausage processing data for the specific date
+        const dailyData = await db.collection("dailySausageProcessing").findOne({
+            date: date
+        });
+        if (!dailyData) {
+            // Return default data if not found
+            return res.status(200).json({
+                success: true,
+                data: {
+                    date: date,
+                    porkLeanInput: 0,
+                    porkFatInput: 0,
+                    sausageInput: 0,
+                    fishCakeInput: 0,
+                    note: ""
+                }
+            });
+        }
+        res.status(200).json({
+            success: true,
+            data: {
+                date: dailyData.date,
+                porkLeanInput: dailyData.porkLeanInput || 0,
+                porkFatInput: dailyData.porkFatInput || 0,
+                sausageInput: dailyData.sausageInput || 0,
+                fishCakeInput: dailyData.fishCakeInput || 0,
+                note: dailyData.note || ""
+            }
+        });
+    }
+    catch (error) {
+        console.error("Error fetching daily sausage data:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Đã xảy ra lỗi khi lấy dữ liệu làm giò chả hàng ngày"
+        });
+    }
+};
+exports.getDailySausageData = getDailySausageData;
+// @desc    Update daily sausage processing data
+// @route   PATCH /api/processing-station/sausage/:date
+// @access  Private (Admin, StationManager)
+const updateDailySausageData = async (req, res) => {
+    try {
+        const { date } = req.params;
+        const { porkLeanInput, porkFatInput, sausageInput, fishCakeInput, note } = req.body;
+        const db = await (0, database_1.getDb)();
+        // Update or insert daily data
+        const result = await db.collection("dailySausageProcessing").updateOne({ date: date }, {
+            $set: {
+                date: date,
+                porkLeanInput: Number(porkLeanInput) || 0,
+                porkFatInput: Number(porkFatInput) || 0,
+                sausageInput: Number(sausageInput) || 0,
+                fishCakeInput: Number(fishCakeInput) || 0,
+                note: note || "",
+                updatedAt: new Date(),
+                updatedBy: req.user._id
+            },
+            $setOnInsert: {
+                createdAt: new Date(),
+                createdBy: req.user._id
+            }
+        }, { upsert: true });
+        res.status(200).json({
+            success: true,
+            message: "Cập nhật dữ liệu làm giò chả thành công",
+            data: {
+                date: date,
+                porkLeanInput: Number(porkLeanInput) || 0,
+                porkFatInput: Number(porkFatInput) || 0,
+                sausageInput: Number(sausageInput) || 0,
+                fishCakeInput: Number(fishCakeInput) || 0,
+                note: note || ""
+            }
+        });
+    }
+    catch (error) {
+        console.error("Error updating daily sausage data:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Đã xảy ra lỗi khi cập nhật dữ liệu làm giò chả"
+        });
+    }
+};
+exports.updateDailySausageData = updateDailySausageData;

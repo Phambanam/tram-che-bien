@@ -88,12 +88,14 @@ export const getSupplies = async (req: Request, res: Response) => {
       unit, 
       category, 
       status, 
+      product,
       fromDate, 
       toDate, 
       stationEntryFromDate, 
       stationEntryToDate,
       createdFromDate,
-      createdToDate
+      createdToDate,
+      expiryToDate
     } = req.query
 
     // Make sure the database is connected
@@ -184,6 +186,30 @@ export const getSupplies = async (req: Request, res: Response) => {
       }
     }
 
+    // Filter by expiry date if specified
+    if (expiryToDate) {
+      query.expiryDate = {
+        $lte: new Date(expiryToDate as string)
+      }
+    }
+
+    // Filter by product name if specified (text search)
+    if (product && typeof product === 'string' && product.trim() !== '') {
+      // Search for products by name using regex
+      const searchTerm = product.trim()
+      const allProducts = Object.values(FOOD_PRODUCTS).flat()
+      const matchingProductIds = allProducts
+        .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        .map(p => p.id)
+      
+      if (matchingProductIds.length > 0) {
+        query.product = { $in: matchingProductIds }
+      } else {
+        // If no products match, return empty result
+        query.product = { $in: [] }
+      }
+    }
+
     console.log("DEBUG - Final query:", JSON.stringify(query, null, 2))
 
     // Use Mongoose model to find supplies
@@ -221,6 +247,20 @@ export const getSupplies = async (req: Request, res: Response) => {
     console.log(`DEBUG - Found ${formattedSupplies.length} supplies`);
     if (formattedSupplies.length > 0) {
       console.log("DEBUG - First supply:", JSON.stringify(formattedSupplies[0], null, 2));
+      
+      // Debug specific approved supplies
+      const approvedSupplies = formattedSupplies.filter(s => s.status === "approved");
+      if (approvedSupplies.length > 0) {
+        console.log("DEBUG - Approved supply details:", JSON.stringify({
+          id: approvedSupplies[0].id,
+          status: approvedSupplies[0].status,
+          unitPrice: approvedSupplies[0].unitPrice,
+          requestedQuantity: approvedSupplies[0].requestedQuantity,
+          actualQuantity: approvedSupplies[0].actualQuantity,
+          totalPrice: approvedSupplies[0].totalPrice,
+          stationEntryDate: approvedSupplies[0].stationEntryDate
+        }, null, 2));
+      }
     }
 
     res.status(200).json(formattedSupplies)

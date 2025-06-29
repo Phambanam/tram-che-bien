@@ -26,8 +26,12 @@ const register = async (req, res) => {
             });
         }
         const db = await (0, database_1.getDb)();
-        // Check if phone number already exists
-        const existingUser = await db.collection("users").findOne({ phoneNumber });
+        // Generate username from phone number (remove leading 0 and add prefix)
+        const username = `user_${phoneNumber.substring(1)}`;
+        // Check if phone number or username already exists
+        const existingUser = await db.collection("users").findOne({
+            $or: [{ phoneNumber }, { username }]
+        });
         if (existingUser) {
             return res.status(400).json({
                 success: false,
@@ -52,6 +56,7 @@ const register = async (req, res) => {
         const hashedPassword = await (0, auth_utils_1.hashPassword)(password);
         // Create new user
         const result = await db.collection("users").insertOne({
+            username,
             phoneNumber,
             password: hashedPassword,
             fullName,
