@@ -68,24 +68,21 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
       // Calculate for specific date
       targetDate = date as string
       
-      // Find menu containing this date
-      const selectedDate = new Date(targetDate)
-      const menu = await db.collection("menus").findOne({
-        startDate: { $lte: selectedDate },
-        endDate: { $gte: selectedDate }
+      // Find daily menu for this date directly using dateStr
+      const dailyMenu = await db.collection("dailyMenus").findOne({
+        dateStr: targetDate
       })
 
-      if (!menu) {
+      if (!dailyMenu) {
         return res.status(404).json({
           success: false,
           message: "Không tìm thấy thực đơn cho ngày này"
         })
       }
 
-      // Get daily menu for this date
-      const dailyMenu = await db.collection("dailyMenus").findOne({
-        menuId: menu._id,
-        date: selectedDate
+      // Get the menu for this daily menu
+      const menu = await db.collection("menus").findOne({
+        _id: dailyMenu.menuId
       })
 
       if (dailyMenu) {
@@ -138,7 +135,11 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
         .find({ _id: { $in: validUnitIds.map(id => new ObjectId(id as string)) } })
         .toArray()
     } else {
+      // Try to get active units first, fallback to all units if none found
       units = await db.collection("units").find({ status: "active" }).toArray()
+      if (units.length === 0) {
+        units = await db.collection("units").find({}).toArray()
+      }
     }
 
     // Get personnel data for target date
@@ -187,36 +188,63 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
       for (const meal of meals) {
         if (meal.dishDetails && Array.isArray(meal.dishDetails)) {
           for (const dish of meal.dishDetails) {
-            if (dish.ingredients && Array.isArray(dish.ingredients)) {
-              const tofuIngredients = dish.ingredients.filter((ing: any) => 
-                ing.lttpName.toLowerCase().includes('đậu phụ') || 
-                ing.lttpName.toLowerCase().includes('tofu')
+            let hasTofu = false
+            
+            // Check ingredients (handle both string and array format)
+            if (typeof dish.ingredients === 'string') {
+              // String format (from seed data)
+              hasTofu = dish.ingredients.toLowerCase().includes('đậu phụ') || 
+                       dish.ingredients.toLowerCase().includes('tofu')
+            } else if (Array.isArray(dish.ingredients)) {
+              // Array format (structured data)
+              hasTofu = dish.ingredients.some((ing: any) => 
+                ing.lttpName && (
+                  ing.lttpName.toLowerCase().includes('đậu phụ') || 
+                  ing.lttpName.toLowerCase().includes('tofu')
+                )
               )
+            }
 
-              if (tofuIngredients.length > 0) {
-                tofuDishes.add(dish.name)
-                
-                const dishInfo = {
-                  dishName: dish.name,
-                  mealType: meal.type,
-                  tofuIngredients: tofuIngredients.map((ing: any) => ({
-                    lttpId: ing.lttpId,
-                    lttpName: ing.lttpName,
-                    quantityPerServing: ing.quantity / (dish.servings || 1),
-                    unit: ing.unit,
+            if (hasTofu) {
+              tofuDishes.add(dish.name)
+              
+              // For string ingredients, create a simple requirement
+              const tofuIngredients = typeof dish.ingredients === 'string' 
+                ? [{
+                    lttpId: 'tofu-generic',
+                    lttpName: 'Đậu phụ',
+                    quantityPerServing: dish.quantityPer100People || 15, // Default 15kg per 100 people
+                    unit: 'kg',
                     dishName: dish.name,
                     mealType: meal.type
-                  }))
-                }
+                  }]
+                : dish.ingredients
+                    .filter((ing: any) => 
+                      ing.lttpName.toLowerCase().includes('đậu phụ') || 
+                      ing.lttpName.toLowerCase().includes('tofu')
+                    )
+                    .map((ing: any) => ({
+                      lttpId: ing.lttpId,
+                      lttpName: ing.lttpName,
+                      quantityPerServing: ing.quantity / (dish.servings || 1),
+                      unit: ing.unit,
+                      dishName: dish.name,
+                      mealType: meal.type
+                    }))
 
-                // Check if this dish is already in the result
-                const existingDish = result.dishesUsingTofu.find(d => 
-                  d.dishName === dish.name && d.mealType === meal.type
-                )
-                
-                if (!existingDish) {
-                  result.dishesUsingTofu.push(dishInfo)
-                }
+              const dishInfo = {
+                dishName: dish.name,
+                mealType: meal.type,
+                tofuIngredients
+              }
+
+              // Check if this dish is already in the result
+              const existingDish = result.dishesUsingTofu.find(d => 
+                d.dishName === dish.name && d.mealType === meal.type
+              )
+              
+              if (!existingDish) {
+                result.dishesUsingTofu.push(dishInfo)
               }
             }
           }
@@ -226,7 +254,7 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
 
     // Calculate tofu requirements for each unit
     for (const unit of units) {
-      const unitPersonnel = personnelMap.get(unit._id.toString()) || unit.personnel || 0
+      const unitPersonnel = personnelMap.get(unit._id.toString()) || unit.personnel || unit.personnelCount || 0
       
       const unitCalculation: UnitTofuCalculation = {
         unitId: unit._id.toString(),
@@ -245,21 +273,22 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
         }
       }
 
-      // Calculate requirements for each meal and dish
-      for (const dishInfo of result.dishesUsingTofu) {
-        for (const tofuIngredient of dishInfo.tofuIngredients) {
-          const totalRequired = tofuIngredient.quantityPerServing * unitPersonnel
-          
-          const requirement: TofuRequirement = {
-            ...tofuIngredient,
-            quantityPerServing: totalRequired
-          }
-
-          unitCalculation.requirementsByMeal[dishInfo.mealType as keyof typeof unitCalculation.requirementsByMeal].push(requirement)
-          unitCalculation.totalByMeal[dishInfo.mealType as keyof typeof unitCalculation.totalByMeal] += totalRequired
-          unitCalculation.totalTofuRequired += totalRequired
+          // Calculate requirements for each meal and dish
+    for (const dishInfo of result.dishesUsingTofu) {
+      for (const tofuIngredient of dishInfo.tofuIngredients) {
+        // Calculate total required: (personnel / 100) * quantity per 100 people
+        const totalRequired = (unitPersonnel / 100) * tofuIngredient.quantityPerServing
+        
+        const requirement: TofuRequirement = {
+          ...tofuIngredient,
+          quantityPerServing: totalRequired
         }
+
+        unitCalculation.requirementsByMeal[dishInfo.mealType as keyof typeof unitCalculation.requirementsByMeal].push(requirement)
+        unitCalculation.totalByMeal[dishInfo.mealType as keyof typeof unitCalculation.totalByMeal] += totalRequired
+        unitCalculation.totalTofuRequired += totalRequired
       }
+    }
 
       result.units.push(unitCalculation)
       result.totalTofuRequired += unitCalculation.totalTofuRequired
@@ -399,25 +428,22 @@ export const calculateWeeklyTofuRequirements = async (req: Request, res: Respons
 
 // Helper function to calculate tofu for a specific date
 async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: any): Promise<TofuCalculationResult> {
-  // Find menu containing this date
-  const selectedDate = new Date(targetDate)
-  const menu = await db.collection("menus").findOne({
-    startDate: { $lte: selectedDate },
-    endDate: { $gte: selectedDate }
-  })
-
-  if (!menu) {
-    throw new Error("Không tìm thấy thực đơn cho ngày này")
-  }
-
-  // Get daily menu for this date
+  // Find daily menu for this date directly using dateStr
   const dailyMenu = await db.collection("dailyMenus").findOne({
-    menuId: menu._id,
-    date: selectedDate
+    dateStr: targetDate
   })
 
   if (!dailyMenu) {
-    throw new Error("Không có thực đơn cho ngày này")
+    throw new Error("Không tìm thấy thực đơn cho ngày này")
+  }
+
+  // Get the menu for this daily menu
+  const menu = await db.collection("menus").findOne({
+    _id: dailyMenu.menuId
+  })
+
+  if (!menu) {
+    throw new Error("Không tìm thấy thông tin thực đơn")
   }
 
   // Get all units
@@ -429,7 +455,11 @@ async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: 
       .find({ _id: { $in: validUnitIds.map(id => new ObjectId(id as string)) } })
       .toArray()
   } else {
+    // Try to get active units first, fallback to all units if none found
     units = await db.collection("units").find({ status: "active" }).toArray()
+    if (units.length === 0) {
+      units = await db.collection("units").find({}).toArray()
+    }
   }
 
   // Get personnel data for target date
@@ -476,35 +506,62 @@ async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: 
   for (const meal of meals) {
     if (meal.dishDetails && Array.isArray(meal.dishDetails)) {
       for (const dish of meal.dishDetails) {
-        if (dish.ingredients && Array.isArray(dish.ingredients)) {
-          const tofuIngredients = dish.ingredients.filter((ing: any) => 
-            ing.lttpName.toLowerCase().includes('đậu phụ') || 
-            ing.lttpName.toLowerCase().includes('tofu')
+        let hasTofu = false
+        
+        // Check ingredients (handle both string and array format)
+        if (typeof dish.ingredients === 'string') {
+          // String format (from seed data)
+          hasTofu = dish.ingredients.toLowerCase().includes('đậu phụ') || 
+                   dish.ingredients.toLowerCase().includes('tofu')
+        } else if (Array.isArray(dish.ingredients)) {
+          // Array format (structured data)
+          hasTofu = dish.ingredients.some((ing: any) => 
+            ing.lttpName && (
+              ing.lttpName.toLowerCase().includes('đậu phụ') || 
+              ing.lttpName.toLowerCase().includes('tofu')
+            )
           )
+        }
 
-          if (tofuIngredients.length > 0) {
-            tofuDishes.add(dish.name)
-            
-            const dishInfo = {
-              dishName: dish.name,
-              mealType: meal.type,
-              tofuIngredients: tofuIngredients.map((ing: any) => ({
-                lttpId: ing.lttpId,
-                lttpName: ing.lttpName,
-                quantityPerServing: ing.quantity / (dish.servings || 1),
-                unit: ing.unit,
+        if (hasTofu) {
+          tofuDishes.add(dish.name)
+          
+          // For string ingredients, create a simple requirement
+          const tofuIngredients = typeof dish.ingredients === 'string' 
+            ? [{
+                lttpId: 'tofu-generic',
+                lttpName: 'Đậu phụ',
+                quantityPerServing: dish.quantityPer100People || 15, // Default 15kg per 100 people
+                unit: 'kg',
                 dishName: dish.name,
                 mealType: meal.type
-              }))
-            }
+              }]
+            : dish.ingredients
+                .filter((ing: any) => 
+                  ing.lttpName.toLowerCase().includes('đậu phụ') || 
+                  ing.lttpName.toLowerCase().includes('tofu')
+                )
+                .map((ing: any) => ({
+                  lttpId: ing.lttpId,
+                  lttpName: ing.lttpName,
+                  quantityPerServing: ing.quantity / (dish.servings || 1),
+                  unit: ing.unit,
+                  dishName: dish.name,
+                  mealType: meal.type
+                }))
 
-            const existingDish = result.dishesUsingTofu.find(d => 
-              d.dishName === dish.name && d.mealType === meal.type
-            )
-            
-            if (!existingDish) {
-              result.dishesUsingTofu.push(dishInfo)
-            }
+          const dishInfo = {
+            dishName: dish.name,
+            mealType: meal.type,
+            tofuIngredients
+          }
+
+          const existingDish = result.dishesUsingTofu.find(d => 
+            d.dishName === dish.name && d.mealType === meal.type
+          )
+          
+          if (!existingDish) {
+            result.dishesUsingTofu.push(dishInfo)
           }
         }
       }
@@ -513,7 +570,7 @@ async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: 
 
   // Calculate tofu requirements for each unit
   for (const unit of units) {
-    const unitPersonnel = personnelMap.get(unit._id.toString()) || unit.personnel || 0
+    const unitPersonnel = personnelMap.get(unit._id.toString()) || unit.personnel || unit.personnelCount || 0
     
     const unitCalculation: UnitTofuCalculation = {
       unitId: unit._id.toString(),
@@ -535,7 +592,8 @@ async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: 
     // Calculate requirements for each meal and dish
     for (const dishInfo of result.dishesUsingTofu) {
       for (const tofuIngredient of dishInfo.tofuIngredients) {
-        const totalRequired = tofuIngredient.quantityPerServing * unitPersonnel
+        // Calculate total required: (personnel / 100) * quantity per 100 people
+        const totalRequired = (unitPersonnel / 100) * tofuIngredient.quantityPerServing
         
         const requirement: TofuRequirement = {
           ...tofuIngredient,
