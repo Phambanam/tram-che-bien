@@ -834,25 +834,42 @@ export function TofuProcessing() {
       const dateToTest = targetDate || testDate
       console.log("🧪 Testing tofu detection using API for date:", dateToTest)
       
-      // Use new API for testing
-      const apiResponse = await tofuCalculationApi.getTofuRequirements({
-        date: dateToTest
-      })
-      
+      // Use new API for testing with proper error handling
       let result: any
-      if (apiResponse.success && apiResponse.data) {
-        result = {
-          found: true,
-          totalTofuRequired: apiResponse.data.totalTofuRequired,
-          totalPersonnel: apiResponse.data.totalPersonnel,
-          dishesUsingTofu: apiResponse.data.dishesUsingTofu,
-          units: apiResponse.data.units,
-          summary: apiResponse.data.summary
+      try {
+        const apiResponse = await tofuCalculationApi.getTofuRequirements({
+          date: dateToTest
+        })
+        
+        if (apiResponse.success && apiResponse.data) {
+          result = {
+            found: true,
+            totalTofuRequired: apiResponse.data.totalTofuRequired,
+            totalPersonnel: apiResponse.data.totalPersonnel,
+            dishesUsingTofu: apiResponse.data.dishesUsingTofu,
+            units: apiResponse.data.units,
+            summary: apiResponse.data.summary
+          }
+        } else {
+          result = {
+            found: false,
+            reason: "Không có dữ liệu từ API"
+          }
         }
-      } else {
-        result = {
-          found: false,
-          reason: "Không có dữ liệu từ API"
+      } catch (apiError: any) {
+        console.log("🔍 API call failed, this is normal for dates without menu data:", apiError?.message)
+        
+        // Handle specific API errors gracefully
+        if (apiError?.message && apiError.message.includes("Không có dữ liệu thực đơn")) {
+          result = {
+            found: false,
+            reason: "Không có dữ liệu thực đơn cho ngày này"
+          }
+        } else {
+          result = {
+            found: false,
+            reason: `Lỗi API: ${apiError?.message || "Không thể kết nối"}`
+          }
         }
       }
       
@@ -875,10 +892,10 @@ export function TofuProcessing() {
       
       return result
     } catch (error) {
-      console.error("❌ API test error:", error)
+      console.error("❌ Unexpected error in test function:", error)
       toast({
         title: "❌ Test Error",
-        description: "Lỗi khi test API",
+        description: "Lỗi không mong đợi khi test API",
         variant: "destructive"
       })
     } finally {
