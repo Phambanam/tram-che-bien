@@ -1479,6 +1479,314 @@ export const updateLttpData = async (req: Request, res: Response) => {
   }
 }
 
+// @desc    Get daily poultry processing data by date
+// @route   GET /api/processing-station/poultry/:date
+// @access  Private
+export const getDailyPoultryData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "Ngày không được để trống"
+      })
+    }
+
+    const db = await getDb()
+    
+    // Find existing poultry processing data for the date
+    const existingData = await db.collection("dailyPoultryProcessing").findOne({
+      date: date
+    })
+
+    if (existingData) {
+      const responseData = {
+        date: existingData.date,
+        livePoultryInput: existingData.livePoultryInput || 0,
+        poultryMeatOutput: existingData.poultryMeatOutput || 0,
+        poultryMeatActualOutput: existingData.poultryMeatActualOutput || 0,
+        poultryMeatRemaining: existingData.poultryMeatRemaining || 0,
+        note: existingData.note || "",
+        livePoultryPrice: existingData.livePoultryPrice || 60000,
+        poultryMeatPrice: existingData.poultryMeatPrice || 150000,
+        createdAt: existingData.createdAt,
+        updatedAt: existingData.updatedAt
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: responseData
+      })
+    }
+
+    // Return default data if not found
+    return res.status(200).json({
+      success: true,
+      data: {
+        date: date,
+        livePoultryInput: 0,
+        poultryMeatOutput: 0,
+        poultryMeatActualOutput: 0,
+        poultryMeatRemaining: 0,
+        note: "",
+        livePoultryPrice: 60000,
+        poultryMeatPrice: 150000
+      }
+    })
+
+  } catch (error) {
+    console.error("Error fetching daily poultry data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu chế biến gia cầm hàng ngày"
+    })
+  }
+}
+
+// @desc    Update daily poultry processing data by date
+// @route   PATCH /api/processing-station/poultry/:date
+// @access  Private (Admin, Station Manager)
+export const updateDailyPoultryData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const {
+      livePoultryInput,
+      poultryMeatOutput,
+      poultryMeatActualOutput,
+      poultryMeatRemaining,
+      note,
+      livePoultryPrice,
+      poultryMeatPrice
+    } = req.body
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "Ngày không được để trống"
+      })
+    }
+
+    const db = await getDb()
+
+    // Upsert daily poultry processing data
+    const result = await db.collection("dailyPoultryProcessing").findOneAndUpdate(
+      { date: date },
+      {
+        $set: {
+          date: date,
+          livePoultryInput: livePoultryInput || 0,
+          poultryMeatOutput: poultryMeatOutput || 0,
+          poultryMeatActualOutput: poultryMeatActualOutput || 0,
+          poultryMeatRemaining: poultryMeatRemaining || 0,
+          note: note || "",
+          livePoultryPrice: livePoultryPrice || 60000,
+          poultryMeatPrice: poultryMeatPrice || 150000,
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          createdAt: new Date()
+        }
+      },
+      { 
+        upsert: true, 
+        returnDocument: "after" 
+      }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật dữ liệu chế biến gia cầm thành công",
+      data: result
+    })
+
+  } catch (error) {
+    console.error("Error updating daily poultry data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật dữ liệu chế biến gia cầm"
+    })
+  }
+}
+
+// @desc    Get daily livestock processing data by date  
+// @route   GET /api/processing-station/livestock/:date
+// @access  Private
+export const getDailyLivestockData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "Ngày không được để trống"
+      })
+    }
+
+    const db = await getDb()
+    
+    // Find existing livestock processing data for the date
+    const existingData = await db.collection("dailyLivestockProcessing").findOne({
+      date: date
+    })
+
+    if (existingData) {
+      const responseData = {
+        date: existingData.date,
+        liveAnimalsInput: existingData.liveAnimalsInput || 0,
+        leanMeatOutput: existingData.leanMeatOutput || 0,
+        leanMeatActualOutput: existingData.leanMeatActualOutput || 0,
+        leanMeatRemaining: existingData.leanMeatRemaining || 0,
+        boneOutput: existingData.boneOutput || 0,
+        boneActualOutput: existingData.boneActualOutput || 0,
+        boneRemaining: existingData.boneRemaining || 0,
+        groundMeatOutput: existingData.groundMeatOutput || 0,
+        groundMeatActualOutput: existingData.groundMeatActualOutput || 0,
+        groundMeatRemaining: existingData.groundMeatRemaining || 0,
+        organsOutput: existingData.organsOutput || 0,
+        organsActualOutput: existingData.organsActualOutput || 0,
+        organsRemaining: existingData.organsRemaining || 0,
+        note: existingData.note || "",
+        liveAnimalPrice: existingData.liveAnimalPrice || 0,
+        leanMeatPrice: existingData.leanMeatPrice || 0,
+        bonePrice: existingData.bonePrice || 0,
+        groundMeatPrice: existingData.groundMeatPrice || 0,
+        organsPrice: existingData.organsPrice || 0,
+        createdAt: existingData.createdAt,
+        updatedAt: existingData.updatedAt
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: responseData
+      })
+    }
+
+    // Return default data if not found
+    return res.status(200).json({
+      success: true,
+      data: {
+        date: date,
+        liveAnimalsInput: 0,
+        leanMeatOutput: 0,
+        leanMeatActualOutput: 0,
+        leanMeatRemaining: 0,
+        boneOutput: 0,
+        boneActualOutput: 0,
+        boneRemaining: 0,
+        groundMeatOutput: 0,
+        groundMeatActualOutput: 0,
+        groundMeatRemaining: 0,
+        organsOutput: 0,
+        organsActualOutput: 0,
+        organsRemaining: 0,
+        note: "",
+        liveAnimalPrice: 0,
+        leanMeatPrice: 0,
+        bonePrice: 0,
+        groundMeatPrice: 0,
+        organsPrice: 0
+      }
+    })
+
+  } catch (error) {
+    console.error("Error fetching daily livestock data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu chế biến chăn nuôi hàng ngày"
+    })
+  }
+}
+
+// @desc    Update daily livestock processing data by date
+// @route   PATCH /api/processing-station/livestock/:date  
+// @access  Private (Admin, Station Manager)
+export const updateDailyLivestockData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const {
+      liveAnimalsInput,
+      leanMeatOutput,
+      leanMeatActualOutput,
+      leanMeatRemaining,
+      boneOutput,
+      boneActualOutput,
+      boneRemaining,
+      groundMeatOutput,
+      groundMeatActualOutput,
+      groundMeatRemaining,
+      organsOutput,
+      organsActualOutput,
+      organsRemaining,
+      note,
+      liveAnimalPrice,
+      leanMeatPrice,
+      bonePrice,
+      groundMeatPrice,
+      organsPrice
+    } = req.body
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: "Ngày không được để trống"
+      })
+    }
+
+    const db = await getDb()
+
+    // Upsert daily livestock processing data
+    const result = await db.collection("dailyLivestockProcessing").findOneAndUpdate(
+      { date: date },
+      {
+        $set: {
+          date: date,
+          liveAnimalsInput: liveAnimalsInput || 0,
+          leanMeatOutput: leanMeatOutput || 0,
+          leanMeatActualOutput: leanMeatActualOutput || 0,
+          leanMeatRemaining: leanMeatRemaining || 0,
+          boneOutput: boneOutput || 0,
+          boneActualOutput: boneActualOutput || 0,
+          boneRemaining: boneRemaining || 0,
+          groundMeatOutput: groundMeatOutput || 0,
+          groundMeatActualOutput: groundMeatActualOutput || 0,
+          groundMeatRemaining: groundMeatRemaining || 0,
+          organsOutput: organsOutput || 0,
+          organsActualOutput: organsActualOutput || 0,
+          organsRemaining: organsRemaining || 0,
+          note: note || "",
+          liveAnimalPrice: liveAnimalPrice || 0,
+          leanMeatPrice: leanMeatPrice || 0,
+          bonePrice: bonePrice || 0,
+          groundMeatPrice: groundMeatPrice || 0,
+          organsPrice: organsPrice || 0,
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          createdAt: new Date()
+        }
+      },
+      { 
+        upsert: true, 
+        returnDocument: "after" 
+      }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật dữ liệu chế biến chăn nuôi thành công",
+      data: result
+    })
+
+  } catch (error) {
+    console.error("Error updating daily livestock data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật dữ liệu chế biến chăn nuôi"
+    })
+  }
+}
+
 // Helper functions
 function getWeekDates(week: number, year: number): Date[] {
   // Start with January 1st of the year

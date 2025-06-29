@@ -836,6 +836,30 @@ export const processingStationApi = {
     })
   },
 
+  // New methods for daily poultry processing
+  getDailyPoultryData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/poultry/${date}`)
+  },
+
+  updateDailyPoultryData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/poultry/${date}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
+  // New methods for daily livestock processing
+  getDailyLivestockData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/livestock/${date}`)
+  },
+
+  updateDailyLivestockData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/livestock/${date}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
   // New methods for sausage weekly/monthly tracking
   getWeeklySausageTracking: async (params: {
     week: number

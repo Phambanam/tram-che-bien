@@ -192,7 +192,7 @@ export function LivestockProcessing() {
       
       try {
         console.log(`🔄 Checking livestock carry over from ${previousDateStr} to ${dateStr}`)
-                  const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
+                  const previousStationResponse = await processingStationApi.getDailyLivestockData(previousDateStr)
           if (previousStationResponse && previousStationResponse.data) {
             const previousLeanMeatOutput = previousStationResponse.data.leanMeatOutput || 0
             const previousLeanMeatActualOutput = previousStationResponse.data.leanMeatActualOutput || 0
@@ -208,7 +208,7 @@ export function LivestockProcessing() {
       }
 
       try {
-        const stationResponse = await processingStationApi.getDailyData(dateStr)
+        const stationResponse = await processingStationApi.getDailyLivestockData(dateStr)
         if (stationResponse && stationResponse.data) {
                       stationData = {
               liveAnimalsInput: stationResponse.data.liveAnimalsInput || 0,

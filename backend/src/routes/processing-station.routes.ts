@@ -11,6 +11,10 @@ import {
   updateDailyTofuData,
   getDailySausageData,
   updateDailySausageData,
+  getDailyPoultryData,
+  updateDailyPoultryData,
+  getDailyLivestockData,
+  updateDailyLivestockData,
   getWeeklySausageTracking,
   getMonthlySausageSummary,
   getWeeklyLivestockTracking,
@@ -34,6 +38,8 @@ router.get("/", getProcessingStationItems)
 router.get("/food-inventory", getFoodInventory)
 router.get("/daily/:date", getDailyTofuData)
 router.get("/sausage/:date", getDailySausageData)
+router.get("/poultry/:date", getDailyPoultryData)
+router.get("/livestock/:date", getDailyLivestockData)
 router.get("/sausage/weekly-tracking", getWeeklySausageTracking)
 router.get("/sausage/monthly-summary", getMonthlySausageSummary)
 router.get("/livestock/weekly-tracking", getWeeklyLivestockTracking)
@@ -44,6 +50,8 @@ router.get("/:id", getProcessingStationItemById)
 router.post("/", authorize("admin", "stationManager"), createProcessingStationItem)
 router.patch("/daily/:date", authorize("admin", "stationManager"), updateDailyTofuData)
 router.patch("/sausage/:date", authorize("admin", "stationManager"), updateDailySausageData)
+router.patch("/poultry/:date", authorize("admin", "stationManager"), updateDailyPoultryData)
+router.patch("/livestock/:date", authorize("admin", "stationManager"), updateDailyLivestockData)
 router.patch("/:id", authorize("admin", "stationManager"), updateProcessingStationItem)
 router.delete("/:id", authorize("admin"), deleteProcessingStationItem) // Only admin can delete
 router.post("/update-expiry", authorize("admin"), updateExpiryStatus) // Only admin can update expiry
