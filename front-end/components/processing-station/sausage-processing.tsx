@@ -976,83 +976,202 @@ export function SausageProcessing() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead rowSpan={2} className="text-center align-middle border">NGÀY</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
-                    <TableHead colSpan={4} className="text-center border">THU</TableHead>  
-                    <TableHead rowSpan={2} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
-                    <TableHead colSpan={3} className="text-center border">CHI</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
-                  </TableRow>
-                  <TableRow>
-                    <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
-                    <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
-                    <TableHead colSpan={3} className="text-center border">TRONG ĐÓ</TableHead>
-                  </TableRow> 
-                  <TableRow>
-                    <TableHead className="text-center border"></TableHead>
-                    <TableHead className="text-center border"></TableHead>
-                    <TableHead className="text-center border">Giò lụa<br/>Số lượng (kg)</TableHead>
-                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border">Chả quế<br/>Số lượng (kg)</TableHead>
-                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border"></TableHead>
-                    <TableHead className="text-center border">Thịt nạc<br/>Số lượng (kg)</TableHead>
-                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border">Thịt mỡ<br/>Số lượng (kg)</TableHead>
-                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border">Chi khác<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {weeklySausageTracking && weeklySausageTracking.length > 0 ? (
-                    weeklySausageTracking.map((day) => {
-                      // Calculate financial values
-                      const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
-                      const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
-                      const totalRevenue = sausageRevenue + chaQueRevenue
-                      const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
-                      const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
-                      const otherCosts = 0 // Can be expanded later
-                      const totalCost = leanMeatCost + fatMeatCost + otherCosts
-                      const profit = totalRevenue - totalCost
+              <div className="overflow-x-auto">
+                <table className="w-full border-2 border-black">
+                  <thead>
+                    <tr>
+                      <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">NGÀY</th>
+                      <th rowSpan={2} className="border border-black p-2 bg-blue-100 font-bold">THU</th>
+                      <th colSpan={5} className="border border-black p-2 bg-blue-50 font-bold">TRONG ĐÓ</th>
+                      <th rowSpan={2} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                      <th colSpan={5} className="border border-black p-2 bg-red-50 font-bold">TRONG ĐÓ</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)</th>
+                    </tr>
+                    <tr>
+                      <th colSpan={2} className="border border-black p-1 bg-blue-50 text-sm">Giò lụa</th>
+                      <th colSpan={2} className="border border-black p-1 bg-blue-50 text-sm">Chả quế</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-blue-50 text-sm">Chi khác<br/>(kg)</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Thịt nạc</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Thịt mỡ</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
+                    </tr>
+                    <tr>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                    </tr>
+                  </thead>
+                                  <tbody>
+                    {weeklySausageTracking && weeklySausageTracking.length > 0 ? (
+                      weeklySausageTracking.map((day) => {
+                        // Calculate financial values
+                        const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
+                        const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
+                        const totalRevenue = sausageRevenue + chaQueRevenue
+                        const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
+                        const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
+                        const otherCostsInput = (day.leanMeatInput + day.fatMeatInput) * 0.02 // 2% other costs
+                        const otherCosts = otherCostsInput * 1000 / 1000 // Convert to thousands
+                        const totalCost = leanMeatCost + fatMeatCost + otherCosts
+                        const profit = totalRevenue - totalCost
 
-                      return (
-                        <TableRow key={day.date}>
-                          <TableCell className="text-center border">{format(new Date(day.date), "dd/MM")}</TableCell>
-                          <TableCell className="text-center border font-bold">
-                            {totalRevenue.toFixed(0)}
-                          </TableCell>
-                          <TableCell className="text-center border">{day.sausageInput}</TableCell>
-                          <TableCell className="text-center border">{sausageRevenue.toFixed(0)}</TableCell>
-                          <TableCell className="text-center border">{day.chaQueInput}</TableCell>
-                          <TableCell className="text-center border">{chaQueRevenue.toFixed(0)}</TableCell>
-                          <TableCell className="text-center border font-bold">
-                            {totalCost.toFixed(0)}
-                          </TableCell>
-                          <TableCell className="text-center border">{day.leanMeatInput}</TableCell>
-                          <TableCell className="text-center border">{leanMeatCost.toFixed(0)}</TableCell>
-                          <TableCell className="text-center border">{day.fatMeatInput}</TableCell>
-                          <TableCell className="text-center border">{fatMeatCost.toFixed(0)}</TableCell>
-                          <TableCell className="text-center border">{otherCosts.toFixed(0)}</TableCell>
-                          <TableCell className={`text-center border font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={13} className="text-center text-gray-500">
-                        Không có dữ liệu cho tuần đã chọn
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                        return (
+                          <tr key={day.date} className="border-b">
+                            <td className="border border-black p-2 text-center font-medium">
+                              {format(new Date(day.date), "dd/MM")}
+                            </td>
+                            <td className="border border-black p-1 text-center font-semibold text-blue-700">
+                              {totalRevenue.toFixed(0)}
+                            </td>
+                            {/* THU - Giò lụa */}
+                            <td className="border border-black p-1 text-center">{day.sausageInput}</td>
+                            <td className="border border-black p-1 text-center">{sausageRevenue.toFixed(0)}</td>
+                            {/* THU - Chả quế */}
+                            <td className="border border-black p-1 text-center">{day.chaQueInput}</td>
+                            <td className="border border-black p-1 text-center">{chaQueRevenue.toFixed(0)}</td>
+                            {/* THU - Chi khác */}
+                            <td className="border border-black p-1 text-center">0</td>
+                            {/* CHI */}
+                            <td className="border border-black p-1 text-center font-semibold text-red-700">
+                              {totalCost.toFixed(0)}
+                            </td>
+                            {/* CHI - Thịt nạc */}
+                            <td className="border border-black p-1 text-center">{day.leanMeatInput}</td>
+                            <td className="border border-black p-1 text-center">{leanMeatCost.toFixed(0)}</td>
+                            {/* CHI - Thịt mỡ */}
+                            <td className="border border-black p-1 text-center">{day.fatMeatInput}</td>
+                            <td className="border border-black p-1 text-center">{fatMeatCost.toFixed(0)}</td>
+                            {/* CHI - Chi khác */}
+                            <td className="border border-black p-1 text-center">{otherCosts.toFixed(0)}</td>
+                            {/* THU-CHI (LÃI) */}
+                            <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={14} className="border border-black p-2 text-center text-gray-500">
+                          Không có dữ liệu cho tuần đã chọn
+                        </td>
+                      </tr>
+                    )}
+                    
+                    {/* Weekly Total Row */}
+                    {weeklySausageTracking && weeklySausageTracking.length > 0 && (
+                      <tr className="bg-gray-200 font-bold border-t-2 border-gray-400">
+                        <td colSpan={1} className="border border-black p-2 text-center">TỔNG TUẦN</td>
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {weeklySausageTracking.reduce((sum, day) => {
+                              const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
+                              const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
+                              return sum + sausageRevenue + chaQueRevenue
+                            }, 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* THU - Giò lụa */}
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + day.sausageInput, 0)}
+                          </span>
+                        </td>
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + (day.sausageInput * day.sausagePrice / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* THU - Chả quế */}
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + day.chaQueInput, 0)}
+                          </span>
+                        </td>
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + (day.chaQueInput * day.chaQuePrice / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* THU - Chi khác */}
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">0</span>
+                        </td>
+                        {/* CHI */}
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {weeklySausageTracking.reduce((sum, day) => {
+                              const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
+                              const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
+                              const otherCosts = (day.leanMeatInput + day.fatMeatInput) * 0.02 * 1000 / 1000
+                              return sum + leanMeatCost + fatMeatCost + otherCosts
+                            }, 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* CHI - Thịt nạc */}
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + day.leanMeatInput, 0)}
+                          </span>
+                        </td>
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + (day.leanMeatInput * day.leanMeatPrice / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* CHI - Thịt mỡ */}
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + day.fatMeatInput, 0)}
+                          </span>
+                        </td>
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + (day.fatMeatInput * day.fatMeatPrice / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* CHI - Chi khác */}
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {weeklySausageTracking.reduce((sum, day) => sum + ((day.leanMeatInput + day.fatMeatInput) * 0.02 * 1000 / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* THU-CHI (LÃI) */}
+                        <td className="border border-black p-1 text-center bg-green-100">
+                          <span className={`font-bold ${
+                            weeklySausageTracking.reduce((sum, day) => {
+                              const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
+                              const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
+                              const totalRevenue = sausageRevenue + chaQueRevenue
+                              const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
+                              const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
+                              const otherCosts = (day.leanMeatInput + day.fatMeatInput) * 0.02 * 1000 / 1000
+                              const totalCost = leanMeatCost + fatMeatCost + otherCosts
+                              return sum + (totalRevenue - totalCost)
+                            }, 0) >= 0 ? 'text-green-800' : 'text-red-800'
+                          }`}>
+                            {weeklySausageTracking.reduce((sum, day) => {
+                              const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
+                              const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
+                              const totalRevenue = sausageRevenue + chaQueRevenue
+                              const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
+                              const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
+                              const otherCosts = (day.leanMeatInput + day.fatMeatInput) * 0.02 * 1000 / 1000
+                              const totalCost = leanMeatCost + fatMeatCost + otherCosts
+                              return sum + (totalRevenue - totalCost)
+                            }, 0).toFixed(0)}
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1104,88 +1223,205 @@ export function SausageProcessing() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead rowSpan={2} className="text-center align-middle border">THÁNG</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
-                    <TableHead colSpan={4} className="text-center border">THU</TableHead>  
-                    <TableHead rowSpan={2} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
-                    <TableHead colSpan={3} className="text-center border">CHI</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
-                  </TableRow>
-                  <TableRow>
-                    <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
-                    <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
-                    <TableHead colSpan={3} className="text-center border">TRONG ĐÓ</TableHead>
-                  </TableRow> 
-                  <TableRow>
-                    <TableHead className="text-center border"></TableHead>
-                    <TableHead className="text-center border"></TableHead>
-                    <TableHead className="text-center border">Giò lụa<br/>Số lượng (kg)</TableHead>
-                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border">Chả quế<br/>Số lượng (kg)</TableHead>
-                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border"></TableHead>
-                    <TableHead className="text-center border">Thịt nạc<br/>Số lượng (kg)</TableHead>
-                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border">Thịt mỡ<br/>Số lượng (kg)</TableHead>
-                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border">Chi khác<br/>(1.000đ)</TableHead>
-                    <TableHead className="text-center border"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {monthlySausageSummary && monthlySausageSummary.length > 0 ? (
-                    monthlySausageSummary.map((month) => {
-                      // Calculate financial values (assuming default prices if not provided)
-                      const sausagePrice = 150000 // Default price per kg
-                      const chaQuePrice = 140000 // Default price per kg
-                      const leanMeatPrice = 120000 // Default price per kg
-                      const fatMeatPrice = 80000 // Default price per kg
+              <div className="overflow-x-auto">
+                <table className="w-full border-2 border-black">
+                  <thead>
+                    <tr>
+                      <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">THÁNG</th>
+                      <th rowSpan={2} className="border border-black p-2 bg-blue-100 font-bold">THU</th>
+                      <th colSpan={5} className="border border-black p-2 bg-blue-50 font-bold">TRONG ĐÓ</th>
+                      <th rowSpan={2} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                      <th colSpan={5} className="border border-black p-2 bg-red-50 font-bold">TRONG ĐÓ</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)</th>
+                    </tr>
+                    <tr>
+                      <th colSpan={2} className="border border-black p-1 bg-blue-50 text-sm">Giò lụa</th>
+                      <th colSpan={2} className="border border-black p-1 bg-blue-50 text-sm">Chả quế</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-blue-50 text-sm">Chi khác<br/>(kg)</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Thịt nạc</th>
+                      <th colSpan={2} className="border border-black p-1 bg-red-50 text-sm">Thịt mỡ</th>
+                      <th rowSpan={2} className="border border-black p-1 bg-red-50 text-sm">Chi khác<br/>(1.000đ)</th>
+                    </tr>
+                    <tr>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 text-xs">Số lượng<br/>(kg)</th>
+                      <th className="border border-black p-1 text-xs">Thành<br/>Tiền<br/>(1.000đ)</th>
+                    </tr>
+                  </thead>
+                                  <tbody>
+                    {monthlySausageSummary && monthlySausageSummary.length > 0 ? (
+                      monthlySausageSummary.map((month) => {
+                        // Calculate financial values (assuming default prices if not provided)
+                        const sausagePrice = 150000 // Default price per kg
+                        const chaQuePrice = 140000 // Default price per kg
+                        const leanMeatPrice = 120000 // Default price per kg
+                        const fatMeatPrice = 80000 // Default price per kg
 
-                      const sausageRevenue = (month.totalSausageInput * sausagePrice) / 1000
-                      const chaQueRevenue = (month.totalChaQueInput * chaQuePrice) / 1000
-                      const totalRevenue = sausageRevenue + chaQueRevenue
-                      const leanMeatCost = (month.totalLeanMeatInput * leanMeatPrice) / 1000
-                      const fatMeatCost = (month.totalFatMeatInput * fatMeatPrice) / 1000
-                      const otherCosts = month.otherCosts / 1000
-                      const totalCost = leanMeatCost + fatMeatCost + otherCosts
-                      const profit = totalRevenue - totalCost
+                        const sausageRevenue = (month.totalSausageInput * sausagePrice) / 1000
+                        const chaQueRevenue = (month.totalChaQueInput * chaQuePrice) / 1000
+                        const totalRevenue = sausageRevenue + chaQueRevenue
+                        const leanMeatCost = (month.totalLeanMeatInput * leanMeatPrice) / 1000
+                        const fatMeatCost = (month.totalFatMeatInput * fatMeatPrice) / 1000
+                        const otherCostsInput = (month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 // 2% other costs
+                        const otherCosts = otherCostsInput * 1000 / 1000 // Convert to thousands
+                        const totalCost = leanMeatCost + fatMeatCost + otherCosts
+                        const profit = totalRevenue - totalCost
 
-                      return (
-                        <TableRow key={month.month}>
-                          <TableCell className="text-center border font-medium">{month.month}</TableCell>
-                          <TableCell className="text-center border font-bold">
-                            {totalRevenue.toFixed(0)}
-                          </TableCell>
-                          <TableCell className="text-center border">{month.totalSausageInput}</TableCell>
-                          <TableCell className="text-center border">{sausageRevenue.toFixed(0)}</TableCell>
-                          <TableCell className="text-center border">{month.totalChaQueInput}</TableCell>
-                          <TableCell className="text-center border">{chaQueRevenue.toFixed(0)}</TableCell>
-                          <TableCell className="text-center border font-bold">
-                            {totalCost.toFixed(0)}
-                          </TableCell>
-                          <TableCell className="text-center border">{month.totalLeanMeatInput}</TableCell>
-                          <TableCell className="text-center border">{leanMeatCost.toFixed(0)}</TableCell>
-                          <TableCell className="text-center border">{month.totalFatMeatInput}</TableCell>
-                          <TableCell className="text-center border">{fatMeatCost.toFixed(0)}</TableCell>
-                          <TableCell className="text-center border">{otherCosts.toFixed(0)}</TableCell>
-                          <TableCell className={`text-center border font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={13} className="text-center text-gray-500">
-                        Không có dữ liệu cho tháng đã chọn
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                        return (
+                          <tr key={month.month} className="border-b">
+                            <td className="border border-black p-2 text-center font-medium">{month.month}</td>
+                            <td className="border border-black p-1 text-center font-semibold text-blue-700">
+                              {totalRevenue.toFixed(0)}
+                            </td>
+                            {/* THU - Giò lụa */}
+                            <td className="border border-black p-1 text-center">{month.totalSausageInput}</td>
+                            <td className="border border-black p-1 text-center">{sausageRevenue.toFixed(0)}</td>
+                            {/* THU - Chả quế */}
+                            <td className="border border-black p-1 text-center">{month.totalChaQueInput}</td>
+                            <td className="border border-black p-1 text-center">{chaQueRevenue.toFixed(0)}</td>
+                            {/* THU - Chi khác */}
+                            <td className="border border-black p-1 text-center">0</td>
+                            {/* CHI */}
+                            <td className="border border-black p-1 text-center font-semibold text-red-700">
+                              {totalCost.toFixed(0)}
+                            </td>
+                            {/* CHI - Thịt nạc */}
+                            <td className="border border-black p-1 text-center">{month.totalLeanMeatInput}</td>
+                            <td className="border border-black p-1 text-center">{leanMeatCost.toFixed(0)}</td>
+                            {/* CHI - Thịt mỡ */}
+                            <td className="border border-black p-1 text-center">{month.totalFatMeatInput}</td>
+                            <td className="border border-black p-1 text-center">{fatMeatCost.toFixed(0)}</td>
+                            {/* CHI - Chi khác */}
+                            <td className="border border-black p-1 text-center">{otherCosts.toFixed(0)}</td>
+                            {/* THU-CHI (LÃI) */}
+                            <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={14} className="border border-black p-2 text-center text-gray-500">
+                          Không có dữ liệu cho tháng đã chọn
+                        </td>
+                      </tr>
+                    )}
+                    
+                    {/* Monthly Total Row */}
+                    {monthlySausageSummary && monthlySausageSummary.length > 0 && (
+                      <tr className="bg-gray-200 font-bold border-t-2 border-gray-400">
+                        <td colSpan={1} className="border border-black p-2 text-center">TỔNG CỘNG</td>
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {monthlySausageSummary.reduce((sum, month) => {
+                              const sausageRevenue = (month.totalSausageInput * 150000) / 1000
+                              const chaQueRevenue = (month.totalChaQueInput * 140000) / 1000
+                              return sum + sausageRevenue + chaQueRevenue
+                            }, 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* THU - Giò lụa */}
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + month.totalSausageInput, 0)}
+                          </span>
+                        </td>
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + (month.totalSausageInput * 150000 / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* THU - Chả quế */}
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + month.totalChaQueInput, 0)}
+                          </span>
+                        </td>
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + (month.totalChaQueInput * 140000 / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* THU - Chi khác */}
+                        <td className="border border-black p-1 text-center bg-blue-100">
+                          <span className="text-blue-800">0</span>
+                        </td>
+                        {/* CHI */}
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {monthlySausageSummary.reduce((sum, month) => {
+                              const leanMeatCost = (month.totalLeanMeatInput * 120000) / 1000
+                              const fatMeatCost = (month.totalFatMeatInput * 80000) / 1000
+                              const otherCosts = (month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 * 1000 / 1000
+                              return sum + leanMeatCost + fatMeatCost + otherCosts
+                            }, 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* CHI - Thịt nạc */}
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + month.totalLeanMeatInput, 0)}
+                          </span>
+                        </td>
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + (month.totalLeanMeatInput * 120000 / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* CHI - Thịt mỡ */}
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + month.totalFatMeatInput, 0)}
+                          </span>
+                        </td>
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + (month.totalFatMeatInput * 80000 / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* CHI - Chi khác */}
+                        <td className="border border-black p-1 text-center bg-red-100">
+                          <span className="text-red-800">
+                            {monthlySausageSummary.reduce((sum, month) => sum + ((month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 * 1000 / 1000), 0).toFixed(0)}
+                          </span>
+                        </td>
+                        {/* THU-CHI (LÃI) */}
+                        <td className="border border-black p-1 text-center bg-green-100">
+                          <span className={`font-bold ${
+                            monthlySausageSummary.reduce((sum, month) => {
+                              const sausageRevenue = (month.totalSausageInput * 150000) / 1000
+                              const chaQueRevenue = (month.totalChaQueInput * 140000) / 1000
+                              const totalRevenue = sausageRevenue + chaQueRevenue
+                              const leanMeatCost = (month.totalLeanMeatInput * 120000) / 1000
+                              const fatMeatCost = (month.totalFatMeatInput * 80000) / 1000
+                              const otherCosts = (month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 * 1000 / 1000
+                              const totalCost = leanMeatCost + fatMeatCost + otherCosts
+                              return sum + (totalRevenue - totalCost)
+                            }, 0) >= 0 ? 'text-green-800' : 'text-red-800'
+                          }`}>
+                            {monthlySausageSummary.reduce((sum, month) => {
+                              const sausageRevenue = (month.totalSausageInput * 150000) / 1000
+                              const chaQueRevenue = (month.totalChaQueInput * 140000) / 1000
+                              const totalRevenue = sausageRevenue + chaQueRevenue
+                              const leanMeatCost = (month.totalLeanMeatInput * 120000) / 1000
+                              const fatMeatCost = (month.totalFatMeatInput * 80000) / 1000
+                              const otherCosts = (month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 * 1000 / 1000
+                              const totalCost = leanMeatCost + fatMeatCost + otherCosts
+                              return sum + (totalRevenue - totalCost)
+                            }, 0).toFixed(0)}
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
