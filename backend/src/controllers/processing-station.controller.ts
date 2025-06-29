@@ -688,11 +688,15 @@ export const getDailySausageData = async (req: Request, res: Response) => {
         success: true,
         data: {
           date: date,
-          porkLeanInput: 0,
-          porkFatInput: 0,
+          leanMeatInput: 0,
+          fatMeatInput: 0,
           sausageInput: 0,
-          fishCakeInput: 0,
-          note: ""
+          chaQueInput: 0,
+          note: "",
+          leanMeatPrice: 0,
+          fatMeatPrice: 0,
+          sausagePrice: 0,
+          chaQuePrice: 140000
         }
       })
     }
@@ -701,11 +705,15 @@ export const getDailySausageData = async (req: Request, res: Response) => {
       success: true,
       data: {
         date: dailyData.date,
-        porkLeanInput: dailyData.porkLeanInput || 0,
-        porkFatInput: dailyData.porkFatInput || 0,
+        leanMeatInput: dailyData.leanMeatInput || 0,
+        fatMeatInput: dailyData.fatMeatInput || 0,
         sausageInput: dailyData.sausageInput || 0,
-        fishCakeInput: dailyData.fishCakeInput || 0,
-        note: dailyData.note || ""
+        chaQueInput: dailyData.chaQueInput || 0,
+        note: dailyData.note || "",
+        leanMeatPrice: dailyData.leanMeatPrice || 0,
+        fatMeatPrice: dailyData.fatMeatPrice || 0,
+        sausagePrice: dailyData.sausagePrice || 0,
+        chaQuePrice: dailyData.chaQuePrice || 140000
       }
     })
   } catch (error) {
@@ -723,7 +731,17 @@ export const getDailySausageData = async (req: Request, res: Response) => {
 export const updateDailySausageData = async (req: Request, res: Response) => {
   try {
     const { date } = req.params
-    const { porkLeanInput, porkFatInput, sausageInput, fishCakeInput, note } = req.body
+    const { 
+      leanMeatInput, 
+      fatMeatInput, 
+      sausageInput, 
+      chaQueInput,
+      note,
+      leanMeatPrice,
+      fatMeatPrice,
+      sausagePrice,
+      chaQuePrice
+    } = req.body
     const db = await getDb()
 
     // Update or insert daily data
@@ -732,11 +750,15 @@ export const updateDailySausageData = async (req: Request, res: Response) => {
       {
         $set: {
           date: date,
-          porkLeanInput: Number(porkLeanInput) || 0,
-          porkFatInput: Number(porkFatInput) || 0,
+          leanMeatInput: Number(leanMeatInput) || 0,
+          fatMeatInput: Number(fatMeatInput) || 0,
           sausageInput: Number(sausageInput) || 0,
-          fishCakeInput: Number(fishCakeInput) || 0,
+          chaQueInput: Number(chaQueInput) || 0,
           note: note || "",
+          leanMeatPrice: Number(leanMeatPrice) || 0,
+          fatMeatPrice: Number(fatMeatPrice) || 0,
+          sausagePrice: Number(sausagePrice) || 0,
+          chaQuePrice: Number(chaQuePrice) || 140000,
           updatedAt: new Date(),
           updatedBy: req.user._id
         },
@@ -753,11 +775,15 @@ export const updateDailySausageData = async (req: Request, res: Response) => {
       message: "Cập nhật dữ liệu làm giò chả thành công",
       data: {
         date: date,
-        porkLeanInput: Number(porkLeanInput) || 0,
-        porkFatInput: Number(porkFatInput) || 0,
+        leanMeatInput: Number(leanMeatInput) || 0,
+        fatMeatInput: Number(fatMeatInput) || 0,
         sausageInput: Number(sausageInput) || 0,
-        fishCakeInput: Number(fishCakeInput) || 0,
-        note: note || ""
+        chaQueInput: Number(chaQueInput) || 0,
+        note: note || "",
+        leanMeatPrice: Number(leanMeatPrice) || 0,
+        fatMeatPrice: Number(fatMeatPrice) || 0,
+        sausagePrice: Number(sausagePrice) || 0,
+        chaQuePrice: Number(chaQuePrice) || 140000
       }
     })
   } catch (error) {
@@ -811,12 +837,24 @@ export const getWeeklySausageTracking = async (req: Request, res: Response) => {
         leanMeatInput: processingData.leanMeatInput || 0,
         fatMeatInput: processingData.fatMeatInput || 0,
         sausageInput: processingData.sausageInput || 0,
+        chaQueInput: processingData.chaQueInput || 0,
         sausageOutput: processingData.sausageOutput || 0,
+        chaQueOutput: processingData.chaQueOutput || 0,
         sausageRemaining: Math.max(0, (processingData.sausageInput || 0) - (processingData.sausageOutput || 0)),
+        chaQueRemaining: Math.max(0, (processingData.chaQueInput || 0) - (processingData.chaQueOutput || 0)),
         // Price fields
         leanMeatPrice: processingData.leanMeatPrice || 120000,
         fatMeatPrice: processingData.fatMeatPrice || 80000,
-        sausagePrice: processingData.sausagePrice || 150000
+        sausagePrice: processingData.sausagePrice || 150000,
+        chaQuePrice: processingData.chaQuePrice || 140000,
+        // Financial calculations
+        sausageRevenue: ((processingData.sausageInput || 0) * (processingData.sausagePrice || 150000)) / 1000,
+        chaQueRevenue: ((processingData.chaQueInput || 0) * (processingData.chaQuePrice || 140000)) / 1000,
+        totalRevenue: (((processingData.sausageInput || 0) * (processingData.sausagePrice || 150000)) + ((processingData.chaQueInput || 0) * (processingData.chaQuePrice || 140000))) / 1000,
+        meatCost: (((processingData.leanMeatInput || 0) * (processingData.leanMeatPrice || 120000)) + ((processingData.fatMeatInput || 0) * (processingData.fatMeatPrice || 80000))) / 1000,
+        otherCosts: 0,
+        totalCost: (((processingData.leanMeatInput || 0) * (processingData.leanMeatPrice || 120000)) + ((processingData.fatMeatInput || 0) * (processingData.fatMeatPrice || 80000))) / 1000,
+        profit: ((((processingData.sausageInput || 0) * (processingData.sausagePrice || 150000)) + ((processingData.chaQueInput || 0) * (processingData.chaQuePrice || 140000))) - (((processingData.leanMeatInput || 0) * (processingData.leanMeatPrice || 120000)) + ((processingData.fatMeatInput || 0) * (processingData.fatMeatPrice || 80000)))) / 1000
       })
     }
 
@@ -1223,10 +1261,13 @@ async function getSausageProcessingData(db: any, dateStr: string) {
         leanMeatInput: processingData.leanMeatInput || processingData.porkLeanInput || 0,
         fatMeatInput: processingData.fatMeatInput || processingData.porkFatInput || 0,
         sausageInput: processingData.sausageInput || 0,
+        chaQueInput: processingData.chaQueInput || processingData.fishCakeInput || 0,
         sausageOutput: processingData.sausageOutput || 0,
+        chaQueOutput: processingData.chaQueOutput || processingData.fishCakeOutput || 0,
         leanMeatPrice: processingData.leanMeatPrice || 120000,
         fatMeatPrice: processingData.fatMeatPrice || 80000,
         sausagePrice: processingData.sausagePrice || 150000,
+        chaQuePrice: processingData.chaQuePrice || 140000,
         note: processingData.note || ""
       }
     }
@@ -1235,10 +1276,13 @@ async function getSausageProcessingData(db: any, dateStr: string) {
       leanMeatInput: 0,
       fatMeatInput: 0,
       sausageInput: 0,
+      chaQueInput: 0,
       sausageOutput: 0,
+      chaQueOutput: 0,
       leanMeatPrice: 120000,
       fatMeatPrice: 80000,
       sausagePrice: 150000,
+      chaQuePrice: 140000,
       note: ""
     }
   } catch (error) {
@@ -1247,10 +1291,13 @@ async function getSausageProcessingData(db: any, dateStr: string) {
       leanMeatInput: 0,
       fatMeatInput: 0,
       sausageInput: 0,
+      chaQueInput: 0,
       sausageOutput: 0,
+      chaQueOutput: 0,
       leanMeatPrice: 120000,
       fatMeatPrice: 80000,
       sausagePrice: 150000,
+      chaQuePrice: 140000,
       note: ""
     }
   }

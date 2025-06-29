@@ -40,11 +40,23 @@ interface WeeklySausageTracking {
   leanMeatInput: number
   fatMeatInput: number
   sausageInput: number
+  chaQueInput: number
   sausageOutput: number
+  chaQueOutput: number
   sausageRemaining: number
+  chaQueRemaining: number
   leanMeatPrice: number
   fatMeatPrice: number
   sausagePrice: number
+  chaQuePrice: number
+  // Financial calculations
+  sausageRevenue: number // Thu từ giò lụa
+  chaQueRevenue: number // Thu từ chả quế
+  totalRevenue: number // Tổng thu
+  meatCost: number // Chi thịt nạc + thịt mỡ
+  otherCosts: number // Chi khác
+  totalCost: number // Tổng chi
+  profit: number // Lãi (Thu - Chi)
 }
 
 interface MonthlySausageSummary {
@@ -54,12 +66,18 @@ interface MonthlySausageSummary {
   totalLeanMeatInput: number
   totalFatMeatInput: number
   totalSausageInput: number
+  totalChaQueInput: number
   totalSausageOutput: number
+  totalChaQueOutput: number
   totalSausageRemaining: number
+  totalChaQueRemaining: number
   processingEfficiency: number
   sausageRevenue: number
+  chaQueRevenue: number
+  totalRevenue: number
   meatCost: number
   otherCosts: number
+  totalCost: number
   netProfit: number
 }
 
@@ -91,10 +109,12 @@ export function SausageProcessing() {
     leanMeatInput: 0,
     fatMeatInput: 0,
     sausageInput: 0,
+    chaQueInput: 0,
     note: "",
     leanMeatPrice: 0,
     fatMeatPrice: 0,
-    sausagePrice: 0
+    sausagePrice: 0,
+    chaQuePrice: 0
   })
 
   // Weekly and Monthly tracking states
@@ -203,10 +223,12 @@ export function SausageProcessing() {
         leanMeatInput: processedData.leanMeatInput,
         fatMeatInput: processedData.fatMeatInput,
         sausageInput: processedData.sausageInput,
+        chaQueInput: processedData.chaQueInput,
         note: processedData.note || "",
         leanMeatPrice: processedData.leanMeatPrice || 0,
         fatMeatPrice: processedData.fatMeatPrice || 0,
-        sausagePrice: processedData.sausagePrice || 0
+        sausagePrice: processedData.sausagePrice || 0,
+        chaQuePrice: processedData.chaQuePrice || 140000
       })
     } catch (error) {
       console.error("Error fetching daily sausage processing:", error)
@@ -285,6 +307,49 @@ export function SausageProcessing() {
   useEffect(() => {
     fetchMonthlySausageSummary()
   }, [selectedMonth, selectedMonthYear])
+
+  // Update daily sausage processing data
+  const updateDailySausageProcessing = async () => {
+    if (!dailySausageProcessing) return
+
+    try {
+      setIsUpdating(true)
+
+      // Update station data via API
+      await processingStationApi.updateDailySausageData(dailySausageProcessing.date, {
+        leanMeatInput: dailyUpdateData.leanMeatInput,
+        fatMeatInput: dailyUpdateData.fatMeatInput,
+        sausageInput: dailyUpdateData.sausageInput,
+        chaQueInput: dailyUpdateData.chaQueInput,
+        note: dailyUpdateData.note,
+        leanMeatPrice: dailyUpdateData.leanMeatPrice,
+        fatMeatPrice: dailyUpdateData.fatMeatPrice,
+        sausagePrice: dailyUpdateData.sausagePrice,
+        chaQuePrice: dailyUpdateData.chaQuePrice
+      })
+
+      // Refresh data
+      await fetchDailySausageProcessing(new Date(dailySausageProcessing.date))
+      await fetchWeeklySausageTracking()
+
+      toast({
+        title: "✅ Thành công",
+        description: "Đã cập nhật dữ liệu chế biến giò chả",
+      })
+
+      setEditingDailyData(false)
+
+    } catch (error) {
+      console.error("Error updating daily sausage processing:", error)
+      toast({
+        title: "❌ Lỗi",
+        description: "Có lỗi xảy ra khi cập nhật dữ liệu",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdating(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -432,7 +497,20 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-green-700 mb-1">Thịt nạc chi:</div>
                       <div className="text-lg font-bold text-green-800">
-                        <span>{dailySausageProcessing.leanMeatInput}</span>
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.leanMeatInput}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              leanMeatInput: Number(e.target.value) || 0
+                            }))}
+                            className="w-16 h-8 text-center text-lg font-bold bg-white border-green-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{dailySausageProcessing.leanMeatInput}</span>
+                        )}
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -443,7 +521,20 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-orange-700 mb-1">Thịt mỡ chi:</div>
                       <div className="text-lg font-bold text-orange-800">
-                        <span>{dailySausageProcessing.fatMeatInput}</span>
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.fatMeatInput}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              fatMeatInput: Number(e.target.value) || 0
+                            }))}
+                            className="w-16 h-8 text-center text-lg font-bold bg-white border-orange-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{dailySausageProcessing.fatMeatInput}</span>
+                        )}
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -454,7 +545,20 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-blue-700 mb-1">Giò lụa thu:</div>
                       <div className="text-lg font-bold text-blue-800">
-                        <span>{dailySausageProcessing.sausageInput}</span>
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.sausageInput}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              sausageInput: Number(e.target.value) || 0
+                            }))}
+                            className="w-16 h-8 text-center text-lg font-bold bg-white border-blue-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{dailySausageProcessing.sausageInput}</span>
+                        )}
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -511,7 +615,20 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-pink-700 mb-1">Chả quế thu:</div>
                       <div className="text-lg font-bold text-pink-800">
-                        <span>{dailySausageProcessing.chaQueInput}</span>
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.chaQueInput}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              chaQueInput: Number(e.target.value) || 0
+                            }))}
+                            className="w-16 h-8 text-center text-lg font-bold bg-white border-pink-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{dailySausageProcessing.chaQueInput}</span>
+                        )}
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -569,10 +686,78 @@ export function SausageProcessing() {
               </div>
             </div>
 
+            {/* Notes section */}
+            {editingDailyData && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Ghi chú:</label>
+                <textarea
+                  value={dailyUpdateData.note}
+                  onChange={(e) => setDailyUpdateData(prev => ({ ...prev, note: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                  rows={2}
+                  placeholder="Ghi chú về quá trình chế biến giò chả trong ngày"
+                />
+              </div>
+            )}
+
+            {dailySausageProcessing.note && !editingDailyData && (
+              <div className="bg-gray-50 p-3 rounded border">
+                <div className="text-sm font-medium text-gray-700">Ghi chú:</div>
+                <div className="text-sm text-gray-600 mt-1">{dailySausageProcessing.note}</div>
+              </div>
+            )}
+
+            {/* Edit Controls for Station Manager */}
+            {user && (user.role === "admin" || user.role === "stationManager") && (
+              <div className="pt-4 border-t">
+                {!editingDailyData ? (
+                  <div className="flex justify-center">
+                    <Button 
+                      onClick={() => setEditingDailyData(true)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                      📝 Chỉnh sửa dữ liệu ngày
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex justify-center gap-2">
+                    <Button 
+                      onClick={updateDailySausageProcessing}
+                      disabled={isUpdating}
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      {isUpdating ? "Đang lưu..." : "💾 Lưu thay đổi"}
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setEditingDailyData(false)
+                        // Reset form data
+                        setDailyUpdateData({
+                          leanMeatInput: dailySausageProcessing.leanMeatInput,
+                          fatMeatInput: dailySausageProcessing.fatMeatInput,
+                          sausageInput: dailySausageProcessing.sausageInput,
+                          chaQueInput: dailySausageProcessing.chaQueInput,
+                          note: dailySausageProcessing.note || "",
+                          leanMeatPrice: dailySausageProcessing.leanMeatPrice || 0,
+                          fatMeatPrice: dailySausageProcessing.fatMeatPrice || 0,
+                          sausagePrice: dailySausageProcessing.sausagePrice || 0,
+                          chaQuePrice: dailySausageProcessing.chaQuePrice || 140000
+                        })
+                      }}
+                      variant="outline"
+                      className="border-gray-300 text-gray-700"
+                    >
+                      ❌ Hủy
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Info message */}
             <div className="pt-4 border-t">
               <p className="text-sm text-gray-500 text-center">
-                Dữ liệu thực tế từ API. Chức năng chỉnh sửa và xuất giò chả đang được phát triển.
+                Dữ liệu thực tế từ API. StationManager có thể chỉnh sửa dữ liệu ngày.
               </p>
             </div>
           </div>
@@ -631,31 +816,74 @@ export function SausageProcessing() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Ngày</TableHead>
-                    <TableHead>Thứ</TableHead>
-                    <TableHead>Thịt nạc chi (kg)</TableHead>
-                    <TableHead>Thịt mỡ chi (kg)</TableHead>
-                    <TableHead>Giò chả thu (kg)</TableHead>
-                    <TableHead>Giò chả xuất (kg)</TableHead>
-                    <TableHead>Giò chả tồn (kg)</TableHead>
+                    <TableHead rowSpan={2} className="text-center align-middle border">NGÀY</TableHead>
+                    <TableHead rowSpan={2} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
+                    <TableHead colSpan={4} className="text-center border">THU</TableHead>  
+                    <TableHead rowSpan={2} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
+                    <TableHead colSpan={3} className="text-center border">CHI</TableHead>
+                    <TableHead rowSpan={2} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
+                  </TableRow>
+                  <TableRow>
+                    <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
+                    <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
+                    <TableHead colSpan={3} className="text-center border">TRONG ĐÓ</TableHead>
+                  </TableRow> 
+                  <TableRow>
+                    <TableHead className="text-center border"></TableHead>
+                    <TableHead className="text-center border"></TableHead>
+                    <TableHead className="text-center border">Giò lụa<br/>Số lượng (kg)</TableHead>
+                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border">Chả quế<br/>Số lượng (kg)</TableHead>
+                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border"></TableHead>
+                    <TableHead className="text-center border">Thịt nạc<br/>Số lượng (kg)</TableHead>
+                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border">Thịt mỡ<br/>Số lượng (kg)</TableHead>
+                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border">Chi khác<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {weeklySausageTracking && weeklySausageTracking.length > 0 ? (
-                    weeklySausageTracking.map((day) => (
-                      <TableRow key={day.date}>
-                        <TableCell>{format(new Date(day.date), "dd/MM")}</TableCell>
-                        <TableCell>{day.dayOfWeek}</TableCell>
-                        <TableCell>{day.leanMeatInput}</TableCell>
-                        <TableCell>{day.fatMeatInput}</TableCell>
-                        <TableCell>{day.sausageInput}</TableCell>
-                        <TableCell>{day.sausageOutput}</TableCell>
-                        <TableCell>{day.sausageRemaining}</TableCell>
-                      </TableRow>
-                    ))
+                    weeklySausageTracking.map((day) => {
+                      // Calculate financial values
+                      const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
+                      const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
+                      const totalRevenue = sausageRevenue + chaQueRevenue
+                      const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
+                      const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
+                      const otherCosts = 0 // Can be expanded later
+                      const totalCost = leanMeatCost + fatMeatCost + otherCosts
+                      const profit = totalRevenue - totalCost
+
+                      return (
+                        <TableRow key={day.date}>
+                          <TableCell className="text-center border">{format(new Date(day.date), "dd/MM")}</TableCell>
+                          <TableCell className="text-center border font-bold">
+                            {totalRevenue.toFixed(0)}
+                          </TableCell>
+                          <TableCell className="text-center border">{day.sausageInput}</TableCell>
+                          <TableCell className="text-center border">{sausageRevenue.toFixed(0)}</TableCell>
+                          <TableCell className="text-center border">{day.chaQueInput}</TableCell>
+                          <TableCell className="text-center border">{chaQueRevenue.toFixed(0)}</TableCell>
+                          <TableCell className="text-center border font-bold">
+                            {totalCost.toFixed(0)}
+                          </TableCell>
+                          <TableCell className="text-center border">{day.leanMeatInput}</TableCell>
+                          <TableCell className="text-center border">{leanMeatCost.toFixed(0)}</TableCell>
+                          <TableCell className="text-center border">{day.fatMeatInput}</TableCell>
+                          <TableCell className="text-center border">{fatMeatCost.toFixed(0)}</TableCell>
+                          <TableCell className="text-center border">{otherCosts.toFixed(0)}</TableCell>
+                          <TableCell className={`text-center border font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-gray-500">
+                      <TableCell colSpan={13} className="text-center text-gray-500">
                         Không có dữ liệu cho tuần đã chọn
                       </TableCell>
                     </TableRow>
@@ -716,33 +944,79 @@ export function SausageProcessing() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tháng</TableHead>
-                    <TableHead>Thịt nạc (kg)</TableHead>
-                    <TableHead>Thịt mỡ (kg)</TableHead>
-                    <TableHead>Giò chả thu (kg)</TableHead>
-                    <TableHead>Giò chả xuất (kg)</TableHead>
-                    <TableHead>Hiệu suất (%)</TableHead>
-                    <TableHead>Lãi ròng (đ)</TableHead>
+                    <TableHead rowSpan={2} className="text-center align-middle border">THÁNG</TableHead>
+                    <TableHead rowSpan={2} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
+                    <TableHead colSpan={4} className="text-center border">THU</TableHead>  
+                    <TableHead rowSpan={2} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
+                    <TableHead colSpan={3} className="text-center border">CHI</TableHead>
+                    <TableHead rowSpan={2} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
+                  </TableRow>
+                  <TableRow>
+                    <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
+                    <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
+                    <TableHead colSpan={3} className="text-center border">TRONG ĐÓ</TableHead>
+                  </TableRow> 
+                  <TableRow>
+                    <TableHead className="text-center border"></TableHead>
+                    <TableHead className="text-center border"></TableHead>
+                    <TableHead className="text-center border">Giò lụa<br/>Số lượng (kg)</TableHead>
+                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border">Chả quế<br/>Số lượng (kg)</TableHead>
+                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border"></TableHead>
+                    <TableHead className="text-center border">Thịt nạc<br/>Số lượng (kg)</TableHead>
+                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border">Thịt mỡ<br/>Số lượng (kg)</TableHead>
+                    <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border">Chi khác<br/>(1.000đ)</TableHead>
+                    <TableHead className="text-center border"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {monthlySausageSummary && monthlySausageSummary.length > 0 ? (
-                    monthlySausageSummary.map((month) => (
-                      <TableRow key={month.month}>
-                        <TableCell>{month.month}</TableCell>
-                        <TableCell>{month.totalLeanMeatInput}</TableCell>
-                        <TableCell>{month.totalFatMeatInput}</TableCell>
-                        <TableCell>{month.totalSausageInput}</TableCell>
-                        <TableCell>{month.totalSausageOutput}</TableCell>
-                        <TableCell>{month.processingEfficiency}%</TableCell>
-                        <TableCell className={month.netProfit >= 0 ? "text-green-600" : "text-red-600"}>
-                          {month.netProfit >= 0 ? "+" : ""}{month.netProfit.toLocaleString('vi-VN')}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    monthlySausageSummary.map((month) => {
+                      // Calculate financial values (assuming default prices if not provided)
+                      const sausagePrice = 150000 // Default price per kg
+                      const chaQuePrice = 140000 // Default price per kg
+                      const leanMeatPrice = 120000 // Default price per kg
+                      const fatMeatPrice = 80000 // Default price per kg
+
+                      const sausageRevenue = (month.totalSausageInput * sausagePrice) / 1000
+                      const chaQueRevenue = (month.totalChaQueInput * chaQuePrice) / 1000
+                      const totalRevenue = sausageRevenue + chaQueRevenue
+                      const leanMeatCost = (month.totalLeanMeatInput * leanMeatPrice) / 1000
+                      const fatMeatCost = (month.totalFatMeatInput * fatMeatPrice) / 1000
+                      const otherCosts = month.otherCosts / 1000
+                      const totalCost = leanMeatCost + fatMeatCost + otherCosts
+                      const profit = totalRevenue - totalCost
+
+                      return (
+                        <TableRow key={month.month}>
+                          <TableCell className="text-center border font-medium">{month.month}</TableCell>
+                          <TableCell className="text-center border font-bold">
+                            {totalRevenue.toFixed(0)}
+                          </TableCell>
+                          <TableCell className="text-center border">{month.totalSausageInput}</TableCell>
+                          <TableCell className="text-center border">{sausageRevenue.toFixed(0)}</TableCell>
+                          <TableCell className="text-center border">{month.totalChaQueInput}</TableCell>
+                          <TableCell className="text-center border">{chaQueRevenue.toFixed(0)}</TableCell>
+                          <TableCell className="text-center border font-bold">
+                            {totalCost.toFixed(0)}
+                          </TableCell>
+                          <TableCell className="text-center border">{month.totalLeanMeatInput}</TableCell>
+                          <TableCell className="text-center border">{leanMeatCost.toFixed(0)}</TableCell>
+                          <TableCell className="text-center border">{month.totalFatMeatInput}</TableCell>
+                          <TableCell className="text-center border">{fatMeatCost.toFixed(0)}</TableCell>
+                          <TableCell className="text-center border">{otherCosts.toFixed(0)}</TableCell>
+                          <TableCell className={`text-center border font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-gray-500">
+                      <TableCell colSpan={13} className="text-center text-gray-500">
                         Không có dữ liệu cho tháng đã chọn
                       </TableCell>
                     </TableRow>
