@@ -22,11 +22,16 @@ interface DailySausageProcessing {
   sausageInput: number // THU - Giò chả thu
   sausageOutput: number // Giò chả thực tế đã xuất
   sausageRemaining: number // Giò chả tồn
+  // Chả quế fields
+  chaQueInput: number // THU - Chả quế thu
+  chaQueOutput: number // Chả quế thực tế đã xuất  
+  chaQueRemaining: number // Chả quế tồn
   note?: string
   // Price fields
   leanMeatPrice?: number
   fatMeatPrice?: number
   sausagePrice?: number
+  chaQuePrice?: number
 }
 
 interface WeeklySausageTracking {
@@ -70,10 +75,14 @@ export function SausageProcessing() {
     sausageInput: 0,
     sausageOutput: 0,
     sausageRemaining: 0,
+    chaQueInput: 0,
+    chaQueOutput: 0,
+    chaQueRemaining: 0,
     note: "",
     leanMeatPrice: 0,
     fatMeatPrice: 0,
-    sausagePrice: 0
+    sausagePrice: 0,
+    chaQuePrice: 140000
   })
   
   const [editingDailyData, setEditingDailyData] = useState(false)
@@ -179,10 +188,14 @@ export function SausageProcessing() {
         sausageInput: stationData.sausageInput,
         sausageOutput: sausageOutput,
         sausageRemaining: Math.max(0, stationData.sausageInput - sausageOutput),
+        chaQueInput: 0, // TODO: Get from API
+        chaQueOutput: 0, // TODO: Get from API
+        chaQueRemaining: 0, // TODO: Calculate
         note: stationData.note,
         leanMeatPrice: stationData.leanMeatPrice,
         fatMeatPrice: stationData.fatMeatPrice,
-        sausagePrice: stationData.sausagePrice
+        sausagePrice: stationData.sausagePrice,
+        chaQuePrice: 140000
       }
 
       setDailySausageProcessing(processedData)
@@ -458,6 +471,35 @@ export function SausageProcessing() {
                     </div>
                   </div>
                 </div>
+
+                {/* Lãi trong ngày làm Giò lụa */}
+                <div className="mt-4 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-lg p-3">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-green-700 mb-1">Lãi trong ngày làm Giò lụa:</div>
+                    <div className="text-lg font-bold text-green-800">
+                      {(() => {
+                        const currentLeanMeatInput = dailySausageProcessing.leanMeatInput || 0
+                        const currentFatMeatInput = dailySausageProcessing.fatMeatInput || 0
+                        const currentSausageInput = dailySausageProcessing.sausageInput || 0
+                        const currentLeanMeatPrice = dailySausageProcessing.leanMeatPrice || 120000
+                        const currentFatMeatPrice = dailySausageProcessing.fatMeatPrice || 80000
+                        const currentSausagePrice = dailySausageProcessing.sausagePrice || 150000
+                        
+                        if (currentSausagePrice && (currentLeanMeatPrice || currentFatMeatPrice)) {
+                          const revenue = currentSausageInput * currentSausagePrice
+                          const cost = (currentLeanMeatInput * currentLeanMeatPrice) + (currentFatMeatInput * currentFatMeatPrice)
+                          const profit = revenue - cost
+                          return (
+                            <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
+                              {profit >= 0 ? "+" : ""}{profit.toLocaleString('vi-VN')}đ
+                            </span>
+                          )
+                        }
+                        return "0đ"
+                      })()}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Chả quế section */}
@@ -469,7 +511,7 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-pink-700 mb-1">Chả quế thu:</div>
                       <div className="text-lg font-bold text-pink-800">
-                        <span>0</span>
+                        <span>{dailySausageProcessing.chaQueInput}</span>
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -480,7 +522,7 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-amber-700 mb-1">Chả quế xuất:</div>
                       <div className="text-lg font-bold text-amber-800">
-                        <span>0</span>
+                        <span>{dailySausageProcessing.chaQueOutput}</span>
                         <span className="text-sm ml-1">kg</span>
                       </div>
                     </div>
@@ -491,9 +533,36 @@ export function SausageProcessing() {
                     <div className="text-center">
                       <div className="text-sm font-medium text-purple-700 mb-1">Chả quế tồn:</div>
                       <div className="text-lg font-bold text-purple-800">
-                        <span>0</span>
+                        <span>{dailySausageProcessing.chaQueRemaining}</span>
                         <span className="text-sm ml-1">kg</span>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lãi của chả quế */}
+                <div className="mt-4 bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-300 rounded-lg p-3">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-pink-700 mb-1">Lãi của chả quế:</div>
+                    <div className="text-lg font-bold text-pink-800">
+                      {(() => {
+                        const chaQueInput = dailySausageProcessing.chaQueInput || 0
+                        const chaQuePrice = dailySausageProcessing.chaQuePrice || 140000
+                        // Giả sử chi phí chả quế bằng 30% thịt nạc chi (dùng chung với giò lụa)
+                        const chaQueCostRatio = 0.3 // 30% thịt nạc được dùng cho chả quế
+                        const leanMeatForChaQue = (dailySausageProcessing.leanMeatInput || 0) * chaQueCostRatio
+                        const leanMeatPrice = dailySausageProcessing.leanMeatPrice || 120000
+                        const chaQueCost = leanMeatForChaQue * leanMeatPrice
+                        
+                        const revenue = chaQueInput * chaQuePrice
+                        const profit = revenue - chaQueCost
+                        
+                        return (
+                          <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
+                            {profit >= 0 ? "+" : ""}{profit.toLocaleString('vi-VN')}đ
+                          </span>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
