@@ -15,6 +15,12 @@ import {
   getMonthlySausageSummary,
   getWeeklyLivestockTracking,
   getMonthlyLivestockSummary,
+  getDailyData,
+  updateDailyData,
+  getWeeklyData,
+  getMonthlyData,
+  getLttpData,
+  updateLttpData,
 } from "../controllers/processing-station.controller"
 import { protect, authorize } from "../middleware/auth.middleware"
 
@@ -41,5 +47,19 @@ router.patch("/sausage/:date", authorize("admin", "stationManager"), updateDaily
 router.patch("/:id", authorize("admin", "stationManager"), updateProcessingStationItem)
 router.delete("/:id", authorize("admin"), deleteProcessingStationItem) // Only admin can delete
 router.post("/update-expiry", authorize("admin"), updateExpiryStatus) // Only admin can update expiry
+
+// Station manager editing routes
+router.get('/station/daily/:date', authorize("admin", "stationManager"), getDailyData)
+router.post('/station/daily/:date', authorize("admin", "stationManager"), updateDailyData)
+
+// Weekly data routes  
+router.get('/station/weekly/:week/:year', authorize("admin", "stationManager"), getWeeklyData)
+
+// Monthly data routes
+router.get('/station/monthly/:month/:year', authorize("admin", "stationManager"), getMonthlyData)
+
+// LTTP management routes
+router.get('/station/lttp/:date', authorize("admin", "stationManager"), getLttpData)
+router.post('/station/lttp/:date', authorize("admin", "stationManager"), updateLttpData)
 
 export default router

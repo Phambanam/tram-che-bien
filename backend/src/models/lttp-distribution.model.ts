@@ -28,7 +28,7 @@ const lttpDistributionSchema = new mongoose.Schema({
     min: 0
   },
   
-  // Phân bổ cho Thứ đoàn 1
+  // Phân bổ cho Tiểu đoàn 1
   unit1: {
     unitId: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit' },
     suggestedQuantity: { type: Number, default: 0 },
@@ -46,7 +46,7 @@ const lttpDistributionSchema = new mongoose.Schema({
     receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   
-  // Phân bổ cho Thứ đoàn 2
+  // Phân bổ cho Tiểu đoàn 2
   unit2: {
     unitId: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit' },
     suggestedQuantity: { type: Number, default: 0 },
@@ -64,7 +64,7 @@ const lttpDistributionSchema = new mongoose.Schema({
     receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   
-  // Phân bổ cho Thứ đoàn 3
+  // Phân bổ cho Tiểu đoàn 3
   unit3: {
     unitId: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit' },
     suggestedQuantity: { type: Number, default: 0 },
@@ -82,7 +82,7 @@ const lttpDistributionSchema = new mongoose.Schema({
     receivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   
-  // Phân bổ cho Lễ đoàn hộ
+  // Phân bổ cho Lữ đoàn bộ
   ceremonyUnit: {
     unitId: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit' },
     suggestedQuantity: { type: Number, default: 0 },
@@ -233,16 +233,16 @@ lttpDistributionSchema.methods.calculateDistributionEfficiency = function() {
 lttpDistributionSchema.methods.getUnitDistribution = function(unitName) {
   switch (unitName.toLowerCase()) {
     case 'unit1':
-    case 'thứ đoàn 1':
+    case 'Tiểu đoàn 1':
       return this.unit1
     case 'unit2':
-    case 'thứ đoàn 2':
+    case 'Tiểu đoàn 2':
       return this.unit2
     case 'unit3':
-    case 'thứ đoàn 3':
+    case 'Tiểu đoàn 3':
       return this.unit3
     case 'ceremony':
-    case 'lễ đoàn hộ':
+    case 'Lữ đoàn bộ':
       return this.ceremonyUnit
     default:
       return null

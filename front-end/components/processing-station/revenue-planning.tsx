@@ -6,8 +6,10 @@ import { vi } from "date-fns/locale"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { Calculator, TrendingUp } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/components/auth/auth-provider"
 
 interface DailyRevenueSummary {
   date: string
@@ -38,6 +40,7 @@ interface MonthlyRevenuePlan {
 
 export function RevenuePlanning() {
   const { toast } = useToast()
+  const { user } = useAuth()
   
   // States
   const [isLoading, setIsLoading] = useState(false)
@@ -150,9 +153,16 @@ export function RevenuePlanning() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-center text-lg font-bold">
-            TỔNG HỢP KẾT QUẢ THÁNG {selectedMonth.toString().padStart(2, '0')} NĂM {selectedYear}
-          </CardTitle>
+          <div className="flex justify-center items-center gap-3 mb-4">
+            <CardTitle className="text-center text-lg font-bold">
+              TỔNG HỢP KẾT QUẢ THÁNG {selectedMonth.toString().padStart(2, '0')} NĂM {selectedYear}
+            </CardTitle>
+            {user && (user.role === "admin" || user.role === "stationManager") && (
+              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                Dữ liệu được tự động tính toán
+              </Badge>
+            )}
+          </div>
           <div className="flex gap-4 justify-center">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium">Tháng:</label>
@@ -364,9 +374,23 @@ export function RevenuePlanning() {
             </div>
           )}
           
-          {/* Info message */}
+          {/* Info message for different roles */}
           <div className="pt-4 border-t mt-4">
-            <p className="text-sm text-gray-500 text-center">
+            {user && (user.role === "admin" || user.role === "stationManager") ? (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <p className="text-sm text-purple-700 text-center">
+                  📊 Dữ liệu hoạch toán thu chi được tự động tính toán từ các module chế biến. 
+                  Trạm trưởng có thể xem và theo dõi hiệu suất kinh doanh.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-700 text-center">
+                  ⚠️ Chỉ trạm trưởng mới có thể xem đầy đủ dữ liệu hoạch toán thu chi
+                </p>
+              </div>
+            )}
+            <p className="text-sm text-gray-500 text-center mt-2">
               Dữ liệu mẫu cho hoạch toán thu chi. Sẽ được tích hợp với dữ liệu thực từ các module.
             </p>
           </div>

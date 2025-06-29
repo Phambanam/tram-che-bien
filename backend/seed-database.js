@@ -102,7 +102,7 @@ const usersData = [
 
 const unitsData = [
   {
-    name: "Thứ đoàn 1",
+    name: "Tiểu đoàn 1",
     code: "TD1",
     personnel: 150,
     commander: "Đại úy Nguyễn Văn A",
@@ -110,7 +110,7 @@ const unitsData = [
     description: "Đơn vị chủ lực số 1"
   },
   {
-    name: "Thứ đoàn 2",
+    name: "Tiểu đoàn 2",
     code: "TD2", 
     personnel: 135,
     commander: "Đại úy Trần Văn B",
@@ -118,7 +118,7 @@ const unitsData = [
     description: "Đơn vị chủ lực số 2"
   },
   {
-    name: "Thứ đoàn 3",
+    name: "Tiểu đoàn 3",
     code: "TD3",
     personnel: 140,
     commander: "Đại úy Lê Văn C",
@@ -126,7 +126,7 @@ const unitsData = [
     description: "Đơn vị chủ lực số 3"
   },
   {
-    name: "Lễ đoàn hộ",
+    name: "Lữ đoàn bộ",
     code: "LDH",
     personnel: 45,
     commander: "Thiếu úy Phạm Văn D",
