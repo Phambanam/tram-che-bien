@@ -145,10 +145,12 @@ export function SausageProcessing() {
         leanMeatInput: 0,
         fatMeatInput: 0,
         sausageInput: 0,
+        chaQueInput: 0,
         note: "",
         leanMeatPrice: 0,
         fatMeatPrice: 0,
-        sausagePrice: 0
+        sausagePrice: 0,
+        chaQuePrice: 140000
       }
       
       // Get carry over from previous day
@@ -157,33 +159,67 @@ export function SausageProcessing() {
       
       try {
         console.log(`🔄 Checking sausage carry over from ${previousDateStr} to ${dateStr}`)
-        const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
-        if (previousStationResponse && previousStationResponse.data) {
-          const previousSausageInput = previousStationResponse.data.sausageInput || 0
-          const previousSausageOutput = previousStationResponse.data.sausageOutput || 0
-          carryOverAmount = Math.max(0, previousSausageInput - previousSausageOutput)
+        const previousStationResponse = await processingStationApi.getDailySausageData(previousDateStr)
+        console.log('🔍 Previous Sausage API Response:', previousStationResponse)
+        
+        // Fix nested structure access
+        const previousData = previousStationResponse?.data?.data || previousStationResponse?.data || {}
+        console.log('🔍 Previous Sausage Data Extracted:', previousData)
+        
+        if (previousData && Object.keys(previousData).length > 0) {
+          const previousSausageInput = previousData.sausageInput || 0
+          const previousChaQueInput = previousData.chaQueInput || 0
+          const previousSausageOutput = previousData.sausageOutput || 0
+          const previousChaQueOutput = previousData.chaQueOutput || 0
+          
+          // Calculate carry over for both sausage and cha que
+          const sausageCarryOver = Math.max(0, previousSausageInput - previousSausageOutput)
+          const chaQueCarryOver = Math.max(0, previousChaQueInput - previousChaQueOutput)
+          carryOverAmount = sausageCarryOver + chaQueCarryOver
+          
+          console.log(`🔍 Carry over calculation: Giò lụa: ${previousSausageInput} - ${previousSausageOutput} = ${sausageCarryOver}kg, Chả quế: ${previousChaQueInput} - ${previousChaQueOutput} = ${chaQueCarryOver}kg`)
           
           if (carryOverAmount > 0) {
-            carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: +${carryOverAmount}kg giò chả`
-            console.log(`✅ Sausage carry over found: ${carryOverAmount}kg from ${previousDateStr}`)
+            carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: `
+            if (sausageCarryOver > 0) {
+              carryOverNote += `+${sausageCarryOver}kg giò lụa`
+            }
+            if (chaQueCarryOver > 0) {
+              if (sausageCarryOver > 0) carryOverNote += ", "
+              carryOverNote += `+${chaQueCarryOver}kg chả quế`
+            }
+            console.log(`✅ Sausage carry over found: ${carryOverAmount}kg total from ${previousDateStr}`)
+          } else {
+            console.log(`❌ No carry over: ${carryOverAmount}kg (≤ 0)`)
           }
+        } else {
+          console.log('❌ No previous day data found for carry over')
         }
       } catch (error) {
         console.log("No sausage carry over data from previous day:", error)
       }
 
       try {
-        const stationResponse = await processingStationApi.getDailyData(dateStr)
-        if (stationResponse && stationResponse.data) {
+        const stationResponse = await processingStationApi.getDailySausageData(dateStr)
+        console.log('🔍 Current day Sausage API Response:', stationResponse)
+        
+        // Fix nested structure access for current day
+        const currentData = stationResponse?.data?.data || stationResponse?.data || {}
+        console.log('🔍 Current Sausage Data Extracted:', currentData)
+        
+        if (currentData && Object.keys(currentData).length > 0) {
           stationData = {
-            leanMeatInput: stationResponse.data.leanMeatInput || 0,
-            fatMeatInput: stationResponse.data.fatMeatInput || 0,
-            sausageInput: (stationResponse.data.sausageInput || 0) + carryOverAmount, // Add carry over
-            note: (stationResponse.data.note || "") + carryOverNote, // Add carry over note
-            leanMeatPrice: stationResponse.data.leanMeatPrice || 0,
-            fatMeatPrice: stationResponse.data.fatMeatPrice || 0,
-            sausagePrice: stationResponse.data.sausagePrice || 0
+            leanMeatInput: currentData.leanMeatInput || 0,
+            fatMeatInput: currentData.fatMeatInput || 0,
+            sausageInput: (currentData.sausageInput || 0) + carryOverAmount, // Add carry over
+            chaQueInput: currentData.chaQueInput || 0,
+            note: (currentData.note || "") + carryOverNote, // Add carry over note
+            leanMeatPrice: currentData.leanMeatPrice || 0,
+            fatMeatPrice: currentData.fatMeatPrice || 0,
+            sausagePrice: currentData.sausagePrice || 0,
+            chaQuePrice: currentData.chaQuePrice || 140000
           }
+          console.log('🔍 Station data with carry over:', stationData)
         } else if (carryOverAmount > 0) {
           // If no current data but have carry over, apply it to defaults
           stationData.sausageInput = carryOverAmount
@@ -208,14 +244,14 @@ export function SausageProcessing() {
         sausageInput: stationData.sausageInput,
         sausageOutput: sausageOutput,
         sausageRemaining: Math.max(0, stationData.sausageInput - sausageOutput),
-        chaQueInput: 0, // TODO: Get from API
-        chaQueOutput: 0, // TODO: Get from API
-        chaQueRemaining: 0, // TODO: Calculate
+        chaQueInput: stationData.chaQueInput,
+        chaQueOutput: 0, // TODO: Get from supply outputs API
+        chaQueRemaining: Math.max(0, stationData.chaQueInput - 0), // TODO: Calculate with real output
         note: stationData.note,
         leanMeatPrice: stationData.leanMeatPrice,
         fatMeatPrice: stationData.fatMeatPrice,
         sausagePrice: stationData.sausagePrice,
-        chaQuePrice: 140000
+        chaQuePrice: stationData.chaQuePrice
       }
 
       setDailySausageProcessing(processedData)
