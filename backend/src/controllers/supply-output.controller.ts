@@ -95,7 +95,10 @@ export const getAllSupplyOutputs = async (req: Request, res: Response) => {
           },
         },
         {
-          $unwind: "$categoryInfo",
+          $unwind: {
+            path: "$categoryInfo",
+            preserveNullAndEmptyArrays: true,
+          },
         },
         {
           $project: {
@@ -109,7 +112,7 @@ export const getAllSupplyOutputs = async (req: Request, res: Response) => {
               name: "$productInfo.name",
               category: {
                 id: { $toString: "$categoryInfo._id" },
-                name: "$categoryInfo.name",
+                name: { $ifNull: ["$categoryInfo.name", "Không xác định"] },
               },
             },
             quantity: 1,
@@ -220,7 +223,10 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
           },
         },
         {
-          $unwind: "$categoryInfo",
+          $unwind: {
+            path: "$categoryInfo",
+            preserveNullAndEmptyArrays: true,
+          },
         },
         {
           $project: {
@@ -234,7 +240,7 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
               name: "$productInfo.name",
               category: {
                 id: { $toString: "$categoryInfo._id" },
-                name: "$categoryInfo.name",
+                name: { $ifNull: ["$categoryInfo.name", "Không xác định"] },
               },
             },
             quantity: 1,
