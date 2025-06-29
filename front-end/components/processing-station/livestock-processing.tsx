@@ -13,7 +13,7 @@ import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
-import { processingStationApi } from "@/lib/api-client"
+import { processingStationApi, supplyOutputsApi } from "@/lib/api-client"
 import { SimpleTableHeader } from './improved-table-header'
 
 interface DailyLivestockProcessing {
@@ -449,6 +449,75 @@ export function LivestockProcessing() {
     fetchMonthlyLivestockSummary()
   }, [selectedMonth, selectedMonthYear])
 
+  // Update daily livestock processing data
+  const updateDailyLivestockProcessing = async () => {
+    if (!user || (user.role !== "admin" && user.role !== "stationManager")) {
+      toast({
+        title: "❌ Không có quyền",
+        description: "Chỉ admin và trạm trưởng mới có thể chỉnh sửa dữ liệu",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsUpdating(true)
+    try {
+      const updateData = {
+        date: dailyLivestockProcessing.date,
+        liveAnimalsInput: dailyUpdateData.liveAnimalsInput,
+        leanMeatOutput: dailyUpdateData.leanMeatOutput,
+        leanMeatActualOutput: dailyUpdateData.leanMeatActualOutput,
+        leanMeatRemaining: Math.max(0, dailyUpdateData.leanMeatOutput - dailyUpdateData.leanMeatActualOutput),
+        boneOutput: dailyUpdateData.boneOutput,
+        boneActualOutput: dailyUpdateData.boneActualOutput,
+        boneRemaining: Math.max(0, dailyUpdateData.boneOutput - dailyUpdateData.boneActualOutput),
+        groundMeatOutput: dailyUpdateData.groundMeatOutput,
+        groundMeatActualOutput: dailyUpdateData.groundMeatActualOutput,
+        groundMeatRemaining: Math.max(0, dailyUpdateData.groundMeatOutput - dailyUpdateData.groundMeatActualOutput),
+        organsOutput: dailyUpdateData.organsOutput,
+        organsActualOutput: dailyUpdateData.organsActualOutput,
+        organsRemaining: Math.max(0, dailyUpdateData.organsOutput - dailyUpdateData.organsActualOutput),
+        note: dailyUpdateData.note,
+        liveAnimalPrice: dailyUpdateData.liveAnimalPrice,
+        leanMeatPrice: dailyUpdateData.leanMeatPrice,
+        bonePrice: dailyUpdateData.bonePrice,
+        groundMeatPrice: dailyUpdateData.groundMeatPrice,
+        organsPrice: dailyUpdateData.organsPrice
+      }
+
+      const response = await processingStationApi.updateDailyLivestockData(updateData)
+      
+      if (response.success) {
+        toast({
+          title: "✅ Thành công",
+          description: "Đã cập nhật dữ liệu giết mổ lợn"
+        })
+        
+        // Update local state
+        setDailyLivestockProcessing(prev => ({
+          ...prev,
+          ...updateData
+        }))
+        
+        setEditingDailyData(false)
+        
+        // Reload data to ensure consistency
+        await fetchDailyLivestockProcessing(new Date(dailyLivestockProcessing.date))
+      } else {
+        throw new Error(response.message || "Không thể cập nhật dữ liệu")
+      }
+    } catch (error: any) {
+      console.error("Error updating daily livestock processing:", error)
+      toast({
+        title: "❌ Lỗi",
+        description: error.message || "Không thể cập nhật dữ liệu giết mổ lợn",
+        variant: "destructive"
+      })
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-4">
@@ -571,18 +640,169 @@ export function LivestockProcessing() {
                 </div>
               )}
 
-                              {/* Layout giống hình: GIẾT MỔ LỢN */}
+                              {/* Price section - 5 boxes for prices */}
+                <div className="grid grid-cols-3 gap-4 mt-6">
+                  {/* Giá lợn hơi */}
+                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-red-700 mb-2">Giá lợn hơi:</div>
+                      <div className="text-xl font-bold text-red-800">
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.liveAnimalPrice}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              liveAnimalPrice: Number(e.target.value) || 0
+                            }))}
+                            className="w-32 h-10 text-center text-xl font-bold bg-white border-red-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{(dailyLivestockProcessing.liveAnimalPrice || 0).toLocaleString('vi-VN')}</span>
+                        )}
+                        <span className="text-sm ml-1">đ/con</span>
+                      </div>
+                      <div className="text-xs text-red-600 mt-1">
+                        (Trạm trưởng nhập tay)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Giá thịt nạc */}
+                  <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-yellow-700 mb-2">Giá thịt nạc:</div>
+                      <div className="text-xl font-bold text-yellow-800">
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.leanMeatPrice}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              leanMeatPrice: Number(e.target.value) || 0
+                            }))}
+                            className="w-32 h-10 text-center text-xl font-bold bg-white border-yellow-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{(dailyLivestockProcessing.leanMeatPrice || 0).toLocaleString('vi-VN')}</span>
+                        )}
+                        <span className="text-sm ml-1">đ/kg</span>
+                      </div>
+                      <div className="text-xs text-yellow-600 mt-1">
+                        (Trạm trưởng nhập tay)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Giá xương xổ */}
+                  <div className="bg-pink-50 border-2 border-pink-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-pink-700 mb-2">Giá xương xổ:</div>
+                      <div className="text-xl font-bold text-pink-800">
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.bonePrice}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              bonePrice: Number(e.target.value) || 0
+                            }))}
+                            className="w-32 h-10 text-center text-xl font-bold bg-white border-pink-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{(dailyLivestockProcessing.bonePrice || 0).toLocaleString('vi-VN')}</span>
+                        )}
+                        <span className="text-sm ml-1">đ/kg</span>
+                      </div>
+                      <div className="text-xs text-pink-600 mt-1">
+                        (Trạm trưởng nhập tay)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Giá thịt xổ lọc */}
+                  <div className="bg-cyan-50 border-2 border-cyan-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-cyan-700 mb-2">Giá thịt xổ lọc:</div>
+                      <div className="text-xl font-bold text-cyan-800">
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.groundMeatPrice}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              groundMeatPrice: Number(e.target.value) || 0
+                            }))}
+                            className="w-32 h-10 text-center text-xl font-bold bg-white border-cyan-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{(dailyLivestockProcessing.groundMeatPrice || 0).toLocaleString('vi-VN')}</span>
+                        )}
+                        <span className="text-sm ml-1">đ/kg</span>
+                      </div>
+                      <div className="text-xs text-cyan-600 mt-1">
+                        (Trạm trưởng nhập tay)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Giá lòng */}
+                  <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-purple-700 mb-2">Giá lòng:</div>
+                      <div className="text-xl font-bold text-purple-800">
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.organsPrice}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              organsPrice: Number(e.target.value) || 0
+                            }))}
+                            className="w-32 h-10 text-center text-xl font-bold bg-white border-purple-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{(dailyLivestockProcessing.organsPrice || 0).toLocaleString('vi-VN')}</span>
+                        )}
+                        <span className="text-sm ml-1">đ/kg</span>
+                      </div>
+                      <div className="text-xs text-purple-600 mt-1">
+                        (Trạm trưởng nhập tay)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Layout giống hình: GIẾT MỔ LỢN */}
                 <div className="space-y-6">
                   {/* Lợn hơi chi - Input */}
                   <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
                     <div className="text-center">
                       <div className="text-sm font-medium text-green-700 mb-2">Lợn hơi chi:</div>
                       <div className="text-3xl font-bold text-green-800">
-                        <span>{dailyLivestockProcessing.liveAnimalsInput}</span>
+                        {editingDailyData ? (
+                          <Input
+                            type="number"
+                            value={dailyUpdateData.liveAnimalsInput}
+                            onChange={(e) => setDailyUpdateData(prev => ({ 
+                              ...prev, 
+                              liveAnimalsInput: Number(e.target.value) || 0
+                            }))}
+                            className="w-20 h-12 text-center text-3xl font-bold bg-white border-green-300"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span>{dailyLivestockProcessing.liveAnimalsInput}</span>
+                        )}
                         <span className="text-xl ml-1">con</span>
                       </div>
                       <div className="text-xs text-green-600 mt-1">
-                        (Số liệu từ bảng theo dõi tuần)
+                        {editingDailyData ? "(Trạm trưởng chỉnh sửa)" : "(Số liệu từ bảng theo dõi tuần)"}
                       </div>
                     </div>
                   </div>
@@ -595,7 +815,20 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">thịt nạc thu:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.leanMeatOutput}</span>
+                            {editingDailyData ? (
+                              <Input
+                                type="number"
+                                value={dailyUpdateData.leanMeatOutput}
+                                onChange={(e) => setDailyUpdateData(prev => ({ 
+                                  ...prev, 
+                                  leanMeatOutput: Number(e.target.value) || 0
+                                }))}
+                                className="w-16 h-8 text-center text-lg font-bold bg-white border-yellow-300"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span>{dailyLivestockProcessing.leanMeatOutput}</span>
+                            )}
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -604,7 +837,20 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">thịt nạc xuất:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.leanMeatActualOutput}</span>
+                            {editingDailyData ? (
+                              <Input
+                                type="number"
+                                value={dailyUpdateData.leanMeatActualOutput}
+                                onChange={(e) => setDailyUpdateData(prev => ({ 
+                                  ...prev, 
+                                  leanMeatActualOutput: Number(e.target.value) || 0
+                                }))}
+                                className="w-16 h-8 text-center text-lg font-bold bg-white border-yellow-300"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span>{dailyLivestockProcessing.leanMeatActualOutput}</span>
+                            )}
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -613,7 +859,7 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">thịt nạc tồn:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.leanMeatRemaining}</span>
+                            <span>{editingDailyData ? Math.max(0, dailyUpdateData.leanMeatOutput - dailyUpdateData.leanMeatActualOutput) : dailyLivestockProcessing.leanMeatRemaining}</span>
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -626,7 +872,20 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-pink-700 mb-1">Xương xổ thu:</div>
                           <div className="text-lg font-bold text-pink-800">
-                            <span>{dailyLivestockProcessing.boneOutput}</span>
+                            {editingDailyData ? (
+                              <Input
+                                type="number"
+                                value={dailyUpdateData.boneOutput}
+                                onChange={(e) => setDailyUpdateData(prev => ({ 
+                                  ...prev, 
+                                  boneOutput: Number(e.target.value) || 0
+                                }))}
+                                className="w-16 h-8 text-center text-lg font-bold bg-white border-pink-300"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span>{dailyLivestockProcessing.boneOutput}</span>
+                            )}
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -635,7 +894,20 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-pink-700 mb-1">Xương xổ xuất:</div>
                           <div className="text-lg font-bold text-pink-800">
-                            <span>{dailyLivestockProcessing.boneActualOutput}</span>
+                            {editingDailyData ? (
+                              <Input
+                                type="number"
+                                value={dailyUpdateData.boneActualOutput}
+                                onChange={(e) => setDailyUpdateData(prev => ({ 
+                                  ...prev, 
+                                  boneActualOutput: Number(e.target.value) || 0
+                                }))}
+                                className="w-16 h-8 text-center text-lg font-bold bg-white border-pink-300"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span>{dailyLivestockProcessing.boneActualOutput}</span>
+                            )}
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -644,7 +916,7 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-pink-700 mb-1">Xương xổ tồn:</div>
                           <div className="text-lg font-bold text-pink-800">
-                            <span>{dailyLivestockProcessing.boneRemaining}</span>
+                            <span>{editingDailyData ? Math.max(0, dailyUpdateData.boneOutput - dailyUpdateData.boneActualOutput) : dailyLivestockProcessing.boneRemaining}</span>
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -657,7 +929,20 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">Thịt xổ lọc thu:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.groundMeatOutput}</span>
+                            {editingDailyData ? (
+                              <Input
+                                type="number"
+                                value={dailyUpdateData.groundMeatOutput}
+                                onChange={(e) => setDailyUpdateData(prev => ({ 
+                                  ...prev, 
+                                  groundMeatOutput: Number(e.target.value) || 0
+                                }))}
+                                className="w-16 h-8 text-center text-lg font-bold bg-white border-yellow-300"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span>{dailyLivestockProcessing.groundMeatOutput}</span>
+                            )}
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -666,7 +951,20 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">Thịt xổ lọc xuất:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.groundMeatActualOutput}</span>
+                            {editingDailyData ? (
+                              <Input
+                                type="number"
+                                value={dailyUpdateData.groundMeatActualOutput}
+                                onChange={(e) => setDailyUpdateData(prev => ({ 
+                                  ...prev, 
+                                  groundMeatActualOutput: Number(e.target.value) || 0
+                                }))}
+                                className="w-16 h-8 text-center text-lg font-bold bg-white border-yellow-300"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span>{dailyLivestockProcessing.groundMeatActualOutput}</span>
+                            )}
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -675,7 +973,7 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">Thịt xổ lọc tồn:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.groundMeatRemaining}</span>
+                            <span>{editingDailyData ? Math.max(0, dailyUpdateData.groundMeatOutput - dailyUpdateData.groundMeatActualOutput) : dailyLivestockProcessing.groundMeatRemaining}</span>
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -688,7 +986,20 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">Lòng thu:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.organsOutput}</span>
+                            {editingDailyData ? (
+                              <Input
+                                type="number"
+                                value={dailyUpdateData.organsOutput}
+                                onChange={(e) => setDailyUpdateData(prev => ({ 
+                                  ...prev, 
+                                  organsOutput: Number(e.target.value) || 0
+                                }))}
+                                className="w-16 h-8 text-center text-lg font-bold bg-white border-yellow-300"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span>{dailyLivestockProcessing.organsOutput}</span>
+                            )}
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -697,7 +1008,20 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">Lòng xuất:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.organsActualOutput}</span>
+                            {editingDailyData ? (
+                              <Input
+                                type="number"
+                                value={dailyUpdateData.organsActualOutput}
+                                onChange={(e) => setDailyUpdateData(prev => ({ 
+                                  ...prev, 
+                                  organsActualOutput: Number(e.target.value) || 0
+                                }))}
+                                className="w-16 h-8 text-center text-lg font-bold bg-white border-yellow-300"
+                                placeholder="0"
+                              />
+                            ) : (
+                              <span>{dailyLivestockProcessing.organsActualOutput}</span>
+                            )}
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -706,7 +1030,7 @@ export function LivestockProcessing() {
                         <div className="text-center">
                           <div className="text-sm font-medium text-yellow-700 mb-1">Lòng tồn:</div>
                           <div className="text-lg font-bold text-yellow-800">
-                            <span>{dailyLivestockProcessing.organsRemaining}</span>
+                            <span>{editingDailyData ? Math.max(0, dailyUpdateData.organsOutput - dailyUpdateData.organsActualOutput) : dailyLivestockProcessing.organsRemaining}</span>
                             <span className="text-sm ml-1">kg</span>
                           </div>
                         </div>
@@ -715,10 +1039,88 @@ export function LivestockProcessing() {
                   </div>
                 </div>
 
+              {/* Notes section */}
+              {editingDailyData && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Ghi chú:</label>
+                  <textarea
+                    value={dailyUpdateData.note}
+                    onChange={(e) => setDailyUpdateData(prev => ({ ...prev, note: e.target.value }))}
+                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    rows={2}
+                    placeholder="Ghi chú về quá trình giết mổ và phân phối thịt lợn trong ngày"
+                  />
+                </div>
+              )}
+
+              {dailyLivestockProcessing.note && !editingDailyData && (
+                <div className="bg-gray-50 p-3 rounded border">
+                  <div className="text-sm font-medium text-gray-700">Ghi chú:</div>
+                  <div className="text-sm text-gray-600 mt-1">{dailyLivestockProcessing.note}</div>
+                </div>
+              )}
+
+              {/* Edit Controls for Station Manager */}
+              {user && (user.role === "admin" || user.role === "stationManager") && (
+                <div className="pt-4 border-t">
+                  {!editingDailyData ? (
+                    <div className="flex justify-center">
+                      <Button 
+                        onClick={() => setEditingDailyData(true)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white"
+                      >
+                        📝 Chỉnh sửa dữ liệu ngày
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex justify-center gap-2">
+                      <Button 
+                        onClick={updateDailyLivestockProcessing}
+                        disabled={isUpdating}
+                        className="bg-green-500 hover:bg-green-600 text-white"
+                      >
+                        {isUpdating ? "Đang lưu..." : "💾 Lưu thay đổi"}
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          setEditingDailyData(false)
+                          // Reset form data
+                          setDailyUpdateData({
+                            liveAnimalsInput: dailyLivestockProcessing.liveAnimalsInput,
+                            leanMeatOutput: dailyLivestockProcessing.leanMeatOutput,
+                            leanMeatActualOutput: dailyLivestockProcessing.leanMeatActualOutput,
+                            leanMeatRemaining: dailyLivestockProcessing.leanMeatRemaining,
+                            boneOutput: dailyLivestockProcessing.boneOutput,
+                            boneActualOutput: dailyLivestockProcessing.boneActualOutput,
+                            boneRemaining: dailyLivestockProcessing.boneRemaining,
+                            groundMeatOutput: dailyLivestockProcessing.groundMeatOutput,
+                            groundMeatActualOutput: dailyLivestockProcessing.groundMeatActualOutput,
+                            groundMeatRemaining: dailyLivestockProcessing.groundMeatRemaining,
+                            organsOutput: dailyLivestockProcessing.organsOutput,
+                            organsActualOutput: dailyLivestockProcessing.organsActualOutput,
+                            organsRemaining: dailyLivestockProcessing.organsRemaining,
+                            note: dailyLivestockProcessing.note || "",
+                            liveAnimalPrice: dailyLivestockProcessing.liveAnimalPrice || 0,
+                            leanMeatPrice: dailyLivestockProcessing.leanMeatPrice || 0,
+                            bonePrice: dailyLivestockProcessing.bonePrice || 0,
+                            groundMeatPrice: dailyLivestockProcessing.groundMeatPrice || 0,
+                            organsPrice: dailyLivestockProcessing.organsPrice || 0
+                          })
+                        }}
+                        variant="outline"
+                        className="border-gray-300 text-gray-700"
+                      >
+                        ❌ Hủy
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Info message */}
               <div className="pt-4 border-t">
                 <p className="text-sm text-gray-500 text-center">
-                  Dữ liệu thực tế từ API. Chức năng chỉnh sửa và phân phối thịt đang được phát triển.
+                  Dữ liệu thực tế từ API. Trạm trưởng có thể chỉnh sửa dữ liệu ngày.
                 </p>
               </div>
             </div>
@@ -777,68 +1179,79 @@ export function LivestockProcessing() {
               <div className="overflow-x-auto">
                 <Table className="border">
                   <TableHeader>
-                    <SimpleTableHeader type="livestock" view="weekly" />
+                    <TableRow>
+                      <TableHead rowSpan={3} className="text-center align-middle border">NGÀY</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={8} className="text-center border">THU</TableHead>  
+                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={2} className="text-center border">CHI</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
+                    </TableRow>
+                    <TableRow>
+                      <TableHead colSpan={8} className="text-center border">TRONG ĐÓ</TableHead>
+                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
+                    </TableRow> 
+                    <TableRow>
+                      <TableHead className="text-center border">Thịt xổ lọc<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Thịt nạc<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Xương xổ<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Lòng<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Lợn hơi<br/>Số lượng (con)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    </TableRow>
                   </TableHeader>
                   <TableBody>
                     {weeklyLivestockTracking && weeklyLivestockTracking.length > 0 ? (
                       weeklyLivestockTracking.map((day) => {
                         // Calculate totals
-                        const totalRevenue = (day.leanMeatActualOutput * day.leanMeatPrice) + 
-                                           (day.boneActualOutput * day.bonePrice) + 
-                                           (day.groundMeatActualOutput * day.groundMeatPrice) + 
-                                           (day.organsActualOutput * day.organsPrice)
-                        const totalCost = (day.liveAnimalsInput * day.liveAnimalPrice)
-                        const otherCosts = Math.round(day.liveAnimalsInput * 500) // 500 VND other costs per animal
-                        const totalExpense = totalCost + otherCosts
-                        const profit = totalRevenue - totalExpense
+                        const groundMeatRevenue = (day.groundMeatActualOutput * day.groundMeatPrice) / 1000
+                        const leanMeatRevenue = (day.leanMeatActualOutput * day.leanMeatPrice) / 1000
+                        const boneRevenue = (day.boneActualOutput * day.bonePrice) / 1000
+                        const organsRevenue = (day.organsActualOutput * day.organsPrice) / 1000
+                        const totalRevenue = groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
+                        const livestockCost = (day.liveAnimalsInput * day.liveAnimalPrice) / 1000
+                        const totalCost = livestockCost
+                        const profit = totalRevenue - totalCost
 
                         return (
                           <TableRow key={day.date} className="border-b">
-                            <TableCell className="text-center border-r font-medium">{format(new Date(day.date), "dd/MM")}</TableCell>
-                            <TableCell className="text-center text-sm">
-                              <div className="flex flex-col">
-                                <span className="font-medium">{day.leanMeatActualOutput}kg</span>
-                                <span className="text-xs text-gray-500">{Math.round((day.leanMeatActualOutput * day.leanMeatPrice) / 1000)}k</span>
-                              </div>
+                            <TableCell className="text-center border font-medium">{format(new Date(day.date), "dd/MM")}</TableCell>
+                            <TableCell className="text-center border font-bold text-blue-700">
+                              {totalRevenue.toFixed(0)}
                             </TableCell>
-                            <TableCell className="text-center text-sm">
-                              <div className="flex flex-col">
-                                <span className="font-medium">{day.boneActualOutput}kg</span>
-                                <span className="text-xs text-gray-500">{Math.round((day.boneActualOutput * day.bonePrice) / 1000)}k</span>
-                              </div>
+                            {/* THU - Thịt xổ lọc */}
+                            <TableCell className="text-center border">{day.groundMeatActualOutput}</TableCell>
+                            <TableCell className="text-center border">{groundMeatRevenue.toFixed(0)}</TableCell>
+                            {/* THU - Thịt nạc */}
+                            <TableCell className="text-center border">{day.leanMeatActualOutput}</TableCell>
+                            <TableCell className="text-center border">{leanMeatRevenue.toFixed(0)}</TableCell>
+                            {/* THU - Xương xổ */}
+                            <TableCell className="text-center border">{day.boneActualOutput}</TableCell>
+                            <TableCell className="text-center border">{boneRevenue.toFixed(0)}</TableCell>
+                            {/* THU - Lòng */}
+                            <TableCell className="text-center border">{day.organsActualOutput}</TableCell>
+                            <TableCell className="text-center border">{organsRevenue.toFixed(0)}</TableCell>
+                            {/* TỔNG CHI */}
+                            <TableCell className="text-center border font-bold text-red-700">
+                              {totalCost.toFixed(0)}
                             </TableCell>
-                            <TableCell className="text-center text-sm">
-                              <div className="flex flex-col">
-                                <span className="font-medium">{day.groundMeatActualOutput}kg</span>
-                                <span className="text-xs text-gray-500">{Math.round((day.groundMeatActualOutput * day.groundMeatPrice) / 1000)}k</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center text-sm">
-                              <div className="flex flex-col">
-                                <span className="font-medium">{day.organsActualOutput}kg</span>
-                                <span className="text-xs text-gray-500">{Math.round((day.organsActualOutput * day.organsPrice) / 1000)}k</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center font-semibold text-blue-700">
-                              {Math.round(totalRevenue / 1000)}k
-                            </TableCell>
-                            <TableCell className="text-center font-semibold text-red-700">
-                              <div className="flex flex-col">
-                                <span>{day.liveAnimalsInput} con</span>
-                                <span className="text-xs">{Math.round(totalExpense / 1000)}k</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center font-bold">
-                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                                {profit >= 0 ? "+" : ""}{Math.round(profit / 1000)}k
-                              </span>
+                            {/* CHI - Lợn hơi */}
+                            <TableCell className="text-center border">{day.liveAnimalsInput}</TableCell>
+                            <TableCell className="text-center border">{livestockCost.toFixed(0)}</TableCell>
+                            {/* THU-CHI (LÃI) */}
+                            <TableCell className={`text-center border font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
                             </TableCell>
                           </TableRow>
                         )
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={12} className="text-center text-gray-500 py-8">
                           Không có dữ liệu cho tuần đã chọn
                         </TableCell>
                       </TableRow>
@@ -847,69 +1260,71 @@ export function LivestockProcessing() {
                     {/* Tổng cộng */}
                     {weeklyLivestockTracking && weeklyLivestockTracking.length > 0 && (
                       <TableRow className="bg-gradient-to-r from-gray-100 to-gray-200 font-semibold border-t-2">
-                        <TableCell className="text-center border-r font-bold">📊 Tổng cộng</TableCell>
-                        <TableCell className="text-center text-sm">
-                          <div className="flex flex-col">
-                            <span className="font-bold">{weeklyLivestockTracking.reduce((sum, day) => sum + day.leanMeatActualOutput, 0)}kg</span>
-                            <span className="text-xs">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.leanMeatActualOutput * day.leanMeatPrice), 0) / 1000)}k</span>
-                          </div>
+                        <TableCell className="text-center border font-bold">📊 Tổng cộng</TableCell>
+                        {/* TỔNG THU */}
+                        <TableCell className="text-center border font-bold text-blue-700">
+                          {weeklyLivestockTracking.reduce((sum, day) => {
+                            const groundMeatRevenue = (day.groundMeatActualOutput * day.groundMeatPrice) / 1000
+                            const leanMeatRevenue = (day.leanMeatActualOutput * day.leanMeatPrice) / 1000
+                            const boneRevenue = (day.boneActualOutput * day.bonePrice) / 1000
+                            const organsRevenue = (day.organsActualOutput * day.organsPrice) / 1000
+                            return sum + groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
+                          }, 0).toFixed(0)}
                         </TableCell>
-                        <TableCell className="text-center text-sm">
-                          <div className="flex flex-col">
-                            <span className="font-bold">{weeklyLivestockTracking.reduce((sum, day) => sum + day.boneActualOutput, 0)}kg</span>
-                            <span className="text-xs">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.boneActualOutput * day.bonePrice), 0) / 1000)}k</span>
-                          </div>
+                        {/* THU - Thịt xổ lọc */}
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.groundMeatActualOutput, 0)}
                         </TableCell>
-                        <TableCell className="text-center text-sm">
-                          <div className="flex flex-col">
-                            <span className="font-bold">{weeklyLivestockTracking.reduce((sum, day) => sum + day.groundMeatActualOutput, 0)}kg</span>
-                            <span className="text-xs">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.groundMeatActualOutput * day.groundMeatPrice), 0) / 1000)}k</span>
-                          </div>
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.groundMeatActualOutput * day.groundMeatPrice) / 1000, 0).toFixed(0)}
                         </TableCell>
-                        <TableCell className="text-center text-sm">
-                          <div className="flex flex-col">
-                            <span className="font-bold">{weeklyLivestockTracking.reduce((sum, day) => sum + day.organsActualOutput, 0)}kg</span>
-                            <span className="text-xs">{Math.round(weeklyLivestockTracking.reduce((sum, day) => sum + (day.organsActualOutput * day.organsPrice), 0) / 1000)}k</span>
-                          </div>
+                        {/* THU - Thịt nạc */}
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.leanMeatActualOutput, 0)}
                         </TableCell>
-                        <TableCell className="text-center font-bold text-blue-700">
-                          {Math.round(weeklyLivestockTracking.reduce((sum, day) => {
-                            const revenue = (day.leanMeatActualOutput * day.leanMeatPrice) + 
-                                          (day.boneActualOutput * day.bonePrice) + 
-                                          (day.groundMeatActualOutput * day.groundMeatPrice) + 
-                                          (day.organsActualOutput * day.organsPrice)
-                            return sum + revenue
-                          }, 0) / 1000)}k
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.leanMeatActualOutput * day.leanMeatPrice) / 1000, 0).toFixed(0)}
                         </TableCell>
-                        <TableCell className="text-center font-bold text-red-700">
-                          <div className="flex flex-col">
-                            <span>{weeklyLivestockTracking.reduce((sum, day) => sum + day.liveAnimalsInput, 0)} con</span>
-                            <span className="text-xs">
-                              {Math.round(weeklyLivestockTracking.reduce((sum, day) => {
-                                const totalCost = (day.liveAnimalsInput * day.liveAnimalPrice)
-                                const otherCosts = Math.round(day.liveAnimalsInput * 500)
-                                return sum + totalCost + otherCosts
-                              }, 0) / 1000)}k
-                            </span>
-                          </div>
+                        {/* THU - Xương xổ */}
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.boneActualOutput, 0)}
                         </TableCell>
-                        <TableCell className="text-center font-bold">
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.boneActualOutput * day.bonePrice) / 1000, 0).toFixed(0)}
+                        </TableCell>
+                        {/* THU - Lòng */}
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.organsActualOutput, 0)}
+                        </TableCell>
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.organsActualOutput * day.organsPrice) / 1000, 0).toFixed(0)}
+                        </TableCell>
+                        {/* TỔNG CHI */}
+                        <TableCell className="text-center border font-bold text-red-700">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.liveAnimalsInput * day.liveAnimalPrice) / 1000, 0).toFixed(0)}
+                        </TableCell>
+                        {/* CHI - Lợn hơi */}
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.liveAnimalsInput, 0)}
+                        </TableCell>
+                        <TableCell className="text-center border font-bold">
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.liveAnimalsInput * day.liveAnimalPrice) / 1000, 0).toFixed(0)}
+                        </TableCell>
+                        {/* THU-CHI (LÃI) */}
+                        <TableCell className="text-center border font-bold">
                           {(() => {
                             const totalRevenue = weeklyLivestockTracking.reduce((sum, day) => {
-                              return sum + (day.leanMeatActualOutput * day.leanMeatPrice) + 
-                                    (day.boneActualOutput * day.bonePrice) + 
-                                    (day.groundMeatActualOutput * day.groundMeatPrice) + 
-                                    (day.organsActualOutput * day.organsPrice)
+                              const groundMeatRevenue = (day.groundMeatActualOutput * day.groundMeatPrice) / 1000
+                              const leanMeatRevenue = (day.leanMeatActualOutput * day.leanMeatPrice) / 1000
+                              const boneRevenue = (day.boneActualOutput * day.bonePrice) / 1000
+                              const organsRevenue = (day.organsActualOutput * day.organsPrice) / 1000
+                              return sum + groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
                             }, 0)
-                            const totalExpense = weeklyLivestockTracking.reduce((sum, day) => {
-                              const cost = (day.liveAnimalsInput * day.liveAnimalPrice)
-                              const otherCosts = Math.round(day.liveAnimalsInput * 500)
-                              return sum + cost + otherCosts
-                            }, 0)
-                            const profit = totalRevenue - totalExpense
+                            const totalCost = weeklyLivestockTracking.reduce((sum, day) => sum + (day.liveAnimalsInput * day.liveAnimalPrice) / 1000, 0)
+                            const profit = totalRevenue - totalCost
                             return (
                               <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                                {profit >= 0 ? "+" : ""}{Math.round(profit / 1000)}k
+                                {profit >= 0 ? "+" : ""}{profit.toFixed(0)}
                               </span>
                             )
                           })()}
@@ -973,7 +1388,30 @@ export function LivestockProcessing() {
               <div className="overflow-x-auto">
                 <Table className="border">
                   <TableHeader>
-                    <SimpleTableHeader type="livestock" view="monthly" />
+                    <TableRow>
+                      <TableHead rowSpan={3} className="text-center align-middle border">THÁNG</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={8} className="text-center border">THU</TableHead>  
+                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={2} className="text-center border">CHI</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
+                    </TableRow>
+                    <TableRow>
+                      <TableHead colSpan={8} className="text-center border">TRONG ĐÓ</TableHead>
+                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
+                    </TableRow> 
+                    <TableRow>
+                      <TableHead className="text-center border">Thịt xổ lọc<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Thịt nạc<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Xương xổ<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Lòng<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Lợn hơi<br/>Số lượng (con)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                    </TableRow>
                   </TableHeader>
                   <TableBody>
                     {monthlyLivestockSummary && monthlyLivestockSummary.length > 0 ? (
