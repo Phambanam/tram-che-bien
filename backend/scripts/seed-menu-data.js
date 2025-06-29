@@ -15,6 +15,7 @@ async function seedMenuData() {
     // Clear existing menu data
     await db.collection('menus').deleteMany({});
     await db.collection('dailyMenus').deleteMany({});
+    await db.collection('meals').deleteMany({});
     console.log('Cleared existing menu data');
     
     // Get all dishes
@@ -98,12 +99,8 @@ async function seedMenuData() {
           date: date,
           dateStr: dateStr,
           dayOfWeek: dayOfWeek,
+          mealCount: 450, // Total personnel
           status: w < 2 ? 'approved' : 'pending',
-          meals: {
-            breakfast: [...breakfastMain, ...breakfastSoup],
-            lunch: [...lunchMain, ...lunchSoup, ...lunchVeg],
-            dinner: [...dinnerMain, ...dinnerSoup, ...dinnerVeg]
-          },
           notes: '',
           createdAt: new Date(),
           updatedAt: new Date()
@@ -114,8 +111,73 @@ async function seedMenuData() {
       
       // Insert all daily menus
       if (dailyMenus.length > 0) {
-        await db.collection('dailyMenus').insertMany(dailyMenus);
+        const insertedDailyMenus = await db.collection('dailyMenus').insertMany(dailyMenus);
         console.log(`Created ${dailyMenus.length} daily menus for week ${weekNumber}`);
+        
+        // Create meals for each daily menu
+        const meals = [];
+        let mealIndex = 0;
+        
+        for (let i = 0; i < dailyMenus.length; i++) {
+          const dailyMenuId = insertedDailyMenus.insertedIds[i];
+          const dailyMenu = dailyMenus[i];
+          const d = i; // day index
+          
+          // Re-select dishes for this daily menu
+          const breakfastMain = getRandomDishes(mainDishes, 2);
+          const breakfastSoup = getRandomDishes(soupDishes, 1);
+          
+          const lunchMain = getRandomDishes(mainDishes, 3);
+          const lunchSoup = getRandomDishes(soupDishes, 1);
+          const lunchVeg = getRandomDishes(vegetableDishes, 1);
+          
+          const dinnerMain = getRandomDishes(mainDishes, 3);
+          const dinnerSoup = getRandomDishes(soupDishes, 1);
+          const dinnerVeg = getRandomDishes(vegetableDishes, 1);
+          
+          // Ensure at least one tofu dish on some days
+          if (Math.random() > 0.3 && tofuDishes.length > 0) {
+            const randomTofu = tofuDishes[Math.floor(Math.random() * tofuDishes.length)];
+            if (Math.random() > 0.5) {
+              lunchMain[0] = randomTofu._id;
+            } else {
+              dinnerMain[0] = randomTofu._id;
+            }
+          }
+          
+          // Create morning meal
+          meals.push({
+            dailyMenuId: dailyMenuId,
+            type: 'morning',
+            dishes: [...breakfastMain, ...breakfastSoup],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          // Create noon meal
+          meals.push({
+            dailyMenuId: dailyMenuId,
+            type: 'noon',
+            dishes: [...lunchMain, ...lunchSoup, ...lunchVeg],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          // Create evening meal
+          meals.push({
+            dailyMenuId: dailyMenuId,
+            type: 'evening',
+            dishes: [...dinnerMain, ...dinnerSoup, ...dinnerVeg],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+        
+        // Insert all meals
+        if (meals.length > 0) {
+          await db.collection('meals').insertMany(meals);
+          console.log(`Created ${meals.length} meals for week ${weekNumber}`);
+        }
       }
     }
     
@@ -136,13 +198,18 @@ async function seedMenuData() {
       const ingredientsMap = new Map();
       
       for (const dailyMenu of dailyMenusForWeek) {
-        const allDishes = [
-          ...(dailyMenu.meals.breakfast || []),
-          ...(dailyMenu.meals.lunch || []),
-          ...(dailyMenu.meals.dinner || [])
-        ];
+        // Get meals for this daily menu
+        const meals = await db.collection('meals').find({ dailyMenuId: dailyMenu._id }).toArray();
         
-        for (const dishId of allDishes) {
+        // Collect all dish IDs from all meals
+        const allDishIds = [];
+        for (const meal of meals) {
+          if (meal.dishes && Array.isArray(meal.dishes)) {
+            allDishIds.push(...meal.dishes);
+          }
+        }
+        
+        for (const dishId of allDishIds) {
           const dish = await db.collection('dishes').findOne({ _id: dishId });
           if (dish && dish.ingredients && typeof dish.ingredients === 'string') {
             // Simple ingredient parsing (in real system this would be more sophisticated)
