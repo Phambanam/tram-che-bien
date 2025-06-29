@@ -455,7 +455,7 @@ export function LivestockProcessing() {
         <Beef className="h-6 w-6 text-red-600" />
         <h2 className="text-2xl font-bold text-red-800">Giết mổ lợn</h2>
         <Badge className="bg-red-100 text-red-800">
-          Quản lý phân phối thịt lợn
+          Chỉ do trạm trưởng chỉnh sửa
         </Badge>
       </div>
 
