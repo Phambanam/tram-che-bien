@@ -1422,3 +1422,6 @@ export const api = {
   beanSproutsCalculation: beanSproutsCalculationApi,
   saltCalculation: saltCalculationApi,
 }
+
+// Export as apiClient for backward compatibility
+export const apiClient = api
