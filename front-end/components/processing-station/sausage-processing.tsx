@@ -411,6 +411,10 @@ export function SausageProcessing() {
                         dailyUpdateData.sausagePrice || 0 :
                         dailySausageProcessing.sausagePrice || 0
                       
+                      const currentChaQuePrice = editingDailyData ? 
+                        dailyUpdateData.chaQuePrice || 0 :
+                        dailySausageProcessing.chaQuePrice || 0
+                      
                       const currentLeanMeatPrice = editingDailyData ? 
                         dailyUpdateData.leanMeatPrice || 0 :
                         dailySausageProcessing.leanMeatPrice || 0
@@ -420,10 +424,11 @@ export function SausageProcessing() {
                         dailySausageProcessing.fatMeatPrice || 0
                       
                       const currentSausageInput = editingDailyData ? dailyUpdateData.sausageInput : dailySausageProcessing.sausageInput
+                      const currentChaQueInput = editingDailyData ? dailyUpdateData.chaQueInput : dailySausageProcessing.chaQueInput
                       const currentLeanMeatInput = editingDailyData ? dailyUpdateData.leanMeatInput : dailySausageProcessing.leanMeatInput
                       const currentFatMeatInput = editingDailyData ? dailyUpdateData.fatMeatInput : dailySausageProcessing.fatMeatInput
                       
-                      if (currentSausagePrice === 0 || (currentLeanMeatPrice === 0 && currentFatMeatPrice === 0)) {
+                      if ((currentSausagePrice === 0 && currentChaQuePrice === 0) || (currentLeanMeatPrice === 0 && currentFatMeatPrice === 0)) {
                         return (
                           <span className="text-gray-500 text-xl">
                             Chưa có giá
@@ -432,8 +437,10 @@ export function SausageProcessing() {
                       }
                       
                       const sausageRevenue = currentSausageInput * currentSausagePrice
+                      const chaQueRevenue = currentChaQueInput * currentChaQuePrice
+                      const totalRevenue = sausageRevenue + chaQueRevenue
                       const meatCost = (currentLeanMeatInput * currentLeanMeatPrice) + (currentFatMeatInput * currentFatMeatPrice)
-                      const dailyProfit = sausageRevenue - meatCost
+                      const dailyProfit = totalRevenue - meatCost
                       
                       return (
                         <span className={dailyProfit >= 0 ? "text-green-600" : "text-red-600"}>
@@ -449,6 +456,10 @@ export function SausageProcessing() {
                         dailyUpdateData.sausagePrice || 0 :
                         dailySausageProcessing.sausagePrice || 0
                       
+                      const currentChaQuePrice = editingDailyData ? 
+                        dailyUpdateData.chaQuePrice || 0 :
+                        dailySausageProcessing.chaQuePrice || 0
+                      
                       const currentLeanMeatPrice = editingDailyData ? 
                         dailyUpdateData.leanMeatPrice || 0 :
                         dailySausageProcessing.leanMeatPrice || 0
@@ -458,17 +469,20 @@ export function SausageProcessing() {
                         dailySausageProcessing.fatMeatPrice || 0
                       
                       const currentSausageInput = editingDailyData ? dailyUpdateData.sausageInput : dailySausageProcessing.sausageInput
+                      const currentChaQueInput = editingDailyData ? dailyUpdateData.chaQueInput : dailySausageProcessing.chaQueInput
                       const currentLeanMeatInput = editingDailyData ? dailyUpdateData.leanMeatInput : dailySausageProcessing.leanMeatInput
                       const currentFatMeatInput = editingDailyData ? dailyUpdateData.fatMeatInput : dailySausageProcessing.fatMeatInput
                       
-                      if (currentSausagePrice && (currentLeanMeatPrice || currentFatMeatPrice)) {
-                        const revenue = currentSausageInput * currentSausagePrice
+                      if ((currentSausagePrice || currentChaQuePrice) && (currentLeanMeatPrice || currentFatMeatPrice)) {
+                        const sausageRevenue = currentSausageInput * currentSausagePrice
+                        const chaQueRevenue = currentChaQueInput * currentChaQuePrice
+                        const totalRevenue = sausageRevenue + chaQueRevenue
                         const cost = (currentLeanMeatInput * currentLeanMeatPrice) + (currentFatMeatInput * currentFatMeatPrice)
                         return (
-                          <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
+                          <>Thu: {totalRevenue.toLocaleString('vi-VN')}đ (Giò lụa: {sausageRevenue.toLocaleString('vi-VN')}đ + Chả quế: {chaQueRevenue.toLocaleString('vi-VN')}đ) - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
                         )
                       }
-                      return "Cần nhập đầy đủ giá thịt và giò chả"
+                      return "Cần nhập đầy đủ giá thịt, giò lụa và chả quế"
                     })()}
                   </div>
                 </div>
@@ -582,12 +596,12 @@ export function SausageProcessing() {
                     <div className="text-sm font-medium text-green-700 mb-1">Lãi trong ngày làm Giò lụa:</div>
                     <div className="text-lg font-bold text-green-800">
                       {(() => {
-                        const currentLeanMeatInput = dailySausageProcessing.leanMeatInput || 0
-                        const currentFatMeatInput = dailySausageProcessing.fatMeatInput || 0
-                        const currentSausageInput = dailySausageProcessing.sausageInput || 0
-                        const currentLeanMeatPrice = dailySausageProcessing.leanMeatPrice || 120000
-                        const currentFatMeatPrice = dailySausageProcessing.fatMeatPrice || 80000
-                        const currentSausagePrice = dailySausageProcessing.sausagePrice || 150000
+                        const currentLeanMeatInput = editingDailyData ? dailyUpdateData.leanMeatInput : dailySausageProcessing.leanMeatInput || 0
+                        const currentFatMeatInput = editingDailyData ? dailyUpdateData.fatMeatInput : dailySausageProcessing.fatMeatInput || 0
+                        const currentSausageInput = editingDailyData ? dailyUpdateData.sausageInput : dailySausageProcessing.sausageInput || 0
+                        const currentLeanMeatPrice = editingDailyData ? dailyUpdateData.leanMeatPrice : dailySausageProcessing.leanMeatPrice || 120000
+                        const currentFatMeatPrice = editingDailyData ? dailyUpdateData.fatMeatPrice : dailySausageProcessing.fatMeatPrice || 80000
+                        const currentSausagePrice = editingDailyData ? dailyUpdateData.sausagePrice : dailySausageProcessing.sausagePrice || 150000
                         
                         if (currentSausagePrice && (currentLeanMeatPrice || currentFatMeatPrice)) {
                           const revenue = currentSausageInput * currentSausagePrice
@@ -596,6 +610,7 @@ export function SausageProcessing() {
                           return (
                             <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
                               {profit >= 0 ? "+" : ""}{profit.toLocaleString('vi-VN')}đ
+                              {editingDailyData && <span className="text-xs ml-2">(Real-time)</span>}
                             </span>
                           )
                         }
@@ -663,12 +678,12 @@ export function SausageProcessing() {
                     <div className="text-sm font-medium text-pink-700 mb-1">Lãi của chả quế:</div>
                     <div className="text-lg font-bold text-pink-800">
                       {(() => {
-                        const chaQueInput = dailySausageProcessing.chaQueInput || 0
-                        const chaQuePrice = dailySausageProcessing.chaQuePrice || 140000
+                        const chaQueInput = editingDailyData ? dailyUpdateData.chaQueInput : dailySausageProcessing.chaQueInput || 0
+                        const chaQuePrice = editingDailyData ? dailyUpdateData.chaQuePrice : dailySausageProcessing.chaQuePrice || 140000
                         // Giả sử chi phí chả quế bằng 30% thịt nạc chi (dùng chung với giò lụa)
                         const chaQueCostRatio = 0.3 // 30% thịt nạc được dùng cho chả quế
-                        const leanMeatForChaQue = (dailySausageProcessing.leanMeatInput || 0) * chaQueCostRatio
-                        const leanMeatPrice = dailySausageProcessing.leanMeatPrice || 120000
+                        const leanMeatForChaQue = (editingDailyData ? dailyUpdateData.leanMeatInput : dailySausageProcessing.leanMeatInput || 0) * chaQueCostRatio
+                        const leanMeatPrice = editingDailyData ? dailyUpdateData.leanMeatPrice : dailySausageProcessing.leanMeatPrice || 120000
                         const chaQueCost = leanMeatForChaQue * leanMeatPrice
                         
                         const revenue = chaQueInput * chaQuePrice
@@ -677,10 +692,122 @@ export function SausageProcessing() {
                         return (
                           <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
                             {profit >= 0 ? "+" : ""}{profit.toLocaleString('vi-VN')}đ
+                            {editingDailyData && <span className="text-xs ml-2">(Real-time)</span>}
                           </span>
                         )
                       })()}
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Price section - 4 boxes for prices */}
+            <div className="grid grid-cols-2 gap-6 mt-6">
+              {/* Giá thịt nạc */}
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-orange-700 mb-2">Giá thịt nạc:</div>
+                  <div className="text-xl font-bold text-orange-800">
+                    {editingDailyData ? (
+                      <Input
+                        type="number"
+                        value={dailyUpdateData.leanMeatPrice}
+                        onChange={(e) => setDailyUpdateData(prev => ({ 
+                          ...prev, 
+                          leanMeatPrice: Number(e.target.value) || 0
+                        }))}
+                        className="w-32 h-10 text-center text-xl font-bold bg-white border-orange-300"
+                        placeholder="0"
+                      />
+                    ) : (
+                      <span>{(dailySausageProcessing.leanMeatPrice || 0).toLocaleString('vi-VN')}</span>
+                    )}
+                    <span className="text-sm ml-1">đ/kg</span>
+                  </div>
+                  <div className="text-xs text-orange-600 mt-1">
+                    (Trạm trưởng nhập tay)
+                  </div>
+                </div>
+              </div>
+
+              {/* Giá thịt mỡ */}
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-yellow-700 mb-2">Giá thịt mỡ:</div>
+                  <div className="text-xl font-bold text-yellow-800">
+                    {editingDailyData ? (
+                      <Input
+                        type="number"
+                        value={dailyUpdateData.fatMeatPrice}
+                        onChange={(e) => setDailyUpdateData(prev => ({ 
+                          ...prev, 
+                          fatMeatPrice: Number(e.target.value) || 0
+                        }))}
+                        className="w-32 h-10 text-center text-xl font-bold bg-white border-yellow-300"
+                        placeholder="0"
+                      />
+                    ) : (
+                      <span>{(dailySausageProcessing.fatMeatPrice || 0).toLocaleString('vi-VN')}</span>
+                    )}
+                    <span className="text-sm ml-1">đ/kg</span>
+                  </div>
+                  <div className="text-xs text-yellow-600 mt-1">
+                    (Trạm trưởng nhập tay)
+                  </div>
+                </div>
+              </div>
+
+              {/* Giá giò lụa */}
+              <div className="bg-cyan-50 border-2 border-cyan-200 rounded-lg p-4">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-cyan-700 mb-2">Giá giò lụa:</div>
+                  <div className="text-xl font-bold text-cyan-800">
+                    {editingDailyData ? (
+                      <Input
+                        type="number"
+                        value={dailyUpdateData.sausagePrice}
+                        onChange={(e) => setDailyUpdateData(prev => ({ 
+                          ...prev, 
+                          sausagePrice: Number(e.target.value) || 0
+                        }))}
+                        className="w-32 h-10 text-center text-xl font-bold bg-white border-cyan-300"
+                        placeholder="0"
+                      />
+                    ) : (
+                      <span>{(dailySausageProcessing.sausagePrice || 0).toLocaleString('vi-VN')}</span>
+                    )}
+                    <span className="text-sm ml-1">đ/kg</span>
+                  </div>
+                  <div className="text-xs text-cyan-600 mt-1">
+                    (Trạm trưởng nhập tay)
+                  </div>
+                </div>
+              </div>
+
+              {/* Giá chả quế */}
+              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-purple-700 mb-2">Giá chả quế:</div>
+                  <div className="text-xl font-bold text-purple-800">
+                    {editingDailyData ? (
+                      <Input
+                        type="number"
+                        value={dailyUpdateData.chaQuePrice}
+                        onChange={(e) => setDailyUpdateData(prev => ({ 
+                          ...prev, 
+                          chaQuePrice: Number(e.target.value) || 0
+                        }))}
+                        className="w-32 h-10 text-center text-xl font-bold bg-white border-purple-300"
+                        placeholder="0"
+                      />
+                    ) : (
+                      <span>{(dailySausageProcessing.chaQuePrice || 0).toLocaleString('vi-VN')}</span>
+                    )}
+                    <span className="text-sm ml-1">đ/kg</span>
+                  </div>
+                  <div className="text-xs text-purple-600 mt-1">
+                    (Trạm trưởng nhập tay)
                   </div>
                 </div>
               </div>
