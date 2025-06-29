@@ -393,7 +393,7 @@ export function SausageProcessing() {
         <Utensils className="h-6 w-6 text-orange-600" />
         <h2 className="text-2xl font-bold text-orange-800">Làm giò chả</h2>
         <Badge className="bg-orange-100 text-orange-800">
-          Quản lý chế biến thịt lợn
+          Chỉ do trạm trưởng chỉnh sửa
         </Badge>
       </div>
 
