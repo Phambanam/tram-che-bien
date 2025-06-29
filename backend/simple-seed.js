@@ -89,10 +89,10 @@ async function seedData() {
     
     // Create units
     const units = await Unit.insertMany([
-      { name: "Thứ đoàn 1", code: "TD1", personnel: 150, commander: "Đại úy A", contact: "0901234567" },
-      { name: "Thứ đoàn 2", code: "TD2", personnel: 135, commander: "Đại úy B", contact: "0901234568" },
-      { name: "Thứ đoàn 3", code: "TD3", personnel: 140, commander: "Đại úy C", contact: "0901234569" },
-      { name: "Lễ đoàn hộ", code: "LDH", personnel: 45, commander: "Thiếu úy D", contact: "0901234570" }
+      { name: "Tiểu đoàn 1", code: "TD1", personnel: 150, commander: "Đại úy A", contact: "0901234567" },
+      { name: "Tiểu đoàn 2", code: "TD2", personnel: 135, commander: "Đại úy B", contact: "0901234568" },
+      { name: "Tiểu đoàn 3", code: "TD3", personnel: 140, commander: "Đại úy C", contact: "0901234569" },
+      { name: "Lữ đoàn bộ", code: "LDH", personnel: 45, commander: "Thiếu úy D", contact: "0901234570" }
     ])
     
     console.log(`🏢 Created ${units.length} units`)

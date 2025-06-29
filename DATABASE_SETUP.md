@@ -52,10 +52,10 @@ npm run seed
 - **Manager**: manager@military.gov.vn / admin123
 
 #### 🏢 Units (Đơn vị)
-- Thứ đoàn 1 (150 người)
-- Thứ đoàn 2 (135 người)  
-- Thứ đoàn 3 (140 người)
-- Lễ đoàn hộ (45 người)
+- Tiểu đoàn 1 (150 người)
+- Tiểu đoàn 2 (135 người)  
+- Tiểu đoàn 3 (140 người)
+- Lữ đoàn bộ (45 người)
 
 #### 📦 LTTP Items (14 mặt hàng)
 - **Thực phẩm**: Gạo, thịt heo, thịt gà, cá tra, trứng gà, đậu nành

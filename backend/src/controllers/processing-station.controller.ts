@@ -1221,6 +1221,264 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
   }
 }
 
+// @desc    Get daily processing data for station manager
+// @route   GET /api/processing-station/daily/:date
+// @access  Private (Station Manager + Admin)
+export const getDailyData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const user = (req as any).user
+
+    // Check if user is authorized
+    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trạm trưởng mới có quyền truy cập"
+      })
+    }
+
+    const db = await getDb()
+    
+    // Get daily processing data for all types
+    const dailyData = await db.collection("dailyProcessingData").findOne({
+      date: date,
+      unitId: user.unitId
+    })
+
+    res.status(200).json({
+      success: true,
+      data: dailyData || {}
+    })
+  } catch (error) {
+    console.error("Error fetching daily data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu ngày"
+    })
+  }
+}
+
+// @desc    Update daily processing data for station manager
+// @route   POST /api/processing-station/daily/:date
+// @access  Private (Station Manager + Admin)
+export const updateDailyData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const user = (req as any).user
+    const updateData = req.body
+
+    // Check if user is authorized
+    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trạm trưởng mới có quyền cập nhật"
+      })
+    }
+
+    const db = await getDb()
+    
+    // Update or create daily processing data
+    const result = await db.collection("dailyProcessingData").updateOne(
+      { 
+        date: date,
+        unitId: user.unitId
+      },
+      {
+        $set: {
+          ...updateData,
+          date: date,
+          unitId: user.unitId,
+          updatedBy: user.id,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật dữ liệu thành công"
+    })
+  } catch (error) {
+    console.error("Error updating daily data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật dữ liệu"
+    })
+  }
+}
+
+// @desc    Get weekly processing data
+// @route   GET /api/processing-station/weekly/:week/:year
+// @access  Private (Station Manager + Admin)
+export const getWeeklyData = async (req: Request, res: Response) => {
+  try {
+    const { week, year } = req.params
+    const user = (req as any).user
+
+    // Check if user is authorized
+    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trạm trưởng mới có quyền truy cập"
+      })
+    }
+
+    const db = await getDb()
+    
+    // Get week dates
+    const weekDates = getWeekDates(parseInt(week), parseInt(year))
+    const startDate = weekDates[0].toISOString().split('T')[0]
+    const endDate = weekDates[6].toISOString().split('T')[0]
+    
+    // Get weekly processing data
+    const weeklyData = await db.collection("dailyProcessingData").find({
+      date: { $gte: startDate, $lte: endDate },
+      unitId: user.unitId
+    }).toArray()
+
+    res.status(200).json({
+      success: true,
+      data: weeklyData
+    })
+  } catch (error) {
+    console.error("Error fetching weekly data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu tuần"
+    })
+  }
+}
+
+// @desc    Get monthly processing data
+// @route   GET /api/processing-station/monthly/:month/:year
+// @access  Private (Station Manager + Admin)
+export const getMonthlyData = async (req: Request, res: Response) => {
+  try {
+    const { month, year } = req.params
+    const user = (req as any).user
+
+    // Check if user is authorized
+    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trạm trưởng mới có quyền truy cập"
+      })
+    }
+
+    const db = await getDb()
+    
+    // Get month dates
+    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString().split('T')[0]
+    const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0]
+    
+    // Get monthly processing data
+    const monthlyData = await db.collection("dailyProcessingData").find({
+      date: { $gte: startDate, $lte: endDate },
+      unitId: user.unitId
+    }).toArray()
+
+    res.status(200).json({
+      success: true,
+      data: monthlyData
+    })
+  } catch (error) {
+    console.error("Error fetching monthly data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu tháng"
+    })
+  }
+}
+
+// @desc    Get LTTP data for specific date
+// @route   GET /api/processing-station/lttp/:date
+// @access  Private (Station Manager + Admin)
+export const getLttpData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const user = (req as any).user
+
+    // Check if user is authorized
+    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trạm trưởng mới có quyền truy cập"
+      })
+    }
+
+    const db = await getDb()
+    
+    // Get LTTP data for date
+    const lttpData = await db.collection("lttpData").find({
+      date: date,
+      unitId: user.unitId
+    }).toArray()
+
+    res.status(200).json({
+      success: true,
+      data: lttpData
+    })
+  } catch (error) {
+    console.error("Error fetching LTTP data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu LTTP"
+    })
+  }
+}
+
+// @desc    Update LTTP data for specific date
+// @route   POST /api/processing-station/lttp/:date
+// @access  Private (Station Manager + Admin)
+export const updateLttpData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const user = (req as any).user
+    const lttpItems = req.body.items
+
+    // Check if user is authorized
+    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trạm trưởng mới có quyền cập nhật"
+      })
+    }
+
+    const db = await getDb()
+    
+    // Delete existing LTTP data for this date
+    await db.collection("lttpData").deleteMany({
+      date: date,
+      unitId: user.unitId
+    })
+
+    // Insert new LTTP data
+    if (lttpItems && lttpItems.length > 0) {
+      const dataToInsert = lttpItems.map((item: any) => ({
+        ...item,
+        date: date,
+        unitId: user.unitId,
+        updatedBy: user.id,
+        updatedAt: new Date()
+      }))
+
+      await db.collection("lttpData").insertMany(dataToInsert)
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật dữ liệu LTTP thành công"
+    })
+  } catch (error) {
+    console.error("Error updating LTTP data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật dữ liệu LTTP"
+    })
+  }
+}
+
 // Helper functions
 function getWeekDates(week: number, year: number): Date[] {
   // Start with January 1st of the year

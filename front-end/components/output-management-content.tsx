@@ -208,10 +208,10 @@ export function OutputManagementContent() {
                     <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-16">ĐVT</TableHead>
                     <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-20">Đơn giá</TableHead>
                     <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-20">SL đề nghị</TableHead>
-                    <TableHead colSpan={3} className="text-center border-r bg-blue-50">Thứ đoàn 1</TableHead>
-                    <TableHead colSpan={3} className="text-center border-r bg-green-50">Thứ đoàn 2</TableHead>
-                    <TableHead colSpan={3} className="text-center border-r bg-yellow-50">Thứ đoàn 3</TableHead>
-                    <TableHead colSpan={3} className="text-center border-r bg-purple-50">Lễ đoàn hộ</TableHead>
+                    <TableHead colSpan={3} className="text-center border-r bg-blue-50">Tiểu đoàn 1</TableHead>
+                    <TableHead colSpan={3} className="text-center border-r bg-green-50">Tiểu đoàn 2</TableHead>
+                    <TableHead colSpan={3} className="text-center border-r bg-yellow-50">Tiểu đoàn 3</TableHead>
+                    <TableHead colSpan={3} className="text-center border-r bg-purple-50">Lữ đoàn bộ</TableHead>
                     <TableHead colSpan={3} className="text-center bg-red-50">Tổng</TableHead>
                   </TableRow>
                   <TableRow>

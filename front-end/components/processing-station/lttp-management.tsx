@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { DatePicker } from "@/components/ui/date-picker"
+import { Badge } from "@/components/ui/badge"
 import { Package, Plus, Save, Calendar } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/components/auth/auth-provider"
 
 interface LTTPItem {
   id: string
@@ -42,11 +44,14 @@ interface LTTPItem {
 
 export function LttpManagement() {
   const { toast } = useToast()
+  const { user } = useAuth()
   
   // States
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [lttpItems, setLttpItems] = useState<LTTPItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Sample data
   const sampleLttpItems: LTTPItem[] = [
@@ -153,11 +158,38 @@ export function LttpManagement() {
     }
   }
 
-  const handleSave = () => {
-    toast({
-      title: "✅ Thành công",
-      description: "Đã lưu dữ liệu LTTP",
-    })
+  const handleSave = async () => {
+    if (!user || (user.role !== "admin" && user.role !== "stationManager")) {
+      toast({
+        title: "❌ Không có quyền",
+        description: "Chỉ trạm trưởng mới có thể lưu dữ liệu LTTP",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsSaving(true)
+      
+      // TODO: Integrate with backend API
+      // await lttpApi.saveDailyData(selectedDate, lttpItems)
+      
+      toast({
+        title: "✅ Thành công", 
+        description: "Đã lưu dữ liệu LTTP",
+      })
+      
+      setIsEditing(false)
+    } catch (error) {
+      console.error("Error saving LTTP data:", error)
+      toast({
+        title: "❌ Lỗi",
+        description: "Có lỗi xảy ra khi lưu dữ liệu",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -170,17 +202,50 @@ export function LttpManagement() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-lg">Bảng theo dõi LTTP - {format(selectedDate, "dd/MM/yyyy", { locale: vi })}</CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-lg">Bảng theo dõi LTTP - {format(selectedDate, "dd/MM/yyyy", { locale: vi })}</CardTitle>
+              {user && (user.role === "admin" || user.role === "stationManager") && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                  Chỉ do trạm trưởng chỉnh sửa
+                </Badge>
+              )}
+            </div>
             <div className="flex gap-2">
               <DatePicker 
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 placeholder="Chọn ngày"
               />
-              <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700">
-                <Save className="w-4 h-4 mr-2" />
-                Lưu
-              </Button>
+              {user && (user.role === "admin" || user.role === "stationManager") && (
+                <>
+                  {!isEditing ? (
+                    <Button 
+                      onClick={() => setIsEditing(true)} 
+                      variant="outline"
+                      className="bg-blue-50 text-blue-700 hover:bg-blue-100"
+                    >
+                      📝 Chỉnh sửa
+                    </Button>
+                  ) : (
+                    <>
+                      <Button 
+                        onClick={() => setIsEditing(false)}
+                        variant="outline"
+                      >
+                        ❌ Hủy
+                      </Button>
+                      <Button 
+                        onClick={handleSave} 
+                        disabled={isSaving}
+                        className="bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {isSaving ? "Đang lưu..." : "Lưu"}
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -237,32 +302,44 @@ export function LttpManagement() {
                     
                     {/* Nhập trong ngày */}
                     <TableCell className="p-1">
-                      <Input
-                        type="number"
-                        value={item.todayInputQuantity}
-                        onChange={(e) => handleInputChange(item.id, 'todayInputQuantity', Number(e.target.value))}
-                        className="w-16 h-8 text-xs text-center"
-                      />
+                      {isEditing && user && (user.role === "admin" || user.role === "stationManager") ? (
+                        <Input
+                          type="number"
+                          value={item.todayInputQuantity}
+                          onChange={(e) => handleInputChange(item.id, 'todayInputQuantity', Number(e.target.value))}
+                          className="w-16 h-8 text-xs text-center"
+                        />
+                      ) : (
+                        <span className="text-center block">{item.todayInputQuantity}</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right border-r">{formatCurrency(item.todayInputAmount)}</TableCell>
                     
                     {/* Xuất */}
                     <TableCell className="p-1">
-                      <Input
-                        type="number"
-                        value={item.todayOutputQuantity}
-                        onChange={(e) => handleInputChange(item.id, 'todayOutputQuantity', Number(e.target.value))}
-                        className="w-16 h-8 text-xs text-center"
-                      />
+                      {isEditing && user && (user.role === "admin" || user.role === "stationManager") ? (
+                        <Input
+                          type="number"
+                          value={item.todayOutputQuantity}
+                          onChange={(e) => handleInputChange(item.id, 'todayOutputQuantity', Number(e.target.value))}
+                          className="w-16 h-8 text-xs text-center"
+                        />
+                      ) : (
+                        <span className="text-center block">{item.todayOutputQuantity}</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(item.todayOutputAmount)}</TableCell>
                     <TableCell className="p-1 border-r">
-                      <Input
-                        type="date"
-                        value={item.todayOutputExpiry}
-                        onChange={(e) => handleInputChange(item.id, 'todayOutputExpiry', e.target.value)}
-                        className="w-24 h-8 text-xs"
-                      />
+                      {isEditing && user && (user.role === "admin" || user.role === "stationManager") ? (
+                        <Input
+                          type="date"
+                          value={item.todayOutputExpiry}
+                          onChange={(e) => handleInputChange(item.id, 'todayOutputExpiry', e.target.value)}
+                          className="w-24 h-8 text-xs"
+                        />
+                      ) : (
+                        <span className="text-center block text-xs">{item.todayOutputExpiry}</span>
+                      )}
                     </TableCell>
                     
                     {/* Tồn cuối ngày */}
@@ -271,20 +348,26 @@ export function LttpManagement() {
                     
                     {/* Trạng thái */}
                     <TableCell className="text-center">
-                      <Select
-                        value={item.status}
-                        onValueChange={(value) => handleInputChange(item.id, 'status', value)}
-                      >
-                        <SelectTrigger className={`w-20 h-8 text-xs ${getStatusColor(item.status)}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Tốt">Tốt</SelectItem>
-                          <SelectItem value="Bình thường">Bình thường</SelectItem>
-                          <SelectItem value="Sắp hết hạn">Sắp hết hạn</SelectItem>
-                          <SelectItem value="Hết hạn">Hết hạn</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {isEditing && user && (user.role === "admin" || user.role === "stationManager") ? (
+                        <Select
+                          value={item.status}
+                          onValueChange={(value) => handleInputChange(item.id, 'status', value)}
+                        >
+                          <SelectTrigger className={`w-20 h-8 text-xs ${getStatusColor(item.status)}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Tốt">Tốt</SelectItem>
+                            <SelectItem value="Bình thường">Bình thường</SelectItem>
+                            <SelectItem value="Sắp hết hạn">Sắp hết hạn</SelectItem>
+                            <SelectItem value="Hết hạn">Hết hạn</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className={`text-xs px-2 py-1 rounded ${getStatusColor(item.status)}`}>
+                          {item.status}
+                        </span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -358,12 +441,22 @@ export function LttpManagement() {
             </div>
           </div>
 
+          {/* Info message for non-authorized users */}
+          {user?.role && !['stationManager', 'admin'].includes(user.role) && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-700 text-center">
+                ⚠️ Chỉ trạm trưởng mới có thể chỉnh sửa dữ liệu LTTP
+              </p>
+            </div>
+          )}
+
           {/* Notes */}
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <h4 className="font-semibold mb-2">Ghi chú:</h4>
             <ul className="text-sm text-gray-600 space-y-1">
               <li>• Số liệu dã thông qua chế biến: Lý tự phận, Thực xuất trong gì nguồn xuất</li>
               <li>• Số sánh với ngày hiện tại để báo: Chưa hết hạn, Sắp hết hạn (trước 3 ngày), Hết hạn</li>
+              <li>• Chỉ trạm trưởng mới có thể chỉnh sửa và lưu dữ liệu</li>
             </ul>
           </div>
         </CardContent>
