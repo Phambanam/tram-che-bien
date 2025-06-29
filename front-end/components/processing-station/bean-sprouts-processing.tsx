@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Sprout } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Sprout, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, beanSproutsCalculationApi } from "@/lib/api-client"
@@ -670,8 +671,25 @@ export function BeanSproutsProcessing() {
         </Badge>
       </div>
 
-      {/* Daily Bean Sprouts Processing */}
-      <Card className="mb-6">
+      <Tabs defaultValue="daily" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="daily" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Theo ngày
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tuần
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tháng
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily">
+          {/* Daily Bean Sprouts Processing */}
+          <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             CHẾ BIẾN GIÁ ĐỖ
@@ -1007,9 +1025,11 @@ export function BeanSproutsProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Weekly Tracking Table */}
-      <Card className="mb-6">
+        <TabsContent value="weekly">
+          {/* Weekly Tracking Table */}
+          <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             BẢNG THEO DÕI CHẾ BIẾN GIÁ ĐỖ THEO TUẦN
@@ -1288,9 +1308,11 @@ export function BeanSproutsProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Monthly Summary */}
-      <Card>
+        <TabsContent value="monthly">
+          {/* Monthly Summary */}
+          <Card>
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             LÀM GIÁ ĐỖ - TỔNG HỢP THEO THÁNG
@@ -1453,6 +1475,8 @@ export function BeanSproutsProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Detection Test Results */}
       {detectionResult && (

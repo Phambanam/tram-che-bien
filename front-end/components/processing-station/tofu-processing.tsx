@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Package } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Package, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, tofuCalculationApi } from "@/lib/api-client"
@@ -913,8 +914,25 @@ export function TofuProcessing() {
         </Badge>
       </div>
 
-      {/* Daily Tofu Processing */}
-      <Card className="mb-6">
+      <Tabs defaultValue="daily" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="daily" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Theo ngày
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tuần
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tháng
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily">
+          {/* Daily Tofu Processing */}
+          <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             CHẾ BIẾN ĐẬU PHỤ
@@ -1252,6 +1270,9 @@ export function TofuProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="weekly">
 
       {/* Weekly Tracking Table */}
       <Card className="mb-6">
@@ -1533,9 +1554,11 @@ export function TofuProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Monthly Summary */}
-      <Card>
+        <TabsContent value="monthly">
+          {/* Monthly Summary */}
+          <Card>
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             LÀM ĐẬU PHỤ - TỔNG HỢP THEO THÁNG
@@ -1698,6 +1721,8 @@ export function TofuProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Detection Test Results */}
       {detectionResult && (
