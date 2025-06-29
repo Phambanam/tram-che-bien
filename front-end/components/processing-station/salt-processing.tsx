@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Droplets } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Droplets, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, saltCalculationApi } from "@/lib/api-client"
@@ -699,8 +700,25 @@ export function SaltProcessing() {
         </Badge>
       </div>
 
-      {/* Daily Salt Processing */}
-      <Card className="mb-6">
+      <Tabs defaultValue="daily" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="daily" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Theo ngày
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tuần
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tháng
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily">
+          {/* Daily Salt Processing */}
+          <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             CHẾ BIẾN DƯA MUỐI
@@ -1036,9 +1054,11 @@ export function SaltProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Weekly Tracking Table */}
-      <Card className="mb-6">
+        <TabsContent value="weekly">
+          {/* Weekly Tracking Table */}
+          <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             BẢNG THEO DÕI CHẾ BIẾN DƯA MUỐI THEO TUẦN
@@ -1317,9 +1337,11 @@ export function SaltProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Monthly Summary */}
-      <Card>
+        <TabsContent value="monthly">
+          {/* Monthly Summary */}
+          <Card>
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             LÀM DƯA MUỐI - TỔNG HỢP THEO THÁNG
@@ -1482,6 +1504,8 @@ export function SaltProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Detection Test Results */}
       {detectionResult && (
