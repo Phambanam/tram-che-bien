@@ -207,7 +207,7 @@ export function TofuProcessing() {
       })
       
       if (!response.success || !response.data) {
-        console.log("❌ No tofu calculation data available")
+        console.log("❌ No tofu calculation data available - API returned unsuccessful response")
         return 0
       }
       
@@ -225,8 +225,23 @@ export function TofuProcessing() {
       
       return totalTofuRequiredKg
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error calling tofu calculation API:", error)
+      
+      // Handle specific API errors gracefully
+      if (error?.message && error.message.includes("Không có dữ liệu thực đơn")) {
+        console.log("📝 No menu data available for this date - this is normal for future dates or dates without menu planning")
+        return 0
+      }
+      
+      // Handle network errors (404, 500, etc.)
+      if (error?.status === 404) {
+        console.log("📝 Menu data not found for this date (404) - using fallback")
+        return 0
+      }
+      
+      // Other errors
+      console.log("📝 API error handled gracefully, using fallback calculation")
       return 0
     }
   }
@@ -367,8 +382,21 @@ export function TofuProcessing() {
           })
         }
         
-      } catch (error) {
+      } catch (error: any) {
         console.log("❌ Error getting tofu output data:", error)
+        
+        // Handle API errors gracefully - don't show error toast for normal cases
+        if (error?.message && error.message.includes("Không có dữ liệu thực đơn")) {
+          console.log("📝 No menu data for this date - this is expected for dates without planned menus")
+        } else if (error?.status === 404) {
+          console.log("📝 Menu endpoint not found - using default values")
+        } else {
+          // Only show error for unexpected issues
+          console.warn("⚠️ Unexpected error in tofu calculation:", error)
+        }
+        
+        // Always continue with default values instead of crashing
+        plannedTofuOutput = 0
       }
 
       // Calculate remaining tofu
@@ -480,7 +508,7 @@ export function TofuProcessing() {
       } else {
         throw new Error("API response không hợp lệ")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error fetching weekly tracking data via API:", error)
       
       // Fallback: Generate sample data for current week
@@ -500,11 +528,16 @@ export function TofuProcessing() {
       }))
       setWeeklyTracking(sampleWeeklyData)
       
-      toast({
-        title: "Lỗi",
-        description: `Không thể lấy dữ liệu tuần ${targetWeek}/${targetYear}. Hiển thị dữ liệu mặc định.`,
-        variant: "destructive",
-      })
+      // Only show error toast for unexpected issues, not for missing data
+      if (error?.status && error.status >= 500) {
+        toast({
+          title: "Lỗi",
+          description: `Lỗi server khi lấy dữ liệu tuần ${targetWeek}/${targetYear}`,
+          variant: "destructive",
+        })
+      } else {
+        console.log(`📝 No weekly data available for week ${targetWeek}/${targetYear} - using defaults`)
+      }
     }
   }
 
@@ -547,7 +580,7 @@ export function TofuProcessing() {
         throw new Error("API response không hợp lệ")
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error fetching monthly tofu summary via API:', error)
       
       // Fallback: Generate sample data 
@@ -577,11 +610,16 @@ export function TofuProcessing() {
       
       setMonthlyTofuSummary(fallbackSummaries)
       
-      toast({
-        title: "Lỗi",
-        description: `Không thể lấy dữ liệu tháng ${targetMonth}/${targetYear}. Hiển thị dữ liệu mặc định.`,
-        variant: "destructive",
-      })
+      // Only show error toast for server errors, not for missing data
+      if (error?.status && error.status >= 500) {
+        toast({
+          title: "Lỗi",
+          description: `Lỗi server khi lấy dữ liệu tháng ${targetMonth}/${targetYear}`,
+          variant: "destructive",
+        })
+      } else {
+        console.log(`📝 No monthly data available for ${targetMonth}/${targetYear} - using defaults`)
+      }
     }
   }
 
@@ -825,7 +863,7 @@ export function TofuProcessing() {
         description: result.found ? 
           `Tìm thấy ${result.dishesUsingTofu?.length || 0} món có đậu phụ. Cần xuất: ${result.totalTofuRequired?.toFixed(2) || 0} kg` :
           `Không tìm thấy đậu phụ: ${result.reason}`,
-        variant: result.found ? "default" : "destructive"
+        variant: result.found ? "default" : "default"
       })
       
       // If found tofu for today, refresh the daily data

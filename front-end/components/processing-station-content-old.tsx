@@ -1250,14 +1250,6 @@ export function ProcessingStationContent() {
     return (
     <div className="container mx-auto p-6">
       <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b">
-          <h1 className="text-3xl font-bold text-center text-[#b45f06] mb-2">
-            TRẠM CHẾ BIẾN
-          </h1>
-          <p className="text-center text-gray-600">
-            Quản lý chế biến và sản xuất thực phẩm
-          </p>
-            </div>
 
         {/* Section Navigation */}
         <div className="p-6 border-b bg-gray-50">

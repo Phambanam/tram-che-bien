@@ -56,41 +56,44 @@ export function ProcessingStationContent() {
   return (
     <div className="container mx-auto p-6">
       <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b">
-          <h1 className="text-3xl font-bold text-center text-[#b45f06] mb-2">
-            TRẠM CHẾ BIẾN
-          </h1>
-          <p className="text-center text-gray-600">
-            Quản lý chế biến và sản xuất thực phẩm
-          </p>
-        </div>
 
         {/* Section Navigation */}
-        <div className="p-6 border-b bg-gray-50">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <div className="p-4 border-b bg-gradient-to-r from-slate-50 to-gray-50">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
             {sections.map((section) => {
               const Icon = section.icon
               const isActive = activeSection === section.id
               const isImplemented = ["tofu", "sprouts", "salt", "sausage", "livestock", "seafood", "lttp", "revenue-planning"].includes(section.id)
               
               return (
-                <Button
+                <button
                   key={section.id}
-                  variant={isActive ? "default" : "outline"}
-                  className={`h-20 flex flex-col items-center justify-center gap-2 ${
-                    !isImplemented ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+                  className={`
+                    relative group p-3 rounded-lg transition-all duration-300 ease-in-out
+                    flex flex-col items-center justify-center gap-1.5
+                    text-sm font-medium border border-transparent
+                    ${isActive 
+                      ? 'bg-gradient-to-b from-slate-700 to-slate-800 text-white shadow-lg transform scale-105' 
+                      : 'bg-white text-slate-600 hover:text-slate-800 hover:bg-slate-50 hover:border-slate-200 hover:shadow-md hover:scale-102'
+                    }
+                    ${!isImplemented ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                  `}
                   onClick={() => isImplemented && setActiveSection(section.id)}
                   disabled={!isImplemented}
                 >
-                  <Icon className="h-6 w-6" />
-                  <span className="text-xs text-center">{section.name}</span>
+                  <Icon className={`h-5 w-5 transition-transform duration-300 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-700'}`} />
+                  <span className={`text-xs text-center leading-tight ${isActive ? 'text-white font-semibold' : 'text-slate-600 group-hover:text-slate-800'}`}>
+                    {section.name}
+                  </span>
                   {!isImplemented && (
-                    <Badge variant="secondary" className="text-xs">
-                      Sắp có
-                    </Badge>
+                    <div className="absolute -top-1 -right-1 bg-orange-400 text-white text-[10px] px-1 py-0.5 rounded-full">
+                      ⏳
+                    </div>
                   )}
-                </Button>
+                  {isActive && (
+                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-white rounded-full"></div>
+                  )}
+                </button>
               )
             })}
           </div>
