@@ -1406,9 +1406,6 @@ export const beanSproutsCalculationApi = {
   }) => {
     return apiRequest<{ success: boolean; data: any; message: string }>('/bean-sprouts-calculation/daily-processing', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(data),
     })
   },
