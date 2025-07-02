@@ -595,8 +595,7 @@ export function SaltProcessing() {
     try {
       setIsUpdating(true)
 
-      // Update salt data via dedicated salt API (byProductQuantity, byProductPrice, otherCosts get default values since not edited in daily view)
-      await processingStationApi.updateDailySaltData(dailySaltProcessing.date, {
+      const updatePayload = {
         cabbageInput: dailyUpdateData.cabbageInput,
         saltInput: dailyUpdateData.saltInput,
         note: dailyUpdateData.note,
@@ -606,7 +605,16 @@ export function SaltProcessing() {
         byProductQuantity: 0, // Default: no by-products in daily view
         byProductPrice: 2000, // Default price when by-products are added later
         otherCosts: 0 // Default: no other costs in daily view
+      }
+
+      // Debug: Log the data being sent
+      console.log(`🧂 [FRONTEND SALT DEBUG] Sending salt data for ${dailySaltProcessing.date}:`, {
+        ...updatePayload,
+        expectedRevenue: (updatePayload.saltInput * updatePayload.saltPrice) / 1000
       })
+
+      // Update salt data via dedicated salt API (byProductQuantity, byProductPrice, otherCosts get default values since not edited in daily view)
+      await processingStationApi.updateDailySaltData(dailySaltProcessing.date, updatePayload)
 
       // Refresh all data to update weekly and monthly views
       await fetchDailySaltProcessing(new Date(dailySaltProcessing.date))

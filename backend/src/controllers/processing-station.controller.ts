@@ -741,6 +741,17 @@ export const updateDailySaltData = async (req: Request, res: Response) => {
     } = req.body
     const db = await getDb()
 
+    // Debug: Log the received data
+    console.log(`🧂 [SALT DEBUG] Updating salt data for ${date}:`, {
+      cabbageInput: cabbageInput,
+      saltInput: saltInput,
+      cabbagePrice: cabbagePrice,
+      saltPrice: saltPrice,
+      saltPriceNumber: Number(saltPrice),
+      saltInputNumber: Number(saltInput),
+      expectedRevenue: (Number(saltInput) * Number(saltPrice)) / 1000
+    })
+
     // Update or insert daily data
     const result = await db.collection("dailySaltProcessing").updateOne(
       { date: date },
