@@ -272,12 +272,13 @@ export function BeanSproutsProcessing() {
       try {
         const stationResponse = await processingStationApi.getDailyData(dateStr)
         if (stationResponse && stationResponse.data) {
+          // Map tofu API field names back to bean sprouts field names
           stationData = {
-            soybeansInput: stationResponse.data.soybeansInput || 0,
-            beanSproutsInput: (stationResponse.data.beanSproutsInput || 0) + carryOverAmount, // Add carry over
+            soybeansInput: stationResponse.data.soybeanInput || stationResponse.data.soybeansInput || 0,  // Map back from soybeanInput
+            beanSproutsInput: ((stationResponse.data.tofuInput || stationResponse.data.beanSproutsInput || 0) + carryOverAmount), // Map back from tofuInput
             note: (stationResponse.data.note || "") + carryOverNote, // Add carry over note
-            soybeansPrice: stationResponse.data.soybeansPrice || 0,
-            beanSproutsPrice: stationResponse.data.beanSproutsPrice || 0
+            soybeansPrice: stationResponse.data.soybeanPrice || stationResponse.data.soybeansPrice || 0,  // Map back from soybeanPrice
+            beanSproutsPrice: stationResponse.data.tofuPrice || stationResponse.data.beanSproutsPrice || 0  // Map back from tofuPrice
           }
         } else if (carryOverAmount > 0) {
           // If no current data but have carry over, apply it to defaults
