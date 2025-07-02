@@ -941,6 +941,15 @@ export const processingStationApi = {
     return apiRequest<{ success: boolean; data: any }>(`/processing-station/poultry/monthly-summary${query}`)
   },
 
+  // Weekly and Monthly data APIs
+  getWeeklyData: async (week: number, year: number) => {
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/station/weekly/${week}/${year}`)
+  },
+
+  getMonthlyData: async (month: number, year: number) => {
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/station/monthly/${month}/${year}`)
+  },
+
   // LTTP Management APIs
   getLttpData: async (date: string) => {
     return apiRequest<{ success: boolean; data: any[] }>(`/processing-station/lttp/${date}`)
@@ -1376,6 +1385,32 @@ export const beanSproutsCalculationApi = {
     
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/monthly-summary${query}`)
+  },
+
+  // Bean Sprouts Processing API
+  getBeanSproutsProcessingData: (date: string) => {
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/daily-processing?date=${date}`)
+  },
+
+  updateBeanSproutsProcessingData: (data: {
+    date: string
+    soybeansInput?: number
+    beanSproutsInput?: number
+    beanSproutsOutput?: number
+    soybeansPrice?: number
+    beanSproutsPrice?: number
+    byProductQuantity?: number
+    byProductPrice?: number
+    otherCosts?: number
+    note?: string
+  }) => {
+    return apiRequest<{ success: boolean; data: any; message: string }>('/bean-sprouts-calculation/daily-processing', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
   },
 }
 

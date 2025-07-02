@@ -1,31 +1,29 @@
-import express from "express"
+import { Router } from "express"
 import {
   calculateBeanSproutsRequirements,
   calculateWeeklyBeanSproutsRequirements,
   getBeanSproutsUsageStatistics,
   getWeeklyBeanSproutsTracking,
-  getMonthlyBeanSproutsSummary
+  getMonthlyBeanSproutsSummary,
+  updateDailyBeanSproutsProcessing,
+  getDailyBeanSproutsProcessing
 } from "../controllers/bean-sprouts-calculation.controller"
 import { protect, authorize } from "../middleware/auth.middleware"
 
-const router = express.Router()
+const router = Router()
 
 // Protected routes
 router.use(protect)
 
-// Get bean sprouts requirements for a specific date or week
+// Bean sprouts calculation routes
 router.get("/requirements", calculateBeanSproutsRequirements)
-
-// Get weekly bean sprouts requirements with daily breakdown
 router.get("/weekly-requirements", calculateWeeklyBeanSproutsRequirements)
-
-// Get bean sprouts usage statistics
 router.get("/statistics", getBeanSproutsUsageStatistics)
-
-// Get weekly bean sprouts tracking data (for frontend weekly table)
 router.get("/weekly-tracking", getWeeklyBeanSproutsTracking)
-
-// Get monthly bean sprouts summary (for frontend monthly table)
 router.get("/monthly-summary", getMonthlyBeanSproutsSummary)
+
+// Bean sprouts processing station routes
+router.post("/daily-processing", updateDailyBeanSproutsProcessing)
+router.get("/daily-processing", getDailyBeanSproutsProcessing)
 
 export default router 
