@@ -950,7 +950,7 @@ export const getMonthlySausageSummary = async (req: Request, res: Response) => {
         const chaQueRevenue = Math.round((monthlyData.totalChaQueInput * avgChaQuePrice) / 1000)
         const totalRevenue = sausageRevenue + chaQueRevenue
         const meatCost = Math.round(((monthlyData.totalLeanMeatInput * avgLeanMeatPrice) + (monthlyData.totalFatMeatInput * avgFatMeatPrice)) / 1000)
-        const otherCosts = Math.round(((monthlyData.totalLeanMeatInput + monthlyData.totalFatMeatInput) * 50)) // 50 VND per kg other costs
+        const otherCosts = 0 // Set to 0 like weekly API
         const totalCost = meatCost + otherCosts
         const netProfit = totalRevenue - totalCost
         
@@ -998,7 +998,7 @@ export const getMonthlySausageSummary = async (req: Request, res: Response) => {
         const chaQueRevenue = Math.round((estimatedChaQueInput * estimatedChaQuePrice) / 1000)
         const totalRevenue = sausageRevenue + chaQueRevenue
         const meatCost = Math.round(((estimatedLeanMeat * estimatedLeanMeatPrice) + (estimatedFatMeat * estimatedFatMeatPrice)) / 1000)
-        const otherCosts = Math.round((estimatedLeanMeat + estimatedFatMeat) * 50) // 50 VND per kg other costs
+        const otherCosts = 0 // Set to 0 like weekly API
         const totalCost = meatCost + otherCosts
         const netProfit = totalRevenue - totalCost
         
