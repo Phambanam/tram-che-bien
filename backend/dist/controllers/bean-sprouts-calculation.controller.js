@@ -410,7 +410,7 @@ const getBeanSproutsUsageStatistics = async (req, res) => {
         })
             .toArray();
         // Get processing station bean sprouts data
-        const beanSproutsProcessingData = await db.collection("dailyBeanSproutsProcessing")
+        const beanSproutsProcessingData = await db.collection("dailyTofuProcessing")
             .find({
             date: {
                 $gte: startDate,
@@ -419,8 +419,8 @@ const getBeanSproutsUsageStatistics = async (req, res) => {
         })
             .sort({ date: 1 })
             .toArray();
-        const totalProcessedBeanSprouts = beanSproutsProcessingData.reduce((sum, data) => sum + (data.beanSproutsInput || 0), 0);
-        const totalSoybeansUsed = beanSproutsProcessingData.reduce((sum, data) => sum + (data.soybeansInput || 0), 0);
+        const totalProcessedBeanSprouts = beanSproutsProcessingData.reduce((sum, data) => sum + (data.tofuInput || 0), 0);
+        const totalSoybeansUsed = beanSproutsProcessingData.reduce((sum, data) => sum + (data.soybeanInput || 0), 0);
         const conversionRate = totalSoybeansUsed > 0 ? totalProcessedBeanSprouts / totalSoybeansUsed : 3.0;
         res.status(200).json({
             success: true,
@@ -477,15 +477,15 @@ const getWeeklyBeanSproutsTracking = async (req, res) => {
             weeklyData.push({
                 date: dateStr,
                 dayOfWeek: getDayNameVi(date.getDay()),
-                soybeansInput: processingData.soybeansInput || 0,
-                beanSproutsInput: processingData.beanSproutsInput || 0,
-                beanSproutsOutput: processingData.beanSproutsOutput || 0,
-                beanSproutsRemaining: Math.max(0, (processingData.beanSproutsInput || 0) - (processingData.beanSproutsOutput || 0)),
+                soybeansInput: processingData.soybeanInput || 0,
+                beanSproutsInput: processingData.tofuInput || 0,
+                beanSproutsOutput: processingData.tofuOutput || 0,
+                beanSproutsRemaining: Math.max(0, (processingData.tofuInput || 0) - (processingData.tofuOutput || 0)),
                 // Financial fields
                 byProductQuantity: processingData.byProductQuantity || 0,
                 byProductPrice: processingData.byProductPrice || 3000,
-                soybeansPrice: processingData.soybeansPrice || 15000,
-                beanSproutsPrice: processingData.beanSproutsPrice || 8000,
+                soybeansPrice: processingData.soybeanPrice || 15000,
+                beanSproutsPrice: processingData.tofuPrice || 8000,
                 otherCosts: processingData.otherCosts || 0
             });
         }
@@ -602,18 +602,18 @@ function getDayNameVi(dayIndex) {
 async function getBeanSproutsProcessingStationData(db, dateStr) {
     try {
         // Try to get data from processing station collection
-        const processingData = await db.collection("dailyBeanSproutsProcessing").findOne({
+        const processingData = await db.collection("dailyTofuProcessing").findOne({
             date: dateStr
         });
         if (processingData) {
             return {
-                soybeansInput: processingData.soybeansInput || 0,
-                beanSproutsInput: processingData.beanSproutsInput || 0,
-                beanSproutsOutput: processingData.beanSproutsOutput || 0,
+                soybeansInput: processingData.soybeanInput || 0,
+                beanSproutsInput: processingData.tofuInput || 0,
+                beanSproutsOutput: processingData.tofuOutput || 0,
                 byProductQuantity: processingData.byProductQuantity || 0,
                 byProductPrice: processingData.byProductPrice || 3000,
-                soybeansPrice: processingData.soybeansPrice || 15000,
-                beanSproutsPrice: processingData.beanSproutsPrice || 8000,
+                soybeansPrice: processingData.soybeanPrice || 15000,
+                beanSproutsPrice: processingData.tofuPrice || 8000,
                 otherCosts: processingData.otherCosts || 0,
                 note: processingData.note || ""
             };
@@ -656,7 +656,7 @@ async function getMonthlyBeanSproutsProcessingData(db, year, month) {
         const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
         const endDate = new Date(year, month, 0).toISOString().split('T')[0];
         // Aggregate data from daily processing records
-        const monthlyData = await db.collection("dailyBeanSproutsProcessing")
+        const monthlyData = await db.collection("dailyTofuProcessing")
             .aggregate([
             {
                 $match: {
@@ -666,9 +666,9 @@ async function getMonthlyBeanSproutsProcessingData(db, year, month) {
             {
                 $group: {
                     _id: null,
-                    totalSoybeansInput: { $sum: "$soybeansInput" },
-                    totalBeanSproutsCollected: { $sum: "$beanSproutsInput" },
-                    totalBeanSproutsOutput: { $sum: "$beanSproutsOutput" },
+                    totalSoybeansInput: { $sum: "$soybeanInput" },
+                    totalBeanSproutsCollected: { $sum: "$tofuInput" },
+                    totalBeanSproutsOutput: { $sum: "$tofuOutput" },
                     count: { $sum: 1 }
                 }
             }
