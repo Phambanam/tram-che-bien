@@ -6,15 +6,10 @@ import { Category } from '../src/models/category.model';
 import { Product } from '../src/models/product.model';
 import { Supply } from '../src/models/supply.model';
 import { LTTPItem } from '../src/models/lttp-item.model';
-import { 
-  TofuProcessing,
-  SaltProcessing,
-  BeanSproutsProcessing 
-} from '../src/models/processing-station.model';
 
 dotenv.config();
 
-console.log('🌱 Creating Military Logistics Database with correct schema...');
+console.log('🌱 Creating Military Logistics Database (Simple Version)...');
 
 async function connectDB() {
   try {
@@ -39,9 +34,6 @@ async function clearDatabase() {
     await Product.deleteMany({});
     await Supply.deleteMany({});
     await LTTPItem.deleteMany({});
-    await TofuProcessing.deleteMany({});
-    await SaltProcessing.deleteMany({});
-    await BeanSproutsProcessing.deleteMany({});
     
     // Drop old indexes that might conflict
     try {
@@ -165,10 +157,10 @@ async function seedData() {
     // 3. Create Categories
     console.log('📂 Creating categories...');
     const categories = await Category.insertMany([
-      { name: "Thực phẩm", description: "Thực phẩm cơ bản", isActive: true },
-      { name: "Rau củ quả", description: "Rau củ tươi sống", isActive: true },
-      { name: "Gia vị", description: "Gia vị nấu ăn", isActive: true },
-      { name: "Chất đốt", description: "Nhiên liệu nấu ăn", isActive: true }
+      { _id: "thuc-pham", name: "Thực phẩm", description: "Thực phẩm cơ bản", status: "active" },
+      { _id: "rau-cu-qua", name: "Rau củ quả", description: "Rau củ tươi sống", status: "active" },
+      { _id: "gia-vi", name: "Gia vị", description: "Gia vị nấu ăn", status: "active" },
+      { _id: "chat-dot", name: "Chất đốt", description: "Nhiên liệu nấu ăn", status: "active" }
     ]);
 
     console.log(`✅ Created ${categories.length} categories`);
@@ -177,74 +169,94 @@ async function seedData() {
     console.log('📦 Creating products...');
     const products = await Product.insertMany([
       { 
+        _id: "gao-te-loai-1",
         name: "Gạo tẻ loại 1",
-        category: categories[0].name,
+        category: categories[0]._id,
         unit: "Kg",
+        standardAmount: 25,
         description: "Gạo tẻ chất lượng cao",
-        isActive: true
+        status: "active"
       },
       {
+        _id: "thit-heo-nac",
         name: "Thịt heo nạc", 
-        category: categories[0].name,
+        category: categories[0]._id,
         unit: "Kg",
+        standardAmount: 10,
         description: "Thịt heo nạc tươi",
-        isActive: true
+        status: "active"
       },
       {
+        _id: "thit-ga-ta",
         name: "Thịt gà ta",
-        category: categories[0].name, 
+        category: categories[0]._id, 
         unit: "Kg",
+        standardAmount: 8,
         description: "Thịt gà ta tươi",
-        isActive: true
+        status: "active"
       },
       {
+        _id: "ca-chua",
         name: "Cà chua",
-        category: categories[1].name,
-        unit: "Kg", 
+        category: categories[1]._id,
+        unit: "Kg",
+        standardAmount: 5,
         description: "Cà chua tươi",
-        isActive: true
+        status: "active"
       },
       {
+        _id: "rau-cai-ngot",
         name: "Rau cải ngọt",
-        category: categories[1].name,
+        category: categories[1]._id,
         unit: "Kg",
+        standardAmount: 3,
         description: "Rau cải ngọt tươi", 
-        isActive: true
+        status: "active"
       },
       {
+        _id: "bap-cai",
         name: "Bắp cải",
-        category: categories[1].name,
+        category: categories[1]._id,
         unit: "Kg",
+        standardAmount: 4,
         description: "Bắp cải tươi",
-        isActive: true
+        status: "active"
       },
       {
+        _id: "muoi-tinh",
         name: "Muối tinh",
-        category: categories[2].name,
+        category: categories[2]._id,
         unit: "Kg",
+        standardAmount: 1,
         description: "Muối tinh khiết",
-        isActive: true
+        status: "active"
       },
       {
+        _id: "dau-an",
         name: "Dầu ăn",
-        category: categories[2].name,
-        unit: "Lít", 
+        category: categories[2]._id,
+        unit: "Lít",
+        standardAmount: 2,
         description: "Dầu ăn thực vật",
-        isActive: true
+        status: "active"
       },
       {
+        _id: "dau-nanh-kho",
         name: "Đậu nành khô",
-        category: categories[0].name,
+        category: categories[0]._id,
         unit: "Kg",
+        standardAmount: 5,
         description: "Đậu nành khô làm đậu phụ",
-        isActive: true
+        status: "active"
       },
       {
+        _id: "gas-lpg",
         name: "Gas LPG",
-        category: categories[3].name,
+        category: categories[3]._id,
         unit: "Kg",
+        standardAmount: 12,
         description: "Gas nấu ăn",
-        isActive: true
+        status: "active"
       }
     ]);
 
@@ -255,8 +267,8 @@ async function seedData() {
     const supplies = await Supply.insertMany([
       {
         unit: units[0]._id,
-        category: categories[0].name,
-        product: products[0].name,
+        category: categories[0]._id,
+        product: products[0]._id,
         supplyQuantity: 100,
         requestedQuantity: 100,
         receivedQuantity: 95,
@@ -276,8 +288,8 @@ async function seedData() {
       },
       {
         unit: units[1]._id,
-        category: categories[1].name,
-        product: products[5].name,
+        category: categories[1]._id,
+        product: products[5]._id,
         supplyQuantity: 50,
         requestedQuantity: 50,
         status: "pending",
@@ -286,6 +298,27 @@ async function seedData() {
           name: users[2].fullName
         },
         note: "Cần duyệt nhanh"
+      },
+      {
+        unit: units[2]._id,
+        category: categories[0]._id,
+        product: products[1]._id,
+        supplyQuantity: 25,
+        requestedQuantity: 30,
+        receivedQuantity: 25,
+        actualQuantity: 25,
+        unitPrice: 180000,
+        totalPrice: 4500000,
+        status: "received",
+        createdBy: {
+          id: users[2]._id,
+          name: users[2].fullName
+        },
+        approvedBy: {
+          id: users[0]._id,
+          name: users[0].fullName
+        },
+        note: "Thịt heo chất lượng tốt"
       }
     ]);
 
@@ -320,100 +353,28 @@ async function seedData() {
         description: "Bắp cải tươi để ướp muối",
         createdBy: users[0]._id,
         isActive: true
+      },
+      {
+        name: "Thịt heo nạc",
+        category: "Thực phẩm",
+        unit: "Kg",
+        unitPrice: 180000,
+        description: "Thịt heo nạc tươi",
+        createdBy: users[0]._id,
+        isActive: true
+      },
+      {
+        name: "Thịt gà ta",
+        category: "Thực phẩm",
+        unit: "Kg",
+        unitPrice: 120000,
+        description: "Thịt gà ta tươi",
+        createdBy: users[0]._id,
+        isActive: true
       }
     ]);
 
     console.log(`✅ Created ${lttpItems.length} LTTP items`);
-
-    // 7. Create Processing Station Data (smaller batch for testing)
-    console.log('🏭 Creating processing station data...');
-    const today = new Date();
-    const tofuData = [];
-    const saltData = [];
-
-    // Only create 10 days of data for initial testing
-    for (let i = 9; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-
-      // Tofu processing
-      const soybeansInput = 30 + Math.floor(Math.random() * 40);
-      const tofuOutput = Math.floor(soybeansInput * 0.3);
-      
-      tofuData.push({
-        date,
-        stationType: 'tofu',
-        input: {
-          soybeans: {
-            quantity: soybeansInput,
-            quality: 'Tốt',
-            price: 28000,
-            carryOverFromPreviousDay: i === 9 ? 0 : Math.floor(Math.random() * 10)
-          }
-        },
-        output: {
-          tofu: {
-            quantity: tofuOutput,
-            quality: 'Tốt',
-            pricePerKg: 35000
-          }
-        },
-        remaining: {
-          soybeans: Math.floor(Math.random() * 15),
-          tofu: Math.floor(Math.random() * 8)
-        },
-        financial: {
-          totalInputCost: soybeansInput * 28000,
-          totalOutputValue: tofuOutput * 35000,
-          profit: (tofuOutput * 35000) - (soybeansInput * 28000),
-          profitMargin: ((tofuOutput * 35000) - (soybeansInput * 28000)) / (soybeansInput * 28000) * 100
-        },
-        processedBy: users[1]._id,
-        notes: `Sản xuất đậu phụ ngày ${date.toLocaleDateString('vi-VN')}`
-      });
-
-      // Salt processing
-      const cabbageInput = 20 + Math.floor(Math.random() * 30);
-      const pickledOutput = Math.floor(cabbageInput * 0.7);
-      
-      saltData.push({
-        date,
-        stationType: 'salt',
-        input: {
-          cabbage: {
-            quantity: cabbageInput,
-            quality: 'Tốt', 
-            price: 12000,
-            carryOverFromPreviousDay: i === 9 ? 0 : Math.floor(Math.random() * 8)
-          }
-        },
-        output: {
-          pickledCabbage: {
-            quantity: pickledOutput,
-            quality: 'Tốt',
-            pricePerKg: 15000
-          }
-        },
-        remaining: {
-          cabbage: Math.floor(Math.random() * 10),
-          pickledCabbage: Math.floor(Math.random() * 6)
-        },
-        financial: {
-          totalInputCost: cabbageInput * 12000,
-          totalOutputValue: pickledOutput * 15000,
-          profit: (pickledOutput * 15000) - (cabbageInput * 12000),
-          profitMargin: ((pickledOutput * 15000) - (cabbageInput * 12000)) / (cabbageInput * 12000) * 100
-        },
-        processedBy: users[1]._id,
-        notes: `Ướp muối rau cải ngày ${date.toLocaleDateString('vi-VN')}`
-      });
-    }
-
-    await TofuProcessing.insertMany(tofuData);
-    await SaltProcessing.insertMany(saltData);
-
-    console.log(`✅ Created ${tofuData.length} tofu processing records`);
-    console.log(`✅ Created ${saltData.length} salt processing records`);
 
     console.log('\n🎉 Database seeding completed successfully!')
     console.log('\n📊 Summary:')
@@ -423,15 +384,14 @@ async function seedData() {
     console.log(`📦 Products: ${products.length}`)
     console.log(`📋 Supplies: ${supplies.length}`)  
     console.log(`🏪 LTTP Items: ${lttpItems.length}`)
-    console.log(`🥛 Tofu Processing: ${tofuData.length}`)
-    console.log(`🧂 Salt Processing: ${saltData.length}`)
     
     console.log('\n🔐 Login Credentials:')
     console.log('📧 Admin: admin / admin123')
     console.log('📧 Manager: manager / admin123')
     console.log('📧 Commander: commander1 / admin123')
     
-    console.log('\n✨ Database is ready with correct schema!')
+    console.log('\n✨ Core database is ready!')
+    console.log('\n📝 Note: Processing station data can be added later when needed')
 
   } catch (error) {
     console.error('❌ Error seeding data:', error);
