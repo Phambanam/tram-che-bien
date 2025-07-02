@@ -4,7 +4,7 @@ require('dotenv').config()
 // Connect to database
 async function connectDB() {
   try {
-    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/military-logistics'
+    const uri = process.env.MONGODB_URI || 'mongodb://admin:password@localhost:27017/military-logistics?authSource=admin'
     await mongoose.connect(uri)
     console.log('✅ Connected to MongoDB:', uri)
   } catch (error) {

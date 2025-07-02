@@ -139,7 +139,39 @@ async function seedData() {
         rank: "Đại úy", 
         position: "Chỉ huy tiểu đoàn",
         status: "active" as const
-      }
+      },
+      {
+        username: "commander2",
+        phoneNumber: "0904444444",
+        password: "admin123",
+        fullName: "Đại úy Nguyễn Văn B",
+        role: "unitAssistant" as const,
+        unit: units[1]._id,
+        rank: "Đại úy",
+        position: "Chỉ huy tiểu đoàn",
+        status: "active" as const
+      }, {
+        username: "commander3",
+        phoneNumber: "0905555555",
+        password: "admin123",
+        fullName: "Đại úy Nguyễn Văn C",
+        role: "unitAssistant" as const,
+        unit: units[2]._id,
+        rank: "Đại úy",
+        position: "Chỉ huy tiểu đoàn",
+        status: "active" as const
+      } , {
+        username: "commander4",
+        phoneNumber: "0906666666",
+        password: "admin123",
+        fullName: "Đại úy Nguyễn Văn D",
+        role: "brigadeAssistant" as const,
+        unit: units[3]._id,
+        rank: "Đại úy",
+        position: "Chỉ huy tiểu đoàn",
+        status: "active" as const
+      },
+      
     ];
 
     for (const userData of usersData) {

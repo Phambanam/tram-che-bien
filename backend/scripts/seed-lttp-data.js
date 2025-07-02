@@ -385,7 +385,7 @@ const usersData = [
 // Connect to MongoDB
 async function connectDB() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/military-logistics')
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://admin:password@localhost:27017/military-logistics?authSource=admin')
     console.log('✅ Connected to MongoDB')
   } catch (error) {
     console.error('❌ MongoDB connection error:', error)

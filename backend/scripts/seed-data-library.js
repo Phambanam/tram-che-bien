@@ -1,7 +1,7 @@
 const { MongoClient, ObjectId } = require('mongodb');
 require('dotenv').config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/military-logistics';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:password@localhost:27017/military-logistics?authSource=admin';
 
 async function seedDataLibrary() {
   const client = new MongoClient(MONGODB_URI);
