@@ -56,6 +56,11 @@ interface MonthlySaltSummary {
   totalSaltOutput: number
   totalSaltRemaining: number
   processingEfficiency: number // percentage
+  otherCosts?: number // Chi khác (VND)
+  saltRevenue?: number // Doanh thu dưa muối (1000 VND)
+  cabbageCost?: number // Chi phí rau cải (1000 VND)
+  byProductRevenue?: number // Doanh thu sản phẩm phụ (1000 VND)
+  netProfit?: number // Lãi ròng (1000 VND)
 }
 
 export function SaltProcessing() {
@@ -520,7 +525,12 @@ export function SaltProcessing() {
           totalSaltCollected: monthData.totalSaltCollected,
           totalSaltOutput: monthData.totalSaltOutput,
           totalSaltRemaining: monthData.totalSaltRemaining,
-          processingEfficiency: monthData.processingEfficiency
+          processingEfficiency: monthData.processingEfficiency,
+          otherCosts: monthData.otherCosts,
+          saltRevenue: monthData.saltRevenue,
+          cabbageCost: monthData.cabbageCost,
+          byProductRevenue: monthData.byProductRevenue,
+          netProfit: monthData.netProfit
         }))
         
         setMonthlySaltSummary(monthlySummaries)
@@ -547,7 +557,7 @@ export function SaltProcessing() {
         months.push(date)
       }
       
-      const fallbackSummaries: MonthlySaltSummary[] = months.map(month => {
+              const fallbackSummaries: MonthlySaltSummary[] = months.map(month => {
         const totalCabbageInput = 2000 + Math.floor(Math.random() * 800)
         const totalSaltCollected = 1400 + Math.floor(Math.random() * 560)
         const totalSaltOutput = 1200 + Math.floor(Math.random() * 480)
@@ -559,7 +569,12 @@ export function SaltProcessing() {
           totalSaltCollected,
           totalSaltOutput,
           totalSaltRemaining: totalSaltCollected - totalSaltOutput,
-          processingEfficiency: totalCabbageInput > 0 ? Math.round((totalSaltCollected / totalCabbageInput) * 100) : 0
+          processingEfficiency: totalCabbageInput > 0 ? Math.round((totalSaltCollected / totalCabbageInput) * 100) : 0,
+          otherCosts: 0,
+          saltRevenue: totalSaltCollected * 12,
+          cabbageCost: totalCabbageInput * 8,
+          byProductRevenue: Math.round(totalSaltCollected * 0.1 * 2),
+          netProfit: (totalSaltCollected * 12) + Math.round(totalSaltCollected * 0.1 * 2) - (totalCabbageInput * 8) - 0
         }
       })
       
@@ -1466,33 +1481,34 @@ export function SaltProcessing() {
                           {month.totalSaltCollected.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {(month.totalSaltCollected * 12).toLocaleString()}
+                          {(month.saltRevenue || month.totalSaltCollected * 12).toLocaleString()}
                         </td>
                         {/* THU - Sản phẩm phụ */}
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {Math.round(month.totalSaltCollected * 0.1 * 2).toLocaleString()}
+                          {(month.byProductRevenue || Math.round(month.totalSaltCollected * 0.1 * 2)).toLocaleString()}
                         </td>
                         {/* CHI - Rau cải */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
                           {month.totalCabbageInput.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {(month.totalCabbageInput * 8).toLocaleString()}
+                          {(month.cabbageCost || month.totalCabbageInput * 8).toLocaleString()}
                         </td>
                         {/* CHI - Chi khác */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {Math.round(month.totalCabbageInput * 0.02 * 1000).toLocaleString()}
+                          {(month.otherCosts || 0).toLocaleString()}
                         </td>
                         {/* THU-CHI (LÃI) */}
                         <td className="border border-black p-1 text-center bg-blue-50">
                           <span className={`font-bold ${
-                            ((month.totalSaltCollected * 12) + Math.round(month.totalSaltCollected * 0.1 * 2) - 
-                             (month.totalCabbageInput * 8) - Math.round(month.totalCabbageInput * 0.02 * 1000)) >= 0 
+                            (month.netProfit !== undefined ? month.netProfit : 
+                            ((month.saltRevenue || month.totalSaltCollected * 12) + (month.byProductRevenue || Math.round(month.totalSaltCollected * 0.1 * 2)) - 
+                             (month.cabbageCost || month.totalCabbageInput * 8) - (month.otherCosts || 0))) >= 0 
                             ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {(
-                              (month.totalSaltCollected * 12) + Math.round(month.totalSaltCollected * 0.1 * 2) - 
-                              (month.totalCabbageInput * 8) - Math.round(month.totalCabbageInput * 0.02 * 1000)
+                            {(month.netProfit !== undefined ? month.netProfit :
+                              ((month.saltRevenue || month.totalSaltCollected * 12) + (month.byProductRevenue || Math.round(month.totalSaltCollected * 0.1 * 2)) - 
+                               (month.cabbageCost || month.totalCabbageInput * 8) - (month.otherCosts || 0))
                             ).toLocaleString()}
                           </span>
                         </td>
