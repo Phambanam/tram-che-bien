@@ -838,7 +838,7 @@ export const getMonthlySaltSummary = async (req: Request, res: Response) => {
           // Financial calculations (in thousands VND)
           saltRevenue: Math.round(monthlyData.totalSaltCollected * 12), // 12k VND per kg
           cabbageCost: Math.round(monthlyData.totalCabbageInput * 8),  // 8k VND per kg
-          otherCosts: Math.round(monthlyData.totalCabbageInput * 0.02), // 2% other costs in thousands
+          otherCosts: monthlyData.totalOtherCosts || 0, // Use actual other costs or 0
           byProductRevenue: Math.round(monthlyData.totalSaltCollected * 0.1 * 2), // By-products
           netProfit: 0 // Will calculate below
         }
@@ -864,7 +864,7 @@ export const getMonthlySaltSummary = async (req: Request, res: Response) => {
           processingEfficiency: Math.round((estimatedSaltCollected / estimatedCabbageInput) * 100),
           saltRevenue: Math.round(estimatedSaltCollected * 12),
           cabbageCost: Math.round(estimatedCabbageInput * 8),
-          otherCosts: Math.round(estimatedCabbageInput * 0.02),
+          otherCosts: 0, // Set to 0 when no real data
           byProductRevenue: Math.round(estimatedSaltCollected * 0.1 * 2),
           netProfit: 0
         }
@@ -995,6 +995,7 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
             totalCabbageInput: { $sum: "$cabbageInput" },
             totalSaltCollected: { $sum: "$saltInput" },
             totalSaltOutput: { $sum: "$saltOutput" },
+            totalOtherCosts: { $sum: "$otherCosts" },
             count: { $sum: 1 }
           }
         }
@@ -1008,6 +1009,7 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
         totalSaltCollected: data.totalSaltCollected || 0,
         totalSaltOutput: data.totalSaltOutput || 0,
         totalSaltRemaining: (data.totalSaltCollected || 0) - (data.totalSaltOutput || 0),
+        totalOtherCosts: data.totalOtherCosts || 0,
         processingEfficiency: data.totalCabbageInput > 0 
           ? Math.round(((data.totalSaltCollected || 0) / data.totalCabbageInput) * 100) 
           : 70
@@ -1024,6 +1026,7 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
       totalSaltCollected: baseSaltCollected,
       totalSaltOutput: baseSaltOutput,
       totalSaltRemaining: baseSaltCollected - baseSaltOutput,
+      totalOtherCosts: 0,
       processingEfficiency: Math.round((baseSaltCollected / baseCabbage) * 100)
     }
   } catch (error) {
@@ -1036,6 +1039,7 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
       totalSaltCollected: baseSaltCollected,
       totalSaltOutput: Math.round(baseSaltCollected * 0.9),
       totalSaltRemaining: Math.round(baseSaltCollected * 0.1),
+      totalOtherCosts: 0,
       processingEfficiency: 70
     }
   }
