@@ -551,13 +551,13 @@ export function BeanSproutsProcessing() {
     try {
       setIsUpdating(true)
 
-      // Update station data via API
+      // Update station data via API - map bean sprouts fields to tofu API format
       await processingStationApi.updateDailyData(dailyBeanSproutsProcessing.date, {
-        soybeansInput: dailyUpdateData.soybeansInput,
-        beanSproutsInput: dailyUpdateData.beanSproutsInput,
+        soybeanInput: dailyUpdateData.soybeansInput,  // Map soybeansInput to soybeanInput
+        tofuInput: dailyUpdateData.beanSproutsInput,  // Map beanSproutsInput to tofuInput
         note: dailyUpdateData.note,
-        soybeansPrice: dailyUpdateData.soybeansPrice,
-        beanSproutsPrice: dailyUpdateData.beanSproutsPrice,
+        soybeanPrice: dailyUpdateData.soybeansPrice,  // Map soybeansPrice to soybeanPrice
+        tofuPrice: dailyUpdateData.beanSproutsPrice,  // Map beanSproutsPrice to tofuPrice
         // Set default values for fields only editable in weekly/monthly views
         byProductQuantity: 0, // Default: no by-products in daily view
         byProductPrice: 3000, // Default price when by-products are added later
