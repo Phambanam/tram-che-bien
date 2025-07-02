@@ -256,7 +256,7 @@ export function SaltProcessing() {
       
       try {
         console.log(`🔄 Checking salt carry over from ${previousDateStr} to ${dateStr}`)
-        const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
+        const previousStationResponse = await processingStationApi.getDailySaltData(previousDateStr)
         console.log('🔍 Salt Previous API Response:', previousStationResponse)
         
         // Fix nested structure access
@@ -278,7 +278,7 @@ export function SaltProcessing() {
       }
       
       try {
-        const stationResponse = await processingStationApi.getDailyData(dateStr)
+        const stationResponse = await processingStationApi.getDailySaltData(dateStr)
         console.log('🔍 Salt Current day API Response:', stationResponse)
         
         // Fix nested structure access for current day
@@ -379,7 +379,7 @@ export function SaltProcessing() {
       
       // Update dailyUpdateData for editing (get by-products and other costs from API response)
       try {
-        const dailyApiResponse = await processingStationApi.getDailyData(dateStr)
+        const dailyApiResponse = await processingStationApi.getDailySaltData(dateStr)
         const apiData = dailyApiResponse?.data || {}
         
         setDailyUpdateData({
@@ -580,8 +580,8 @@ export function SaltProcessing() {
     try {
       setIsUpdating(true)
 
-      // Update station data via API (byProductQuantity, byProductPrice, otherCosts get default values since not edited in daily view)
-      await processingStationApi.updateDailyData(dailySaltProcessing.date, {
+      // Update salt data via dedicated salt API (byProductQuantity, byProductPrice, otherCosts get default values since not edited in daily view)
+      await processingStationApi.updateDailySaltData(dailySaltProcessing.date, {
         cabbageInput: dailyUpdateData.cabbageInput,
         saltInput: dailyUpdateData.saltInput,
         note: dailyUpdateData.note,

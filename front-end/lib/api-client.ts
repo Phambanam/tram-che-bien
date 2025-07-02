@@ -860,6 +860,18 @@ export const processingStationApi = {
     })
   },
 
+  // New methods for daily salt processing
+  getDailySaltData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/salt/${date}`)
+  },
+
+  updateDailySaltData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/salt/${date}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
   // New methods for sausage weekly/monthly tracking
   getWeeklySausageTracking: async (params: {
     week: number

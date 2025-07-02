@@ -669,6 +669,127 @@ export const updateDailyTofuData = async (req: Request, res: Response) => {
   }
 }
 
+// @desc    Get daily salt processing data
+// @route   GET /api/processing-station/salt/:date
+// @access  Private
+export const getDailySaltData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const db = await getDb()
+
+    // Get daily salt processing data for the specific date
+    const dailyData = await db.collection("dailySaltProcessing").findOne({
+      date: date
+    })
+
+    if (!dailyData) {
+      // Return default data if not found
+      return res.status(200).json({
+        success: true,
+        data: {
+          date: date,
+          cabbageInput: 0,
+          saltInput: 0,
+          note: "",
+          cabbagePrice: 0,
+          saltPrice: 0,
+          byProductQuantity: 0,
+          byProductPrice: 2000,
+          otherCosts: 0
+        }
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        date: dailyData.date,
+        cabbageInput: dailyData.cabbageInput || 0,
+        saltInput: dailyData.saltInput || 0,
+        note: dailyData.note || "",
+        cabbagePrice: dailyData.cabbagePrice || 0,
+        saltPrice: dailyData.saltPrice || 0,
+        byProductQuantity: dailyData.byProductQuantity || 0,
+        byProductPrice: dailyData.byProductPrice || 2000,
+        otherCosts: dailyData.otherCosts || 0
+      }
+    })
+  } catch (error) {
+    console.error("Error fetching daily salt data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu làm dưa muối hàng ngày"
+    })
+  }
+}
+
+// @desc    Update daily salt processing data
+// @route   PATCH /api/processing-station/salt/:date
+// @access  Private (Admin, StationManager)
+export const updateDailySaltData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const { 
+      cabbageInput, 
+      saltInput, 
+      note, 
+      cabbagePrice, 
+      saltPrice,
+      byProductQuantity,
+      byProductPrice,
+      otherCosts
+    } = req.body
+    const db = await getDb()
+
+    // Update or insert daily data
+    const result = await db.collection("dailySaltProcessing").updateOne(
+      { date: date },
+      {
+        $set: {
+          date: date,
+          cabbageInput: Number(cabbageInput) || 0,
+          saltInput: Number(saltInput) || 0,
+          note: note || "",
+          cabbagePrice: Number(cabbagePrice) || 0,
+          saltPrice: Number(saltPrice) || 0,
+          byProductQuantity: Number(byProductQuantity) || 0,
+          byProductPrice: Number(byProductPrice) || 2000,
+          otherCosts: Number(otherCosts) || 0,
+          updatedAt: new Date(),
+          updatedBy: req.user._id
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+          createdBy: req.user._id
+        }
+      },
+      { upsert: true }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật dữ liệu chế biến dưa muối thành công",
+      data: {
+        date: date,
+        cabbageInput: Number(cabbageInput) || 0,
+        saltInput: Number(saltInput) || 0,
+        note: note || "",
+        cabbagePrice: Number(cabbagePrice) || 0,
+        saltPrice: Number(saltPrice) || 0,
+        byProductQuantity: Number(byProductQuantity) || 0,
+        byProductPrice: Number(byProductPrice) || 2000,
+        otherCosts: Number(otherCosts) || 0
+      }
+    })
+  } catch (error) {
+    console.error("Error updating daily salt data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật dữ liệu chế biến dưa muối"
+    })
+  }
+}
+
 // @desc    Get daily sausage processing data
 // @route   GET /api/processing-station/sausage/:date
 // @access  Private
