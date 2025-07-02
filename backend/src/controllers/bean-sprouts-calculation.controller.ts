@@ -517,8 +517,8 @@ export const getBeanSproutsUsageStatistics = async (req: Request, res: Response)
       })
       .toArray()
 
-    // Get processing station bean sprouts data
-    const beanSproutsProcessingData = await db.collection("dailyBeanSproutsProcessing")
+    // Get processing station bean sprouts data from tofu processing collection
+    const beanSproutsProcessingData = await db.collection("dailyTofuProcessing")
       .find({
         date: {
           $gte: startDate,
@@ -529,11 +529,11 @@ export const getBeanSproutsUsageStatistics = async (req: Request, res: Response)
       .toArray()
 
     const totalProcessedBeanSprouts = beanSproutsProcessingData.reduce((sum, data) => 
-      sum + (data.beanSproutsInput || 0), 0
+      sum + (data.tofuInput || 0), 0   // Map from tofu field names
     )
 
     const totalSoybeansUsed = beanSproutsProcessingData.reduce((sum, data) => 
-      sum + (data.soybeansInput || 0), 0
+      sum + (data.soybeanInput || 0), 0   // Map from tofu field names
     )
 
     const conversionRate = totalSoybeansUsed > 0 ? totalProcessedBeanSprouts / totalSoybeansUsed : 3.0
@@ -742,20 +742,20 @@ function getDayNameVi(dayIndex: number): string {
 
 async function getBeanSproutsProcessingStationData(db: any, dateStr: string) {
   try {
-    // Try to get data from processing station collection
-    const processingData = await db.collection("dailyBeanSproutsProcessing").findOne({
+    // Try to get data from tofu processing collection (where bean sprouts data is actually saved)
+    const processingData = await db.collection("dailyTofuProcessing").findOne({
       date: dateStr
     })
     
     if (processingData) {
       return {
-        soybeansInput: processingData.soybeansInput || 0,
-        beanSproutsInput: processingData.beanSproutsInput || 0,
-        beanSproutsOutput: processingData.beanSproutsOutput || 0,
+        soybeansInput: processingData.soybeanInput || 0,  // Map from tofu field names
+        beanSproutsInput: processingData.tofuInput || 0,   // Map from tofu field names
+        beanSproutsOutput: processingData.tofuOutput || 0, // Map from tofu field names
         byProductQuantity: processingData.byProductQuantity || 0,
         byProductPrice: processingData.byProductPrice || 3000,
-        soybeansPrice: processingData.soybeansPrice || 15000,
-        beanSproutsPrice: processingData.beanSproutsPrice || 8000,
+        soybeansPrice: processingData.soybeanPrice || 15000,  // Map from tofu field names
+        beanSproutsPrice: processingData.tofuPrice || 8000,    // Map from tofu field names
         otherCosts: processingData.otherCosts || 0,
         note: processingData.note || ""
       }
@@ -800,8 +800,8 @@ async function getMonthlyBeanSproutsProcessingData(db: any, year: number, month:
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
     const endDate = new Date(year, month, 0).toISOString().split('T')[0]
     
-    // Aggregate data from daily processing records
-    const monthlyData = await db.collection("dailyBeanSproutsProcessing")
+    // Aggregate data from daily tofu processing records (where bean sprouts data is actually saved)
+    const monthlyData = await db.collection("dailyTofuProcessing")
       .aggregate([
         {
           $match: {
@@ -811,9 +811,9 @@ async function getMonthlyBeanSproutsProcessingData(db: any, year: number, month:
         {
           $group: {
             _id: null,
-            totalSoybeansInput: { $sum: "$soybeansInput" },
-            totalBeanSproutsCollected: { $sum: "$beanSproutsInput" },
-            totalBeanSproutsOutput: { $sum: "$beanSproutsOutput" },
+            totalSoybeansInput: { $sum: "$soybeanInput" },      // Map from tofu field names
+            totalBeanSproutsCollected: { $sum: "$tofuInput" },   // Map from tofu field names  
+            totalBeanSproutsOutput: { $sum: "$tofuOutput" },     // Map from tofu field names
             count: { $sum: 1 }
           }
         }
