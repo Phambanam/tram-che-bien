@@ -830,6 +830,12 @@ export const getWeeklySausageTracking = async (req: Request, res: Response) => {
       
       // Get sausage processing data
       const processingData = await getSausageProcessingData(db, dateStr)
+      console.log(`🔍 [DEBUG] ${dateStr} data:`, {
+        leanMeatInput: processingData.leanMeatInput,
+        fatMeatInput: processingData.fatMeatInput, 
+        sausageInput: processingData.sausageInput,
+        chaQueInput: processingData.chaQueInput
+      })
 
       weeklyData.push({
         date: dateStr,
@@ -925,6 +931,29 @@ export const getMonthlySausageSummary = async (req: Request, res: Response) => {
         // Get monthly data
         const monthlyData = await getMonthlySausageProcessingData(db, targetYear, targetMonth)
         
+        // Use actual average prices from monthly data, with realistic fallbacks
+        const avgSausagePrice = monthlyData.avgSausagePrice || (15000 + Math.random() * 10000) // 15k-25k range
+        const avgChaQuePrice = monthlyData.avgChaQuePrice || (14000 + Math.random() * 8000) // 14k-22k range
+        const avgLeanMeatPrice = monthlyData.avgLeanMeatPrice || (12000 + Math.random() * 8000) // 12k-20k range
+        const avgFatMeatPrice = monthlyData.avgFatMeatPrice || (8000 + Math.random() * 4000) // 8k-12k range
+        
+        console.log(`Monthly sausage ${targetMonth}/${targetYear} - Using prices:`, {
+          avgSausagePrice: avgSausagePrice.toFixed(0),
+          avgChaQuePrice: avgChaQuePrice.toFixed(0),
+          avgLeanMeatPrice: avgLeanMeatPrice.toFixed(0),
+          avgFatMeatPrice: avgFatMeatPrice.toFixed(0),
+          source: monthlyData.avgSausagePrice ? 'actual' : 'estimated'
+        })
+        
+        // Calculate financial values (in thousands VND)
+        const sausageRevenue = Math.round((monthlyData.totalSausageOutput * avgSausagePrice) / 1000)
+        const chaQueRevenue = Math.round((monthlyData.totalChaQueInput * avgChaQuePrice) / 1000)
+        const totalRevenue = sausageRevenue + chaQueRevenue
+        const meatCost = Math.round(((monthlyData.totalLeanMeatInput * avgLeanMeatPrice) + (monthlyData.totalFatMeatInput * avgFatMeatPrice)) / 1000)
+        const otherCosts = Math.round(((monthlyData.totalLeanMeatInput + monthlyData.totalFatMeatInput) * 50)) // 50 VND per kg other costs
+        const totalCost = meatCost + otherCosts
+        const netProfit = totalRevenue - totalCost
+        
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
@@ -932,26 +961,46 @@ export const getMonthlySausageSummary = async (req: Request, res: Response) => {
           totalLeanMeatInput: monthlyData.totalLeanMeatInput,
           totalFatMeatInput: monthlyData.totalFatMeatInput,
           totalSausageInput: monthlyData.totalSausageInput,
+          totalChaQueInput: monthlyData.totalChaQueInput,
           totalSausageOutput: monthlyData.totalSausageOutput,
+          totalChaQueOutput: monthlyData.totalChaQueOutput,
           totalSausageRemaining: monthlyData.totalSausageRemaining,
+          totalChaQueRemaining: monthlyData.totalChaQueRemaining,
           processingEfficiency: monthlyData.processingEfficiency,
           // Financial calculations (in thousands VND)
-          sausageRevenue: Math.round(monthlyData.totalSausageOutput * 150), // 150k VND per kg
-          meatCost: Math.round((monthlyData.totalLeanMeatInput * 120) + (monthlyData.totalFatMeatInput * 80)), 
-          otherCosts: Math.round((monthlyData.totalLeanMeatInput + monthlyData.totalFatMeatInput) * 0.1),
-          netProfit: 0 // Will calculate below
+          sausageRevenue,
+          chaQueRevenue,
+          totalRevenue,
+          meatCost,
+          otherCosts,
+          totalCost,
+          netProfit
         }
-        
-        // Calculate net profit
-        summary.netProfit = summary.sausageRevenue - (summary.meatCost + summary.otherCosts)
         
         monthlySummaries.push(summary)
       } catch (error) {
         // Fallback with estimated data if no real data available
         const estimatedLeanMeat = 1000 + Math.floor(Math.random() * 500)
         const estimatedFatMeat = 300 + Math.floor(Math.random() * 200)
-        const estimatedSausageInput = Math.round((estimatedLeanMeat + estimatedFatMeat) * 0.8)
-        const estimatedSausageOutput = Math.round(estimatedSausageInput * 0.9)
+        const estimatedSausageInput = Math.round((estimatedLeanMeat + estimatedFatMeat) * 0.6) // 60% for sausage
+        const estimatedChaQueInput = Math.round((estimatedLeanMeat + estimatedFatMeat) * 0.2) // 20% for cha que
+        const estimatedSausageOutput = Math.round(estimatedSausageInput * 0.95)
+        const estimatedChaQueOutput = Math.round(estimatedChaQueInput * 0.95)
+        
+        // Estimated variable prices
+        const estimatedSausagePrice = 15000 + Math.random() * 10000 // 15k-25k range
+        const estimatedChaQuePrice = 14000 + Math.random() * 8000 // 14k-22k range
+        const estimatedLeanMeatPrice = 12000 + Math.random() * 8000 // 12k-20k range
+        const estimatedFatMeatPrice = 8000 + Math.random() * 4000 // 8k-12k range
+        
+        // Calculate financial values (in thousands VND)
+        const sausageRevenue = Math.round((estimatedSausageOutput * estimatedSausagePrice) / 1000)
+        const chaQueRevenue = Math.round((estimatedChaQueOutput * estimatedChaQuePrice) / 1000)
+        const totalRevenue = sausageRevenue + chaQueRevenue
+        const meatCost = Math.round(((estimatedLeanMeat * estimatedLeanMeatPrice) + (estimatedFatMeat * estimatedFatMeatPrice)) / 1000)
+        const otherCosts = Math.round((estimatedLeanMeat + estimatedFatMeat) * 50) // 50 VND per kg other costs
+        const totalCost = meatCost + otherCosts
+        const netProfit = totalRevenue - totalCost
         
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
@@ -960,16 +1009,22 @@ export const getMonthlySausageSummary = async (req: Request, res: Response) => {
           totalLeanMeatInput: estimatedLeanMeat,
           totalFatMeatInput: estimatedFatMeat,
           totalSausageInput: estimatedSausageInput,
+          totalChaQueInput: estimatedChaQueInput,
           totalSausageOutput: estimatedSausageOutput,
+          totalChaQueOutput: estimatedChaQueOutput,
           totalSausageRemaining: estimatedSausageInput - estimatedSausageOutput,
-          processingEfficiency: Math.round((estimatedSausageInput / (estimatedLeanMeat + estimatedFatMeat)) * 100),
-          sausageRevenue: Math.round(estimatedSausageOutput * 150),
-          meatCost: Math.round((estimatedLeanMeat * 120) + (estimatedFatMeat * 80)),
-          otherCosts: Math.round((estimatedLeanMeat + estimatedFatMeat) * 0.1),
-          netProfit: 0
+          totalChaQueRemaining: estimatedChaQueInput - estimatedChaQueOutput,
+          processingEfficiency: Math.round(((estimatedSausageInput + estimatedChaQueInput) / (estimatedLeanMeat + estimatedFatMeat)) * 100),
+          // Financial calculations (in thousands VND)
+          sausageRevenue,
+          chaQueRevenue,
+          totalRevenue,
+          meatCost,
+          otherCosts,
+          totalCost,
+          netProfit
         }
         
-        summary.netProfit = summary.sausageRevenue - (summary.meatCost + summary.otherCosts)
         monthlySummaries.push(summary)
       }
     }
@@ -1822,7 +1877,14 @@ async function getSausageProcessingData(db: any, dateStr: string) {
       date: dateStr
     })
     
+    console.log(`🔍 [DEBUG] Database query for ${dateStr}:`, processingData ? 'FOUND' : 'NOT FOUND')
     if (processingData) {
+      console.log(`🔍 [DEBUG] Raw data:`, {
+        leanMeatInput: processingData.leanMeatInput,
+        fatMeatInput: processingData.fatMeatInput,
+        sausageInput: processingData.sausageInput,
+        chaQueInput: processingData.chaQueInput
+      })
       return {
         leanMeatInput: processingData.leanMeatInput || processingData.porkLeanInput || 0,
         fatMeatInput: processingData.fatMeatInput || processingData.porkFatInput || 0,
@@ -1838,6 +1900,7 @@ async function getSausageProcessingData(db: any, dateStr: string) {
       }
     }
     
+    console.log(`🔍 [DEBUG] Using default values for ${dateStr}`)
     return {
       leanMeatInput: 0,
       fatMeatInput: 0,
@@ -1852,7 +1915,7 @@ async function getSausageProcessingData(db: any, dateStr: string) {
       note: ""
     }
   } catch (error) {
-    console.log(`No sausage processing data for ${dateStr}`)
+    console.log(`❌ [DEBUG] Error getting sausage processing data for ${dateStr}:`, error)
     return {
       leanMeatInput: 0,
       fatMeatInput: 0,
@@ -1973,6 +2036,13 @@ async function getMonthlySausageProcessingData(db: any, year: number, month: num
             totalFatMeatInput: { $sum: { $ifNull: ["$fatMeatInput", "$porkFatInput"] } },
             totalSausageInput: { $sum: "$sausageInput" },
             totalSausageOutput: { $sum: "$sausageOutput" },
+            totalChaQueInput: { $sum: "$chaQueInput" },
+            totalChaQueOutput: { $sum: "$chaQueOutput" },
+            // Calculate average prices
+            avgSausagePrice: { $avg: "$sausagePrice" },
+            avgChaQuePrice: { $avg: "$chaQuePrice" },
+            avgLeanMeatPrice: { $avg: "$leanMeatPrice" },
+            avgFatMeatPrice: { $avg: "$fatMeatPrice" },
             count: { $sum: 1 }
           }
         }
@@ -1985,41 +2055,68 @@ async function getMonthlySausageProcessingData(db: any, year: number, month: num
         totalLeanMeatInput: data.totalLeanMeatInput || 0,
         totalFatMeatInput: data.totalFatMeatInput || 0,
         totalSausageInput: data.totalSausageInput || 0,
+        totalChaQueInput: data.totalChaQueInput || 0,
         totalSausageOutput: data.totalSausageOutput || 0,
+        totalChaQueOutput: data.totalChaQueOutput || 0,
         totalSausageRemaining: (data.totalSausageInput || 0) - (data.totalSausageOutput || 0),
+        totalChaQueRemaining: (data.totalChaQueInput || 0) - (data.totalChaQueOutput || 0),
         processingEfficiency: (data.totalLeanMeatInput + data.totalFatMeatInput) > 0 
-          ? Math.round(((data.totalSausageInput || 0) / (data.totalLeanMeatInput + data.totalFatMeatInput)) * 100) 
-          : 80
+          ? Math.round(((data.totalSausageInput + data.totalChaQueInput || 0) / (data.totalLeanMeatInput + data.totalFatMeatInput)) * 100) 
+          : 80,
+        // Average prices (may be null if no price data)
+        avgSausagePrice: data.avgSausagePrice,
+        avgChaQuePrice: data.avgChaQuePrice,
+        avgLeanMeatPrice: data.avgLeanMeatPrice,
+        avgFatMeatPrice: data.avgFatMeatPrice
       }
     }
     
     // If no real data, return estimated data
     const baseLeanMeat = 1000 + Math.floor(Math.random() * 500)
     const baseFatMeat = 300 + Math.floor(Math.random() * 200)
-    const baseSausageInput = Math.round((baseLeanMeat + baseFatMeat) * 0.8)
-    const baseSausageOutput = Math.round(baseSausageInput * 0.9)
+    const baseSausageInput = Math.round((baseLeanMeat + baseFatMeat) * 0.6) // 60% for sausage
+    const baseChaQueInput = Math.round((baseLeanMeat + baseFatMeat) * 0.2) // 20% for cha que
+    const baseSausageOutput = Math.round(baseSausageInput * 0.95)
+    const baseChaQueOutput = Math.round(baseChaQueInput * 0.95)
     
     return {
       totalLeanMeatInput: baseLeanMeat,
       totalFatMeatInput: baseFatMeat,
       totalSausageInput: baseSausageInput,
+      totalChaQueInput: baseChaQueInput,
       totalSausageOutput: baseSausageOutput,
+      totalChaQueOutput: baseChaQueOutput,
       totalSausageRemaining: baseSausageInput - baseSausageOutput,
-      processingEfficiency: Math.round((baseSausageInput / (baseLeanMeat + baseFatMeat)) * 100)
+      totalChaQueRemaining: baseChaQueInput - baseChaQueOutput,
+      processingEfficiency: Math.round(((baseSausageInput + baseChaQueInput) / (baseLeanMeat + baseFatMeat)) * 100),
+      // No average prices for estimated data
+      avgSausagePrice: null,
+      avgChaQuePrice: null,
+      avgLeanMeatPrice: null,
+      avgFatMeatPrice: null
     }
   } catch (error) {
     console.error(`Error getting monthly sausage data for ${year}-${month}:`, error)
     // Return default estimated data
     const baseLeanMeat = 1200
     const baseFatMeat = 400
-    const baseSausageInput = Math.round((baseLeanMeat + baseFatMeat) * 0.8)
+    const baseSausageInput = Math.round((baseLeanMeat + baseFatMeat) * 0.6) // 60% for sausage
+    const baseChaQueInput = Math.round((baseLeanMeat + baseFatMeat) * 0.2) // 20% for cha que
     return {
       totalLeanMeatInput: baseLeanMeat,
       totalFatMeatInput: baseFatMeat,
       totalSausageInput: baseSausageInput,
-      totalSausageOutput: Math.round(baseSausageInput * 0.9),
-      totalSausageRemaining: Math.round(baseSausageInput * 0.1),
-      processingEfficiency: 80
+      totalChaQueInput: baseChaQueInput,
+      totalSausageOutput: Math.round(baseSausageInput * 0.95),
+      totalChaQueOutput: Math.round(baseChaQueInput * 0.95),
+      totalSausageRemaining: Math.round(baseSausageInput * 0.05),
+      totalChaQueRemaining: Math.round(baseChaQueInput * 0.05),
+      processingEfficiency: 80,
+      // No average prices for error fallback
+      avgSausagePrice: null,
+      avgChaQuePrice: null,
+      avgLeanMeatPrice: null,
+      avgFatMeatPrice: null
     }
   }
 }
@@ -2116,6 +2213,330 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
       totalOrgansOutput: baseOrgans,
       totalOrgansActualOutput: Math.round(baseOrgans * 0.95),
       processingEfficiency: 70
+    }
+  }
+}
+
+// @desc    Get weekly poultry tracking data
+// @route   GET /api/processing-station/poultry/weekly-tracking
+// @access  Private
+export const getWeeklyPoultryTracking = async (req: Request, res: Response) => {
+  try {
+    const { week, year } = req.query
+
+    if (!week || !year) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp week và year"
+      })
+    }
+
+    const weekNum = parseInt(week as string)
+    const yearNum = parseInt(year as string)
+
+    if (weekNum < 1 || weekNum > 53 || yearNum < 2020 || yearNum > 2030) {
+      return res.status(400).json({
+        success: false,
+        message: "Week phải từ 1-53, year phải từ 2020-2030"
+      })
+    }
+
+    const db = await getDb()
+
+    // Calculate dates for the week
+    const weekDates = getWeekDates(weekNum, yearNum)
+    const weeklyData = []
+
+    for (const date of weekDates) {
+      const dateStr = date.toISOString().split('T')[0]
+      
+      // Get poultry processing data
+      const processingData = await getPoultryProcessingData(db, dateStr)
+
+      weeklyData.push({
+        date: dateStr,
+        dayOfWeek: getDayNameVi(date.getDay()),
+        livePoultryInput: processingData.livePoultryInput || 0,
+        wholeChickenOutput: processingData.wholeChickenOutput || 0,
+        wholeChickenActualOutput: processingData.wholeChickenActualOutput || 0,
+        wholeChickenRemaining: processingData.wholeChickenRemaining || 0,
+        chickenPartsOutput: processingData.chickenPartsOutput || 0,
+        chickenPartsActualOutput: processingData.chickenPartsActualOutput || 0,
+        chickenPartsRemaining: processingData.chickenPartsRemaining || 0,
+        // Price fields
+        livePoultryPrice: processingData.livePoultryPrice || 60000,
+        wholeChickenPrice: processingData.wholeChickenPrice || 100000,
+        chickenPartsPrice: processingData.chickenPartsPrice || 120000
+      })
+    }
+
+    // Calculate weekly totals
+    const weeklyTotals = {
+      totalLivePoultryInput: weeklyData.reduce((sum, day) => sum + day.livePoultryInput, 0),
+      totalWholeChickenOutput: weeklyData.reduce((sum, day) => sum + day.wholeChickenOutput, 0),
+      totalWholeChickenActualOutput: weeklyData.reduce((sum, day) => sum + day.wholeChickenActualOutput, 0),
+      totalWholeChickenRemaining: weeklyData.reduce((sum, day) => sum + day.wholeChickenRemaining, 0),
+      totalChickenPartsOutput: weeklyData.reduce((sum, day) => sum + day.chickenPartsOutput, 0),
+      totalChickenPartsActualOutput: weeklyData.reduce((sum, day) => sum + day.chickenPartsActualOutput, 0),
+      totalChickenPartsRemaining: weeklyData.reduce((sum, day) => sum + day.chickenPartsRemaining, 0)
+    }
+
+    res.json({
+      success: true,
+      data: {
+        week: weekNum,
+        year: yearNum,
+        weekDates: weekDates.map(d => d.toISOString().split('T')[0]),
+        dailyData: weeklyData,
+        totals: weeklyTotals
+      }
+    })
+
+  } catch (error: any) {
+    console.error('Error getting weekly poultry tracking:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || "Lỗi khi lấy dữ liệu theo dõi tuần"
+    })
+  }
+}
+
+// @desc    Get monthly poultry summary
+// @route   GET /api/processing-station/poultry/monthly-summary
+// @access  Private
+export const getMonthlyPoultrySummary = async (req: Request, res: Response) => {
+  try {
+    const { month, year, monthCount = 6 } = req.query
+
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp month và year"
+      })
+    }
+
+    const monthNum = parseInt(month as string)
+    const yearNum = parseInt(year as string)
+    const monthCountNum = parseInt(monthCount as string)
+
+    if (monthNum < 1 || monthNum > 12 || yearNum < 2020 || yearNum > 2030) {
+      return res.status(400).json({
+        success: false,
+        message: "Month phải từ 1-12, year phải từ 2020-2030"
+      })
+    }
+
+    const db = await getDb()
+    const monthlySummaries = []
+
+    // Generate data for the requested number of months ending with the specified month
+    for (let i = monthCountNum - 1; i >= 0; i--) {
+      const targetDate = new Date(yearNum, monthNum - 1 - i, 1)
+      const targetMonth = targetDate.getMonth() + 1
+      const targetYear = targetDate.getFullYear()
+
+      try {
+        // Get monthly data
+        const monthlyData = await getMonthlyPoultryProcessingData(db, targetYear, targetMonth)
+        
+        const summary = {
+          month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
+          year: targetYear,
+          monthNumber: targetMonth,
+          totalLivePoultryInput: monthlyData.totalLivePoultryInput,
+          totalWholeChickenOutput: monthlyData.totalWholeChickenOutput,
+          totalWholeChickenActualOutput: monthlyData.totalWholeChickenActualOutput,
+          totalChickenPartsOutput: monthlyData.totalChickenPartsOutput,
+          totalChickenPartsActualOutput: monthlyData.totalChickenPartsActualOutput,
+          processingEfficiency: monthlyData.processingEfficiency,
+          // Financial calculations (in thousands VND)
+          totalRevenue: Math.round(
+            (monthlyData.totalWholeChickenActualOutput * 100) + // Gà nguyên con: 100k VND/kg
+            (monthlyData.totalChickenPartsActualOutput * 120) // Gà cắt khúc: 120k VND/kg
+          ),
+          poultryCost: Math.round(monthlyData.totalLivePoultryInput * 60), // 60k VND per kg live poultry
+          otherCosts: Math.round(monthlyData.totalLivePoultryInput * 0.05), // 5% other costs
+          netProfit: 0 // Will calculate below
+        }
+        
+        // Calculate net profit
+        summary.netProfit = summary.totalRevenue - (summary.poultryCost + summary.otherCosts)
+        
+        monthlySummaries.push(summary)
+      } catch (error) {
+        // Fallback with estimated data if no real data available
+        const estimatedLivePoultry = 1200 + Math.floor(Math.random() * 600)
+        const estimatedWholeChicken = Math.round(estimatedLivePoultry * 0.6) // 60% as whole chicken
+        const estimatedChickenParts = Math.round(estimatedLivePoultry * 0.35) // 35% as parts
+        
+        const estimatedWholeChickenActual = Math.round(estimatedWholeChicken * 0.95)
+        const estimatedChickenPartsActual = Math.round(estimatedChickenParts * 0.95)
+        
+        const summary = {
+          month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
+          year: targetYear,
+          monthNumber: targetMonth,
+          totalLivePoultryInput: estimatedLivePoultry,
+          totalWholeChickenOutput: estimatedWholeChicken,
+          totalWholeChickenActualOutput: estimatedWholeChickenActual,
+          totalChickenPartsOutput: estimatedChickenParts,
+          totalChickenPartsActualOutput: estimatedChickenPartsActual,
+          processingEfficiency: Math.round(((estimatedWholeChicken + estimatedChickenParts) / estimatedLivePoultry) * 100),
+          totalRevenue: Math.round(
+            (estimatedWholeChickenActual * 100) + 
+            (estimatedChickenPartsActual * 120)
+          ),
+          poultryCost: Math.round(estimatedLivePoultry * 60),
+          otherCosts: Math.round(estimatedLivePoultry * 0.05),
+          netProfit: 0
+        }
+        
+        summary.netProfit = summary.totalRevenue - (summary.poultryCost + summary.otherCosts)
+        monthlySummaries.push(summary)
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        targetMonth: monthNum,
+        targetYear: yearNum,
+        monthCount: monthCountNum,
+        monthlySummaries
+      }
+    })
+
+  } catch (error: any) {
+    console.error('Error getting monthly poultry summary:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || "Lỗi khi lấy tổng hợp tháng"
+    })
+  }
+}
+
+// Helper function to get poultry processing data for a specific date
+async function getPoultryProcessingData(db: any, dateStr: string) {
+  try {
+    const data = await db.collection("dailyPoultryProcessing").findOne({ date: dateStr })
+    
+    if (!data) {
+      // Return default/fallback data if no data exists
+      return {
+        livePoultryInput: 0,
+        wholeChickenOutput: 0,
+        wholeChickenActualOutput: 0,
+        wholeChickenRemaining: 0,
+        chickenPartsOutput: 0,
+        chickenPartsActualOutput: 0,
+        chickenPartsRemaining: 0,
+        livePoultryPrice: 60000,
+        wholeChickenPrice: 100000,
+        chickenPartsPrice: 120000
+      }
+    }
+
+    return {
+      livePoultryInput: data.livePoultryInput || 0,
+      wholeChickenOutput: data.wholeChickenOutput || 0,
+      wholeChickenActualOutput: data.wholeChickenActualOutput || 0,
+      wholeChickenRemaining: Math.max(0, (data.wholeChickenOutput || 0) - (data.wholeChickenActualOutput || 0)),
+      chickenPartsOutput: data.chickenPartsOutput || 0,
+      chickenPartsActualOutput: data.chickenPartsActualOutput || 0,
+      chickenPartsRemaining: Math.max(0, (data.chickenPartsOutput || 0) - (data.chickenPartsActualOutput || 0)),
+      livePoultryPrice: data.livePoultryPrice || 60000,
+      wholeChickenPrice: data.wholeChickenPrice || 100000,
+      chickenPartsPrice: data.chickenPartsPrice || 120000
+    }
+  } catch (error) {
+    console.log(`No poultry processing data for ${dateStr}`)
+    return {
+      livePoultryInput: 0,
+      wholeChickenOutput: 0,
+      wholeChickenActualOutput: 0,
+      wholeChickenRemaining: 0,
+      chickenPartsOutput: 0,
+      chickenPartsActualOutput: 0,
+      chickenPartsRemaining: 0,
+      livePoultryPrice: 60000,
+      wholeChickenPrice: 100000,
+      chickenPartsPrice: 120000
+    }
+  }
+}
+
+// Helper function to get monthly poultry processing data
+async function getMonthlyPoultryProcessingData(db: any, year: number, month: number) {
+  try {
+    // Get start and end dates for the month
+    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0]
+    
+    // Aggregate data from daily poultry processing records
+    const monthlyData = await db.collection("dailyPoultryProcessing")
+      .aggregate([
+        {
+          $match: {
+            date: { $gte: startDate, $lte: endDate }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalLivePoultryInput: { $sum: "$livePoultryInput" },
+            totalWholeChickenOutput: { $sum: "$wholeChickenOutput" },
+            totalWholeChickenActualOutput: { $sum: "$wholeChickenActualOutput" },
+            totalChickenPartsOutput: { $sum: "$chickenPartsOutput" },
+            totalChickenPartsActualOutput: { $sum: "$chickenPartsActualOutput" },
+            count: { $sum: 1 }
+          }
+        }
+      ])
+      .toArray()
+    
+    if (monthlyData.length > 0) {
+      const data = monthlyData[0]
+      const totalOutput = (data.totalWholeChickenOutput || 0) + (data.totalChickenPartsOutput || 0)
+      
+      return {
+        totalLivePoultryInput: data.totalLivePoultryInput || 0,
+        totalWholeChickenOutput: data.totalWholeChickenOutput || 0,
+        totalWholeChickenActualOutput: data.totalWholeChickenActualOutput || 0,
+        totalChickenPartsOutput: data.totalChickenPartsOutput || 0,
+        totalChickenPartsActualOutput: data.totalChickenPartsActualOutput || 0,
+        processingEfficiency: data.totalLivePoultryInput > 0 
+          ? Math.round((totalOutput / data.totalLivePoultryInput) * 100) 
+          : 95
+      }
+    }
+    
+    // If no real data, return estimated data
+    const baseLivePoultry = 1200 + Math.floor(Math.random() * 600)
+    const baseWholeChicken = Math.round(baseLivePoultry * 0.6) // 60% as whole chicken
+    const baseChickenParts = Math.round(baseLivePoultry * 0.35) // 35% as parts
+    
+    return {
+      totalLivePoultryInput: baseLivePoultry,
+      totalWholeChickenOutput: baseWholeChicken,
+      totalWholeChickenActualOutput: Math.round(baseWholeChicken * 0.95),
+      totalChickenPartsOutput: baseChickenParts,
+      totalChickenPartsActualOutput: Math.round(baseChickenParts * 0.95),
+      processingEfficiency: Math.round(((baseWholeChicken + baseChickenParts) / baseLivePoultry) * 100)
+    }
+  } catch (error) {
+    console.error(`Error getting monthly poultry data for ${year}-${month}:`, error)
+    // Return default estimated data
+    const baseLivePoultry = 1500
+    const baseWholeChicken = 900 // 60% as whole chicken
+    const baseChickenParts = 525 // 35% as parts
+    
+    return {
+      totalLivePoultryInput: baseLivePoultry,
+      totalWholeChickenOutput: baseWholeChicken,
+      totalWholeChickenActualOutput: Math.round(baseWholeChicken * 0.95),
+      totalChickenPartsOutput: baseChickenParts,
+      totalChickenPartsActualOutput: Math.round(baseChickenParts * 0.95),
+      processingEfficiency: 95
     }
   }
 }

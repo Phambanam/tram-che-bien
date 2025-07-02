@@ -564,13 +564,14 @@ export function BeanSproutsProcessing() {
         otherCosts: 0 // Default: no other costs in daily view
       })
 
-      // Refresh data
+      // Refresh all data to update weekly and monthly views
       await fetchDailyBeanSproutsProcessing(new Date(dailyBeanSproutsProcessing.date))
       await fetchWeeklyTracking()
+      await fetchMonthlyBeanSproutsSummary()
 
       toast({
-        title: "Thành công",
-        description: "Đã cập nhật dữ liệu chế biến giá đỗ",
+        title: "✅ Thành công",
+        description: "Đã cập nhật dữ liệu chế biến giá đỗ và làm mới tất cả tab",
       })
 
       setEditingDailyData(false)

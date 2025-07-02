@@ -36,7 +36,7 @@ export function ProcessingStationContent() {
       case "seafood":
         return <PoultryProcessing />
       case "lttp":
-        return <LttpManagement />
+        return <LttpManagement key="lttp-management" />
       case "revenue-planning":
         return <RevenuePlanning />
       default:
@@ -54,7 +54,7 @@ export function ProcessingStationContent() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="w-full max-w-full">
       <div className="bg-white rounded-lg shadow-md">
 
         {/* Section Navigation */}

@@ -56,6 +56,16 @@ interface MonthlyTofuSummary {
   totalTofuOutput: number
   totalTofuRemaining: number
   processingEfficiency: number // percentage
+  // Financial data from API (in thousands VND)
+  tofuRevenue?: number
+  soybeanCost?: number
+  otherCosts?: number
+  byProductRevenue?: number
+  netProfit?: number
+  // Actual prices used in calculation (VND per kg)
+  avgTofuPrice?: number
+  avgSoybeanPrice?: number
+  avgByProductPrice?: number
 }
 
 export function TofuProcessing() {
@@ -559,6 +569,20 @@ export function TofuProcessing() {
       if (response.success && response.data) {
         const apiData = response.data.monthlySummaries
         
+        console.log("🔍 Monthly API Response:", {
+          targetMonth,
+          targetYear,
+          monthCount,
+          apiDataLength: apiData.length,
+          firstMonthSample: apiData[0],
+          firstMonthPrices: {
+            avgTofuPrice: apiData[0]?.avgTofuPrice,
+            avgSoybeanPrice: apiData[0]?.avgSoybeanPrice,
+            avgByProductPrice: apiData[0]?.avgByProductPrice,
+            dataSource: apiData[0]?.dataSource
+          }
+        })
+        
         const monthlySummaries: MonthlyTofuSummary[] = apiData.map((monthData: any) => ({
           month: monthData.month,
           year: monthData.year,
@@ -566,8 +590,20 @@ export function TofuProcessing() {
           totalTofuCollected: monthData.totalTofuCollected,
           totalTofuOutput: monthData.totalTofuOutput,
           totalTofuRemaining: monthData.totalTofuRemaining,
-          processingEfficiency: monthData.processingEfficiency
+          processingEfficiency: monthData.processingEfficiency,
+          // Financial data from API
+          tofuRevenue: monthData.tofuRevenue || 0,
+          soybeanCost: monthData.soybeanCost || 0,
+          otherCosts: monthData.otherCosts || 0,
+          byProductRevenue: monthData.byProductRevenue || 0,
+          netProfit: monthData.netProfit || 0,
+          // Actual prices used in calculation
+          avgTofuPrice: monthData.avgTofuPrice || 15000,
+          avgSoybeanPrice: monthData.avgSoybeanPrice || 12000,
+          avgByProductPrice: monthData.avgByProductPrice || 5000
         }))
+        
+        console.log("🔍 Transformed Monthly Data:", monthlySummaries[0])
         
         setMonthlyTofuSummary(monthlySummaries)
         
@@ -598,6 +634,17 @@ export function TofuProcessing() {
         const totalTofuCollected = 2400 + Math.floor(Math.random() * 800)
         const totalTofuOutput = 2200 + Math.floor(Math.random() * 600)
         
+        // Calculate financial data for fallback using realistic market prices
+        const fallbackTofuPrice = 18000 + Math.floor(Math.random() * 7000) // 18k-25k VND/kg
+        const fallbackSoybeanPrice = 14000 + Math.floor(Math.random() * 6000) // 14k-20k VND/kg
+        const fallbackByProductPrice = 5500 + Math.floor(Math.random() * 2500) // 5.5k-8k VND/kg
+        
+        const tofuRevenue = Math.round((totalTofuCollected * fallbackTofuPrice) / 1000) // Convert to thousands
+        const soybeanCost = Math.round((totalSoybeanInput * fallbackSoybeanPrice) / 1000) // Convert to thousands
+        const byProductRevenue = Math.round((totalTofuCollected * 0.1 * fallbackByProductPrice) / 1000) // By-products
+        const otherCosts = Math.round((totalSoybeanInput * fallbackSoybeanPrice * 0.02) / 1000) // 2% of soybean cost
+        const netProfit = (tofuRevenue + byProductRevenue) - (soybeanCost + otherCosts)
+        
         return {
           month: format(month, 'MM/yyyy', { locale: vi }),
           year: month.getFullYear(),
@@ -605,7 +652,17 @@ export function TofuProcessing() {
           totalTofuCollected,
           totalTofuOutput,
           totalTofuRemaining: totalTofuCollected - totalTofuOutput,
-          processingEfficiency: totalSoybeanInput > 0 ? Math.round((totalTofuCollected / totalSoybeanInput) * 100) : 0
+          processingEfficiency: totalSoybeanInput > 0 ? Math.round((totalTofuCollected / totalSoybeanInput) * 100) : 0,
+          // Financial fallback data
+          tofuRevenue,
+          soybeanCost,
+          otherCosts,
+          byProductRevenue,
+          netProfit,
+          // Fallback prices used
+          avgTofuPrice: fallbackTofuPrice,
+          avgSoybeanPrice: fallbackSoybeanPrice,
+          avgByProductPrice: fallbackByProductPrice
         }
       })
       
@@ -644,13 +701,14 @@ export function TofuProcessing() {
         otherCosts: 0 // Default: no other costs in daily view
       })
 
-      // Refresh data
+      // Refresh all data to update weekly and monthly views
       await fetchDailyTofuProcessing(new Date(dailyTofuProcessing.date))
       await fetchWeeklyTracking()
+      await fetchMonthlyTofuSummary()
 
       toast({
-        title: "Thành công",
-        description: "Đã cập nhật dữ liệu chế biến đậu phụ (bao gồm sản phẩm phụ và chi phí khác)",
+        title: "✅ Thành công",
+        description: "Đã cập nhật dữ liệu chế biến đậu phụ và làm mới tất cả tab",
       })
 
       setEditingDailyData(false)
@@ -1682,33 +1740,34 @@ export function TofuProcessing() {
                           {month.totalTofuCollected.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {(month.totalTofuCollected * 15).toLocaleString()}
+                          {(month.tofuRevenue || Math.round(month.totalTofuCollected * 15)).toLocaleString()}
                         </td>
                         {/* THU - Sản phẩm phụ */}
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {Math.round(month.totalTofuCollected * 0.1 * 5).toLocaleString()}
+                          {(month.byProductRevenue || Math.round(month.totalTofuCollected * 0.1 * 5)).toLocaleString()}
                         </td>
                         {/* CHI - Đậu nành */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
                           {month.totalSoybeanInput.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {(month.totalSoybeanInput * 12).toLocaleString()}
+                          {(month.soybeanCost || Math.round(month.totalSoybeanInput * 12)).toLocaleString()}
                         </td>
                         {/* CHI - Chi khác */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {Math.round(month.totalSoybeanInput * 0.02 * 1000).toLocaleString()}
+                          {(month.otherCosts || Math.round(month.totalSoybeanInput * 0.02)).toLocaleString()}
                         </td>
                         {/* THU-CHI (LÃI) */}
                         <td className="border border-black p-1 text-center bg-blue-50">
                           <span className={`font-bold ${
-                            ((month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
-                             (month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02 * 1000)) >= 0 
+                            (month.netProfit !== undefined ? month.netProfit : 
+                             (Math.round(month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
+                              Math.round(month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02))) >= 0 
                             ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {(
-                              (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
-                              (month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                            {(month.netProfit !== undefined ? month.netProfit :
+                              (Math.round(month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
+                               Math.round(month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02))
                             ).toLocaleString()}
                           </span>
                         </td>

@@ -110,9 +110,24 @@ export const calculateBeanSproutsRequirements = async (req: Request, res: Respon
     }
 
     if (dailyMenus.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy thực đơn cho khoảng thời gian này"
+      console.log(`No menu data found for date ${targetDate}, returning fallback data`);
+      
+      // Return fallback data instead of 404 error
+      return res.status(200).json({
+        success: true,
+        data: {
+          date: targetDate,
+          totalBeanSproutsRequired: 0,
+          totalPersonnel: 0,
+          units: [],
+          dishesUsingBeanSprouts: [],
+          summary: {
+            totalDishesUsingBeanSprouts: 0,
+            averageBeanSproutsPerPerson: 0,
+            recommendedSoybeansInput: 0
+          },
+          message: "Không có dữ liệu thực đơn cho ngày này. Vui lòng tạo thực đơn trước."
+        }
       })
     }
 
@@ -345,6 +360,7 @@ async function calculateDailyBeanSproutsForDate(db: any, targetDate: string, uni
   }
 
   if (!menu) {
+    console.log(`No menu found for date ${targetDate}, returning empty result`)
     return result
   }
 
@@ -355,6 +371,7 @@ async function calculateDailyBeanSproutsForDate(db: any, targetDate: string, uni
   })
 
   if (!dailyMenu) {
+    console.log(`No daily menu found for date ${targetDate}, returning empty result`)
     return result
   }
 

@@ -913,6 +913,45 @@ export const processingStationApi = {
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<{ success: boolean; data: any }>(`/processing-station/livestock/monthly-summary${query}`)
   },
+
+  // New methods for poultry weekly/monthly tracking
+  getWeeklyPoultryTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/poultry/weekly-tracking${query}`)
+  },
+
+  getMonthlyPoultrySummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/poultry/monthly-summary${query}`)
+  },
+
+  // LTTP Management APIs
+  getLttpData: async (date: string) => {
+    return apiRequest<{ success: boolean; data: any[] }>(`/processing-station/lttp/${date}`)
+  },
+
+  updateLttpData: async (date: string, items: any[]) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/lttp/${date}`, {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    })
+  },
 }
 
 // Supply Outputs API

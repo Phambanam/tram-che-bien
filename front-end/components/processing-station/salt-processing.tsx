@@ -593,13 +593,14 @@ export function SaltProcessing() {
         otherCosts: 0 // Default: no other costs in daily view
       })
 
-      // Refresh data
+      // Refresh all data to update weekly and monthly views
       await fetchDailySaltProcessing(new Date(dailySaltProcessing.date))
       await fetchWeeklyTracking()
+      await fetchMonthlySaltSummary()
 
       toast({
-        title: "Thành công",
-        description: "Đã cập nhật dữ liệu chế biến dưa muối (bao gồm sản phẩm phụ và chi phí khác)",
+        title: "✅ Thành công",
+        description: "Đã cập nhật dữ liệu chế biến dưa muối và làm mới tất cả tab",
       })
 
       setEditingDailyData(false)

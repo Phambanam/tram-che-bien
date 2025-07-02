@@ -31,6 +31,9 @@ const supply_output_routes_1 = __importDefault(require("./routes/supply-output.r
 const daily_ration_routes_1 = __importDefault(require("./routes/daily-ration.routes"));
 const menu_planning_routes_1 = __importDefault(require("./routes/menu-planning.routes"));
 const unit_personnel_daily_routes_1 = __importDefault(require("./routes/unit-personnel-daily.routes"));
+const tofu_calculation_routes_1 = __importDefault(require("./routes/tofu-calculation.routes"));
+const salt_calculation_routes_1 = __importDefault(require("./routes/salt-calculation.routes"));
+const bean_sprouts_calculation_routes_1 = __importDefault(require("./routes/bean-sprouts-calculation.routes"));
 // Load environment variables
 dotenv_1.default.config();
 // Initialize Express app
@@ -82,6 +85,9 @@ app.use("/api/supply-outputs", supply_output_routes_1.default);
 app.use("/api/daily-rations", daily_ration_routes_1.default);
 app.use("/api/menu-planning", menu_planning_routes_1.default);
 app.use("/api/unit-personnel-daily", unit_personnel_daily_routes_1.default);
+app.use("/api/tofu-calculation", tofu_calculation_routes_1.default);
+app.use("/api/salt-calculation", salt_calculation_routes_1.default);
+app.use("/api/bean-sprouts-calculation", bean_sprouts_calculation_routes_1.default);
 // routes
 app.use("/api/upload", upload_routes_1.default);
 // static files

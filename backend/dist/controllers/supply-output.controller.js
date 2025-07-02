@@ -23,7 +23,18 @@ const getAllSupplyOutputs = async (req, res) => {
                 query.outputDate.$gte = new Date(startDate);
             }
             if (endDate) {
-                query.outputDate.$lte = new Date(endDate);
+                // If endDate is just a date (YYYY-MM-DD), set it to end of day
+                const endDateStr = endDate;
+                let endDateObj;
+                if (endDateStr.length === 10 && !endDateStr.includes('T')) {
+                    // Date format like "2025-06-30", set to end of day
+                    endDateObj = new Date(endDateStr + 'T23:59:59.999Z');
+                }
+                else {
+                    // Already has time component
+                    endDateObj = new Date(endDateStr);
+                }
+                query.outputDate.$lte = endDateObj;
             }
         }
         // Filter by type (planned or actual)
@@ -87,7 +98,10 @@ const getAllSupplyOutputs = async (req, res) => {
                 },
             },
             {
-                $unwind: "$categoryInfo",
+                $unwind: {
+                    path: "$categoryInfo",
+                    preserveNullAndEmptyArrays: true,
+                },
             },
             {
                 $project: {
@@ -101,7 +115,7 @@ const getAllSupplyOutputs = async (req, res) => {
                         name: "$productInfo.name",
                         category: {
                             id: { $toString: "$categoryInfo._id" },
-                            name: "$categoryInfo.name",
+                            name: { $ifNull: ["$categoryInfo.name", "Không xác định"] },
                         },
                     },
                     quantity: 1,
@@ -209,7 +223,10 @@ const getSupplyOutputById = async (req, res) => {
                 },
             },
             {
-                $unwind: "$categoryInfo",
+                $unwind: {
+                    path: "$categoryInfo",
+                    preserveNullAndEmptyArrays: true,
+                },
             },
             {
                 $project: {
@@ -223,7 +240,7 @@ const getSupplyOutputById = async (req, res) => {
                         name: "$productInfo.name",
                         category: {
                             id: { $toString: "$categoryInfo._id" },
-                            name: "$categoryInfo.name",
+                            name: { $ifNull: ["$categoryInfo.name", "Không xác định"] },
                         },
                     },
                     quantity: 1,

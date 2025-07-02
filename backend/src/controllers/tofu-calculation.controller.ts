@@ -824,6 +824,11 @@ export const getMonthlyTofuSummary = async (req: Request, res: Response) => {
         // Get monthly data
         const monthlyData = await getMonthlyProcessingData(db, targetYear, targetMonth)
         
+        // Use actual average prices from the month's data
+        const avgTofuPrice = monthlyData.avgTofuPrice || 15000 // Default 15k VND/kg
+        const avgSoybeanPrice = monthlyData.avgSoybeanPrice || 12000 // Default 12k VND/kg
+        const avgByProductPrice = monthlyData.avgByProductPrice || 5000 // Default 5k VND/kg
+        
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
@@ -833,16 +838,33 @@ export const getMonthlyTofuSummary = async (req: Request, res: Response) => {
           totalTofuOutput: monthlyData.totalTofuOutput,
           totalTofuRemaining: monthlyData.totalTofuRemaining,
           processingEfficiency: monthlyData.processingEfficiency,
-          // Financial calculations (in thousands VND)
-          tofuRevenue: Math.round(monthlyData.totalTofuCollected * 15), // 15k VND per kg
-          soybeanCost: Math.round(monthlyData.totalSoybeanInput * 12),  // 12k VND per kg
-          otherCosts: Math.round(monthlyData.totalSoybeanInput * 0.02), // 2% other costs in thousands
-          byProductRevenue: Math.round(monthlyData.totalTofuCollected * 0.1 * 5), // By-products
-          netProfit: 0 // Will calculate below
+          // Financial calculations using ACTUAL prices (converted to thousands VND)
+          tofuRevenue: Math.round((monthlyData.totalTofuCollected * avgTofuPrice) / 1000),
+          soybeanCost: Math.round((monthlyData.totalSoybeanInput * avgSoybeanPrice) / 1000),
+          otherCosts: Math.round(monthlyData.totalOtherCosts / 1000), // Use actual other costs
+          byProductRevenue: Math.round((monthlyData.totalByProductQuantity * avgByProductPrice) / 1000),
+          netProfit: 0, // Will calculate below
+          // Keep track of actual prices used
+          avgTofuPrice: avgTofuPrice,
+          avgSoybeanPrice: avgSoybeanPrice,
+          avgByProductPrice: avgByProductPrice
         }
         
         // Calculate net profit
         summary.netProfit = (summary.tofuRevenue + summary.byProductRevenue) - (summary.soybeanCost + summary.otherCosts)
+        
+        console.log(`🔍 Monthly calculation for ${targetMonth}/${targetYear}:`, {
+          totalTofuCollected: monthlyData.totalTofuCollected,
+          totalSoybeanInput: monthlyData.totalSoybeanInput,
+          avgTofuPrice: avgTofuPrice,
+          avgSoybeanPrice: avgSoybeanPrice,
+          tofuRevenue: summary.tofuRevenue,
+          soybeanCost: summary.soybeanCost,
+          otherCosts: summary.otherCosts,
+          byProductRevenue: summary.byProductRevenue,
+          netProfit: summary.netProfit,
+          dataSource: 'actual_prices'
+        })
         
         monthlySummaries.push(summary)
       } catch (error) {
@@ -850,6 +872,13 @@ export const getMonthlyTofuSummary = async (req: Request, res: Response) => {
         const estimatedSoybeanInput = 2500 + Math.floor(Math.random() * 1000)
         const estimatedTofuCollected = Math.round(estimatedSoybeanInput * 0.8)
         const estimatedTofuOutput = Math.round(estimatedTofuCollected * 0.9)
+        
+        // Fallback uses current market prices with some variation
+        const fallbackTofuPrice = 15000 + Math.floor(Math.random() * 10000) // 15k-25k VND/kg
+        const fallbackSoybeanPrice = 12000 + Math.floor(Math.random() * 8000) // 12k-20k VND/kg
+        const fallbackByProductPrice = 5000 + Math.floor(Math.random() * 3000) // 5k-8k VND/kg
+        const estimatedByProductQuantity = Math.round(estimatedTofuCollected * 0.1) // 10% by-products
+        const estimatedOtherCosts = Math.round(estimatedSoybeanInput * fallbackSoybeanPrice * 0.02) // 2% of soybean cost
         
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
@@ -860,14 +889,33 @@ export const getMonthlyTofuSummary = async (req: Request, res: Response) => {
           totalTofuOutput: estimatedTofuOutput,
           totalTofuRemaining: estimatedTofuCollected - estimatedTofuOutput,
           processingEfficiency: Math.round((estimatedTofuCollected / estimatedSoybeanInput) * 100),
-          tofuRevenue: Math.round(estimatedTofuCollected * 15),
-          soybeanCost: Math.round(estimatedSoybeanInput * 12),
-          otherCosts: Math.round(estimatedSoybeanInput * 0.02),
-          byProductRevenue: Math.round(estimatedTofuCollected * 0.1 * 5),
-          netProfit: 0
+          // Financial calculations using realistic fallback prices (converted to thousands VND)
+          tofuRevenue: Math.round((estimatedTofuCollected * fallbackTofuPrice) / 1000),
+          soybeanCost: Math.round((estimatedSoybeanInput * fallbackSoybeanPrice) / 1000),
+          otherCosts: Math.round(estimatedOtherCosts / 1000),
+          byProductRevenue: Math.round((estimatedByProductQuantity * fallbackByProductPrice) / 1000),
+          netProfit: 0,
+          // Keep track of fallback prices used
+          avgTofuPrice: fallbackTofuPrice,
+          avgSoybeanPrice: fallbackSoybeanPrice,
+          avgByProductPrice: fallbackByProductPrice
         }
         
         summary.netProfit = (summary.tofuRevenue + summary.byProductRevenue) - (summary.soybeanCost + summary.otherCosts)
+        
+        console.log(`🔍 Fallback calculation for ${targetMonth}/${targetYear}:`, {
+          estimated: true,
+          totalTofuCollected: estimatedTofuCollected,
+          totalSoybeanInput: estimatedSoybeanInput,
+          fallbackTofuPrice: fallbackTofuPrice,
+          fallbackSoybeanPrice: fallbackSoybeanPrice,
+          tofuRevenue: summary.tofuRevenue,
+          soybeanCost: summary.soybeanCost,
+          otherCosts: summary.otherCosts,
+          byProductRevenue: summary.byProductRevenue,
+          netProfit: summary.netProfit,
+          dataSource: 'estimated_prices'
+        })
         monthlySummaries.push(summary)
       }
     }
@@ -979,7 +1027,7 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
     const endDate = new Date(year, month, 0).toISOString().split('T')[0]
     
-    // Aggregate data from daily processing records
+    // Aggregate data from daily processing records with average prices
     const monthlyData = await db.collection("dailyTofuProcessing")
       .aggregate([
         {
@@ -993,6 +1041,13 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
             totalSoybeanInput: { $sum: "$soybeanInput" },
             totalTofuCollected: { $sum: "$tofuInput" },
             totalTofuOutput: { $sum: "$tofuOutput" },
+            // Calculate average prices from actual data
+            avgSoybeanPrice: { $avg: "$soybeanPrice" },
+            avgTofuPrice: { $avg: "$tofuPrice" },
+            avgByProductPrice: { $avg: "$byProductPrice" },
+            // Sum by-products and other costs
+            totalByProductQuantity: { $sum: "$byProductQuantity" },
+            totalOtherCosts: { $sum: "$otherCosts" },
             count: { $sum: 1 }
           }
         }
@@ -1008,7 +1063,13 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
         totalTofuRemaining: (data.totalTofuCollected || 0) - (data.totalTofuOutput || 0),
         processingEfficiency: data.totalSoybeanInput > 0 
           ? Math.round(((data.totalTofuCollected || 0) / data.totalSoybeanInput) * 100) 
-          : 80
+          : 80,
+        // Average prices (use defaults if no data)
+        avgSoybeanPrice: data.avgSoybeanPrice || 12000, // Default 12k VND/kg
+        avgTofuPrice: data.avgTofuPrice || 15000, // Default 15k VND/kg
+        avgByProductPrice: data.avgByProductPrice || 5000, // Default 5k VND/kg
+        totalByProductQuantity: data.totalByProductQuantity || 0,
+        totalOtherCosts: data.totalOtherCosts || 0
       }
     }
     
@@ -1016,25 +1077,52 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
     const baseSoybean = 2500 + Math.floor(Math.random() * 1000)
     const baseTofuCollected = Math.round(baseSoybean * (0.75 + Math.random() * 0.15)) // 75-90% efficiency
     const baseTofuOutput = Math.round(baseTofuCollected * (0.85 + Math.random() * 0.1)) // 85-95% output rate
+    const estimatedByProductQuantity = Math.round(baseTofuCollected * 0.1) // 10% by-products
+    
+    // Use current market price ranges for fallback
+    const fallbackSoybeanPrice = 12000 + Math.floor(Math.random() * 8000) // 12k-20k VND/kg
+    const fallbackTofuPrice = 15000 + Math.floor(Math.random() * 10000) // 15k-25k VND/kg
+    const fallbackByProductPrice = 5000 + Math.floor(Math.random() * 3000) // 5k-8k VND/kg
+    const estimatedOtherCosts = Math.round(baseSoybean * fallbackSoybeanPrice * 0.02) // 2% of soybean cost
     
     return {
       totalSoybeanInput: baseSoybean,
       totalTofuCollected: baseTofuCollected,
       totalTofuOutput: baseTofuOutput,
       totalTofuRemaining: baseTofuCollected - baseTofuOutput,
-      processingEfficiency: Math.round((baseTofuCollected / baseSoybean) * 100)
+      processingEfficiency: Math.round((baseTofuCollected / baseSoybean) * 100),
+      // Estimated prices for fallback
+      avgSoybeanPrice: fallbackSoybeanPrice,
+      avgTofuPrice: fallbackTofuPrice,
+      avgByProductPrice: fallbackByProductPrice,
+      totalByProductQuantity: estimatedByProductQuantity,
+      totalOtherCosts: estimatedOtherCosts
     }
   } catch (error) {
     console.error(`Error getting monthly data for ${year}-${month}:`, error)
-    // Return default estimated data
+    // Return default estimated data with realistic prices
     const baseSoybean = 2800
     const baseTofuCollected = Math.round(baseSoybean * 0.8)
+    const estimatedByProductQuantity = Math.round(baseTofuCollected * 0.1)
+    
+    // Default market prices for error fallback
+    const defaultSoybeanPrice = 15000 // 15k VND/kg
+    const defaultTofuPrice = 20000 // 20k VND/kg
+    const defaultByProductPrice = 6000 // 6k VND/kg
+    const defaultOtherCosts = Math.round(baseSoybean * defaultSoybeanPrice * 0.02)
+    
     return {
       totalSoybeanInput: baseSoybean,
       totalTofuCollected: baseTofuCollected,
       totalTofuOutput: Math.round(baseTofuCollected * 0.9),
       totalTofuRemaining: Math.round(baseTofuCollected * 0.1),
-      processingEfficiency: 80
+      processingEfficiency: 80,
+      // Default prices for error fallback
+      avgSoybeanPrice: defaultSoybeanPrice,
+      avgTofuPrice: defaultTofuPrice,
+      avgByProductPrice: defaultByProductPrice,
+      totalByProductQuantity: estimatedByProductQuantity,
+      totalOtherCosts: defaultOtherCosts
     }
   }
 }

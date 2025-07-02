@@ -300,13 +300,14 @@ export function PoultryProcessing() {
         poultryMeatPrice: dailyUpdateData.poultryMeatPrice
       })
 
-      // Refresh data
+      // Refresh all data to update weekly and monthly views
       await fetchDailyPoultryProcessing(new Date(dailyPoultryProcessing.date))
       await fetchWeeklyPoultryTracking()
+      await fetchMonthlyPoultrySummary()
 
       toast({
         title: "✅ Thành công",
-        description: "Đã cập nhật dữ liệu chế biến gia cầm",
+        description: "Đã cập nhật dữ liệu chế biến gia cầm và làm mới tất cả tab",
       })
 
       setEditingDailyData(false)

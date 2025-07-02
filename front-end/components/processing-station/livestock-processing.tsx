@@ -490,7 +490,7 @@ export function LivestockProcessing() {
       if (response.success) {
         toast({
           title: "✅ Thành công",
-          description: "Đã cập nhật dữ liệu giết mổ lợn"
+          description: "Đã cập nhật dữ liệu giết mổ lợn và làm mới tất cả tab"
         })
         
         // Update local state
@@ -501,8 +501,10 @@ export function LivestockProcessing() {
         
         setEditingDailyData(false)
         
-        // Reload data to ensure consistency
+        // Refresh all data to update weekly and monthly views
         await fetchDailyLivestockProcessing(new Date(dailyLivestockProcessing.date))
+        await fetchWeeklyLivestockTracking()
+        await fetchMonthlyLivestockSummary()
       } else {
         throw new Error(response.message || "Không thể cập nhật dữ liệu")
       }
