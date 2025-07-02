@@ -859,12 +859,12 @@ const getMonthlySausageSummary = async (req, res) => {
                     avgFatMeatPrice: avgFatMeatPrice.toFixed(0),
                     source: monthlyData.avgSausagePrice ? 'actual' : 'estimated'
                 });
-                // Calculate financial values (in thousands VND)
-                const sausageRevenue = Math.round((monthlyData.totalSausageOutput * avgSausagePrice) / 1000);
+                // Calculate financial values (in thousands VND) - using INPUT like weekly API
+                const sausageRevenue = Math.round((monthlyData.totalSausageInput * avgSausagePrice) / 1000);
                 const chaQueRevenue = Math.round((monthlyData.totalChaQueInput * avgChaQuePrice) / 1000);
                 const totalRevenue = sausageRevenue + chaQueRevenue;
                 const meatCost = Math.round(((monthlyData.totalLeanMeatInput * avgLeanMeatPrice) + (monthlyData.totalFatMeatInput * avgFatMeatPrice)) / 1000);
-                const otherCosts = Math.round(((monthlyData.totalLeanMeatInput + monthlyData.totalFatMeatInput) * 50)); // 50 VND per kg other costs
+                const otherCosts = 0; // Set to 0 like weekly API
                 const totalCost = meatCost + otherCosts;
                 const netProfit = totalRevenue - totalCost;
                 const summary = {
@@ -904,12 +904,12 @@ const getMonthlySausageSummary = async (req, res) => {
                 const estimatedChaQuePrice = 14000 + Math.random() * 8000; // 14k-22k range
                 const estimatedLeanMeatPrice = 12000 + Math.random() * 8000; // 12k-20k range
                 const estimatedFatMeatPrice = 8000 + Math.random() * 4000; // 8k-12k range
-                // Calculate financial values (in thousands VND)
-                const sausageRevenue = Math.round((estimatedSausageOutput * estimatedSausagePrice) / 1000);
-                const chaQueRevenue = Math.round((estimatedChaQueOutput * estimatedChaQuePrice) / 1000);
+                // Calculate financial values (in thousands VND) - using INPUT like weekly API
+                const sausageRevenue = Math.round((estimatedSausageInput * estimatedSausagePrice) / 1000);
+                const chaQueRevenue = Math.round((estimatedChaQueInput * estimatedChaQuePrice) / 1000);
                 const totalRevenue = sausageRevenue + chaQueRevenue;
                 const meatCost = Math.round(((estimatedLeanMeat * estimatedLeanMeatPrice) + (estimatedFatMeat * estimatedFatMeatPrice)) / 1000);
-                const otherCosts = Math.round((estimatedLeanMeat + estimatedFatMeat) * 50); // 50 VND per kg other costs
+                const otherCosts = 0; // Set to 0 like weekly API
                 const totalCost = meatCost + otherCosts;
                 const netProfit = totalRevenue - totalCost;
                 const summary = {

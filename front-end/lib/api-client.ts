@@ -941,6 +941,15 @@ export const processingStationApi = {
     return apiRequest<{ success: boolean; data: any }>(`/processing-station/poultry/monthly-summary${query}`)
   },
 
+  // Weekly and Monthly data APIs
+  getWeeklyData: async (week: number, year: number) => {
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/station/weekly/${week}/${year}`)
+  },
+
+  getMonthlyData: async (month: number, year: number) => {
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/station/monthly/${month}/${year}`)
+  },
+
   // LTTP Management APIs
   getLttpData: async (date: string) => {
     return apiRequest<{ success: boolean; data: any[] }>(`/processing-station/lttp/${date}`)
