@@ -576,28 +576,50 @@ export function LivestockProcessing() {
                   </div>
                   <div className="text-3xl font-bold text-red-900">
                     {(() => {
-                      const currentLeanMeatPrice = editingDailyData ? 
-                        dailyUpdateData.leanMeatPrice || 0 :
-                        dailyLivestockProcessing.leanMeatPrice || 0
-                      
+                      // Get current prices (editing mode vs display mode)
                       const currentLiveAnimalPrice = editingDailyData ? 
                         dailyUpdateData.liveAnimalPrice || 0 :
                         dailyLivestockProcessing.liveAnimalPrice || 0
+                      const currentLeanMeatPrice = editingDailyData ? 
+                        dailyUpdateData.leanMeatPrice || 0 :
+                        dailyLivestockProcessing.leanMeatPrice || 0
+                      const currentBonePrice = editingDailyData ? 
+                        dailyUpdateData.bonePrice || 0 :
+                        dailyLivestockProcessing.bonePrice || 0
+                      const currentGroundMeatPrice = editingDailyData ? 
+                        dailyUpdateData.groundMeatPrice || 0 :
+                        dailyLivestockProcessing.groundMeatPrice || 0
+                      const currentOrgansPrice = editingDailyData ? 
+                        dailyUpdateData.organsPrice || 0 :
+                        dailyLivestockProcessing.organsPrice || 0
                       
-                      const currentLeanMeatOutput = editingDailyData ? dailyUpdateData.leanMeatOutput : dailyLivestockProcessing.leanMeatOutput
+                      // Get current quantities
                       const currentLiveAnimalsInput = editingDailyData ? dailyUpdateData.liveAnimalsInput : dailyLivestockProcessing.liveAnimalsInput
+                      const currentLeanMeatOutput = editingDailyData ? dailyUpdateData.leanMeatOutput : dailyLivestockProcessing.leanMeatOutput
+                      const currentBoneOutput = editingDailyData ? dailyUpdateData.boneOutput : dailyLivestockProcessing.boneOutput
+                      const currentGroundMeatOutput = editingDailyData ? dailyUpdateData.groundMeatOutput : dailyLivestockProcessing.groundMeatOutput
+                      const currentOrgansOutput = editingDailyData ? dailyUpdateData.organsOutput : dailyLivestockProcessing.organsOutput
                       
-                      if (currentLeanMeatPrice === 0 || currentLiveAnimalPrice === 0) {
+                      if (currentLiveAnimalPrice === 0) {
                         return (
                           <span className="text-gray-500 text-xl">
-                            Chưa có giá
+                            Chưa có giá lợn hơi
                           </span>
                         )
                       }
                       
+                      // Calculate total revenue from all products
                       const leanMeatRevenue = currentLeanMeatOutput * currentLeanMeatPrice
+                      const boneRevenue = currentBoneOutput * currentBonePrice
+                      const groundMeatRevenue = currentGroundMeatOutput * currentGroundMeatPrice
+                      const organsRevenue = currentOrgansOutput * currentOrgansPrice
+                      const totalRevenue = leanMeatRevenue + boneRevenue + groundMeatRevenue + organsRevenue
+                      
+                      // Calculate total cost
                       const livestockCost = currentLiveAnimalsInput * currentLiveAnimalPrice
-                      const dailyProfit = leanMeatRevenue - livestockCost
+                      
+                      // Calculate profit
+                      const dailyProfit = totalRevenue - livestockCost
                       
                       return (
                         <span className={dailyProfit >= 0 ? "text-green-600" : "text-red-600"}>
@@ -609,25 +631,44 @@ export function LivestockProcessing() {
                   </div>
                   <div className="text-xs text-red-600 mt-1">
                     {(() => {
-                      const currentLeanMeatPrice = editingDailyData ? 
-                        dailyUpdateData.leanMeatPrice || 0 :
-                        dailyLivestockProcessing.leanMeatPrice || 0
-                      
+                      // Get current prices
                       const currentLiveAnimalPrice = editingDailyData ? 
                         dailyUpdateData.liveAnimalPrice || 0 :
                         dailyLivestockProcessing.liveAnimalPrice || 0
+                      const currentLeanMeatPrice = editingDailyData ? 
+                        dailyUpdateData.leanMeatPrice || 0 :
+                        dailyLivestockProcessing.leanMeatPrice || 0
+                      const currentBonePrice = editingDailyData ? 
+                        dailyUpdateData.bonePrice || 0 :
+                        dailyLivestockProcessing.bonePrice || 0
+                      const currentGroundMeatPrice = editingDailyData ? 
+                        dailyUpdateData.groundMeatPrice || 0 :
+                        dailyLivestockProcessing.groundMeatPrice || 0
+                      const currentOrgansPrice = editingDailyData ? 
+                        dailyUpdateData.organsPrice || 0 :
+                        dailyLivestockProcessing.organsPrice || 0
                       
-                      const currentLeanMeatOutput = editingDailyData ? dailyUpdateData.leanMeatOutput : dailyLivestockProcessing.leanMeatOutput
+                      // Get current quantities
                       const currentLiveAnimalsInput = editingDailyData ? dailyUpdateData.liveAnimalsInput : dailyLivestockProcessing.liveAnimalsInput
+                      const currentLeanMeatOutput = editingDailyData ? dailyUpdateData.leanMeatOutput : dailyLivestockProcessing.leanMeatOutput
+                      const currentBoneOutput = editingDailyData ? dailyUpdateData.boneOutput : dailyLivestockProcessing.boneOutput
+                      const currentGroundMeatOutput = editingDailyData ? dailyUpdateData.groundMeatOutput : dailyLivestockProcessing.groundMeatOutput
+                      const currentOrgansOutput = editingDailyData ? dailyUpdateData.organsOutput : dailyLivestockProcessing.organsOutput
                       
-                      if (currentLeanMeatPrice && currentLiveAnimalPrice) {
-                        const revenue = currentLeanMeatOutput * currentLeanMeatPrice
+                      if (currentLiveAnimalPrice > 0) {
+                        // Calculate total revenue from all products
+                        const leanMeatRevenue = currentLeanMeatOutput * currentLeanMeatPrice
+                        const boneRevenue = currentBoneOutput * currentBonePrice
+                        const groundMeatRevenue = currentGroundMeatOutput * currentGroundMeatPrice
+                        const organsRevenue = currentOrgansOutput * currentOrgansPrice
+                        const totalRevenue = leanMeatRevenue + boneRevenue + groundMeatRevenue + organsRevenue
+                        
                         const cost = currentLiveAnimalsInput * currentLiveAnimalPrice
                         return (
-                          <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
+                          <>Thu: {totalRevenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
                         )
                       }
-                      return "Cần nhập đầy đủ giá thịt nạc và lợn hơi"
+                      return "Cần nhập đầy đủ giá lợn hơi và các sản phẩm"
                     })()}
                   </div>
                 </div>
