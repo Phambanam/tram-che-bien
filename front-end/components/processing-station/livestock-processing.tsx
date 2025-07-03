@@ -1444,10 +1444,10 @@ export function LivestockProcessing() {
                     {monthlyLivestockSummary && monthlyLivestockSummary.length > 0 ? (
                       monthlyLivestockSummary.map((month) => {
                         // Calculate revenue breakdown (thousands VND)
-                        const groundMeatRevenue = Math.round((month.totalGroundMeatActualOutput * 80000) / 1000) // 80k per kg
-                        const leanMeatRevenue = Math.round((month.totalLeanMeatActualOutput * 120000) / 1000) // 120k per kg
-                        const boneRevenue = Math.round((month.totalBoneActualOutput * 30000) / 1000) // 30k per kg
-                        const organsRevenue = Math.round((month.totalOrgansActualOutput * 50000) / 1000) // 50k per kg
+                        const groundMeatRevenue = Math.round((month.totalGroundMeatOutput * 80000) / 1000) // 80k per kg
+                        const leanMeatRevenue = Math.round((month.totalLeanMeatOutput * 120000) / 1000) // 120k per kg
+                        const boneRevenue = Math.round((month.totalBoneOutput * 30000) / 1000) // 30k per kg
+                        const organsRevenue = Math.round((month.totalOrgansOutput * 50000) / 1000) // 50k per kg
                         const totalRevenue = groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
                         const totalCost = Math.round((month.livestockCost + month.otherCosts) / 1000)
                         const profit = totalRevenue - totalCost
@@ -1461,16 +1461,16 @@ export function LivestockProcessing() {
                               {totalRevenue}
                             </TableCell>
                             {/* THU - Thịt xổ lọc */}
-                            <TableCell className="text-center border">{month.totalGroundMeatActualOutput}</TableCell>
+                            <TableCell className="text-center border">{month.totalGroundMeatOutput}</TableCell>
                             <TableCell className="text-center border">{groundMeatRevenue}</TableCell>
                             {/* THU - Thịt nạc */}
                             <TableCell className="text-center border">{month.totalLeanMeatOutput}</TableCell>
                             <TableCell className="text-center border">{leanMeatRevenue}</TableCell>
                             {/* THU - Xương xổ */}
-                            <TableCell className="text-center border">{month.totalBoneActualOutput}</TableCell>
+                            <TableCell className="text-center border">{month.totalBoneOutput}</TableCell>
                             <TableCell className="text-center border">{boneRevenue}</TableCell>
                             {/* THU - Lòng */}
-                            <TableCell className="text-center border">{month.totalOrgansActualOutput}</TableCell>
+                            <TableCell className="text-center border">{month.totalOrgansOutput}</TableCell>
                             <TableCell className="text-center border">{organsRevenue}</TableCell>
                             {/* TỔNG CHI */}
                             <TableCell className="text-center border font-bold text-red-700">
@@ -1501,41 +1501,32 @@ export function LivestockProcessing() {
                         <TableCell className="text-center border font-bold">📊 Tổng cộng</TableCell>
                         {/* TỔNG THU */}
                         <TableCell className="text-center border font-bold text-blue-700">
-                          {monthlyLivestockSummary.reduce((sum, month) => {
-                            const groundMeatRevenue = Math.round((month.totalGroundMeatActualOutput * 80000) / 1000)
-                            const leanMeatRevenue = Math.round((month.totalLeanMeatActualOutput * 120000) / 1000)
-                            const boneRevenue = Math.round((month.totalBoneActualOutput * 30000) / 1000)
-                            const organsRevenue = Math.round((month.totalOrgansActualOutput * 50000) / 1000)
-                            return sum + groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
-                          }, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalGroundMeatOutput, 0)}
                         </TableCell>
                         {/* THU - Thịt xổ lọc */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalGroundMeatActualOutput, 0)}
-                        </TableCell>
-                        <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalGroundMeatActualOutput * 80000) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalGroundMeatOutput * 80000) / 1000), 0)}
                         </TableCell>
                         {/* THU - Thịt nạc */}
                         <TableCell className="text-center border font-bold">
                           {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalLeanMeatOutput, 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalLeanMeatActualOutput * 120000) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalLeanMeatOutput * 120000) / 1000), 0)}
                         </TableCell>
                         {/* THU - Xương xổ */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalBoneActualOutput, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalBoneOutput, 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalBoneActualOutput * 30000) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalBoneOutput * 30000) / 1000), 0)}
                         </TableCell>
                         {/* THU - Lòng */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalOrgansActualOutput, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalOrgansOutput, 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalOrgansActualOutput * 50000) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalOrgansOutput * 50000) / 1000), 0)}
                         </TableCell>
                         {/* TỔNG CHI */}
                         <TableCell className="text-center border font-bold text-red-700">
@@ -1552,10 +1543,10 @@ export function LivestockProcessing() {
                         <TableCell className="text-center border font-bold">
                           {(() => {
                             const totalRevenue = monthlyLivestockSummary.reduce((sum, month) => {
-                              const groundMeatRevenue = Math.round((month.totalGroundMeatActualOutput * 80000) / 1000)
-                              const leanMeatRevenue = Math.round((month.totalLeanMeatActualOutput * 120000) / 1000)
-                              const boneRevenue = Math.round((month.totalBoneActualOutput * 30000) / 1000)
-                              const organsRevenue = Math.round((month.totalOrgansActualOutput * 50000) / 1000)
+                              const groundMeatRevenue = Math.round((month.totalGroundMeatOutput * 80000) / 1000)
+                              const leanMeatRevenue = Math.round((month.totalLeanMeatOutput * 120000) / 1000)
+                              const boneRevenue = Math.round((month.totalBoneOutput * 30000) / 1000)
+                              const organsRevenue = Math.round((month.totalOrgansOutput * 50000) / 1000)
                               return sum + groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
                             }, 0)
                             const totalCost = monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.livestockCost + month.otherCosts) / 1000), 0)
