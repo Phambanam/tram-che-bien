@@ -699,48 +699,38 @@ export function PoultryProcessing() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-center align-middle border-r bg-gray-100">NGÀY</TableHead>
-                      <TableHead className="text-center align-middle border-r bg-blue-100">Gà nguyên con (thu)</TableHead>
-                      <TableHead className="text-center align-middle border-r bg-blue-100">Gà cắt khúc (thu)</TableHead>
-                      <TableHead className="text-center align-middle border-r bg-blue-100">Tồn đầu</TableHead>
-                      <TableHead className="text-center align-middle border-r bg-blue-100">Tồn cuối</TableHead>
-                      <TableHead className="text-center align-middle border-r bg-red-100">Gà nguyên con (xuất)</TableHead>
-                      <TableHead className="text-center align-middle border-r bg-red-100">Gà cắt khúc (xuất)</TableHead>
-                      <TableHead className="text-center align-middle border-r bg-red-100">Tồn đầu</TableHead>
-                      <TableHead className="text-center align-middle border-r bg-red-100">Tồn cuối</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Gia cầm sống chi (kg)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Thịt gia cầm thu (kg)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Thịt gia cầm xuất (kg)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Thịt gia cầm tồn (kg)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Giá gia cầm sống (đ/kg)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Giá thịt gia cầm (đ/kg)</TableHead>
                       <TableHead className="text-center align-middle border-r bg-green-100">Lãi (1.000đ)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {weeklyPoultryTracking && weeklyPoultryTracking.length > 0 ? (
                       weeklyPoultryTracking.map((day) => {
-                        const wholeChickenOutput = Number(day.wholeChickenOutput) || 0
-                        const wholeChickenActualOutput = Number(day.wholeChickenActualOutput) || 0
-                        const chickenPartsOutput = Number(day.chickenPartsOutput) || 0
-                        const chickenPartsActualOutput = Number(day.chickenPartsActualOutput) || 0
-                        const wholeChickenBegin = Number(day.wholeChickenBegin) || 0
-                        const wholeChickenEnd = Number(day.wholeChickenEnd) || 0
-                        const chickenPartsBegin = Number(day.chickenPartsBegin) || 0
-                        const chickenPartsEnd = Number(day.chickenPartsEnd) || 0
                         const livePoultryInput = Number(day.livePoultryInput) || 0
+                        const poultryMeatOutput = Number(day.poultryMeatOutput) || 0
+                        const poultryMeatActualOutput = Number(day.poultryMeatActualOutput) || 0
+                        const poultryMeatRemaining = Number(day.poultryMeatRemaining) || 0
                         const livePoultryPrice = Number(day.livePoultryPrice) || 60000
-                        const wholeChickenPrice = Number(day.wholeChickenPrice) || 100000
-                        const chickenPartsPrice = Number(day.chickenPartsPrice) || 120000
-                        // Doanh thu = xuất * giá
-                        const revenue = (wholeChickenActualOutput * wholeChickenPrice + chickenPartsActualOutput * chickenPartsPrice) / 1000
-                        // Chi phí = nhập * giá
+                        const poultryMeatPrice = Number(day.poultryMeatPrice) || 150000
+                        // Doanh thu = xuất * giá thịt
+                        const revenue = (poultryMeatActualOutput * poultryMeatPrice) / 1000
+                        // Chi phí = nhập * giá sống
                         const cost = (livePoultryInput * livePoultryPrice) / 1000
                         const profit = revenue - cost
                         return (
                           <TableRow key={day.date} className="border-b">
                             <TableCell className="text-center border-r font-medium">{format(new Date(day.date), "dd/MM")}</TableCell>
-                            <TableCell className="text-center text-sm">{wholeChickenOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{chickenPartsOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{wholeChickenBegin}</TableCell>
-                            <TableCell className="text-center text-sm">{wholeChickenEnd}</TableCell>
-                            <TableCell className="text-center text-sm">{wholeChickenActualOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{chickenPartsActualOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{chickenPartsBegin}</TableCell>
-                            <TableCell className="text-center text-sm">{chickenPartsEnd}</TableCell>
+                            <TableCell className="text-center text-sm">{livePoultryInput}</TableCell>
+                            <TableCell className="text-center text-sm">{poultryMeatOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{poultryMeatActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{poultryMeatRemaining}</TableCell>
+                            <TableCell className="text-center text-sm">{livePoultryPrice.toLocaleString('vi-VN')}</TableCell>
+                            <TableCell className="text-center text-sm">{poultryMeatPrice.toLocaleString('vi-VN')}</TableCell>
                             <TableCell className="text-center font-semibold">
                               <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
                                 {profit >= 0 ? "+" : ""}{profit.toFixed(0)}
@@ -751,7 +741,7 @@ export function PoultryProcessing() {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={8} className="text-center text-gray-500 py-8">
                           Không có dữ liệu cho tuần đã chọn
                         </TableCell>
                       </TableRow>
@@ -853,7 +843,7 @@ export function PoultryProcessing() {
                         const poultryMeatPrice = 150000 // Default price per kg
                         const livePoultryPrice = 60000 // Default price per kg
 
-                        const poultryMeatRevenue = (month.totalPoultryMeatActualOutput * poultryMeatPrice) / 1000
+                        const poultryMeatRevenue = (month.totalWholeChickenActualOutput ?? 0 + month.totalChickenPartsActualOutput ?? 0 * poultryMeatPrice) / 1000
                         const otherRevenue = 0 // Chi khác thu
                         const totalRevenue = poultryMeatRevenue + otherRevenue
                         
@@ -874,7 +864,7 @@ export function PoultryProcessing() {
                             <TableCell className="text-center text-sm">{month.chickenPartsBegin ?? 0}</TableCell>
                             <TableCell className="text-center text-sm">{month.chickenPartsEnd ?? 0}</TableCell>
                             {/* Thịt gia cầm */}
-                            <TableCell className="text-center text-sm">{month.totalPoultryMeatActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{(month.totalWholeChickenActualOutput ?? 0) + (month.totalChickenPartsActualOutput ?? 0)}</TableCell>
                             <TableCell className="text-center text-sm">{poultryMeatRevenue.toFixed(0)}</TableCell>
                             {/* Chi khác THU */}
                             <TableCell className="text-center text-sm">0</TableCell>
