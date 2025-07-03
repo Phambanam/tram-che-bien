@@ -671,39 +671,25 @@ export function PoultryProcessing() {
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">Tuần:</label>
-                  <Select
-                    value={selectedWeek.toString()}
-                    onValueChange={(value) => setSelectedWeek(parseInt(value))}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 53 }, (_, i) => i + 1).map((week) => (
-                        <SelectItem key={week} value={week.toString()}>
-                          {week}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={53}
+                    value={selectedWeek}
+                    onChange={e => setSelectedWeek(Number(e.target.value))}
+                    className="w-20"
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium">Năm:</label>
-                  <Select
-                    value={selectedYear.toString()}
-                    onValueChange={(value) => setSelectedYear(parseInt(value))}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 11 }, (_, i) => 2020 + i).map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    type="number"
+                    min={2020}
+                    max={2030}
+                    value={selectedYear}
+                    onChange={e => setSelectedYear(Number(e.target.value))}
+                    className="w-24"
+                  />
                 </div>
               </div>
             </CardHeader>
@@ -712,68 +698,49 @@ export function PoultryProcessing() {
                 <Table className="border">
                   <TableHeader>
                     <TableRow>
-                      <TableHead rowSpan={3} className="text-center align-middle border-r bg-gray-100">NGÀY</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">THU</TableHead>
-                      <TableHead colSpan={4} className="text-center border-r bg-blue-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">CHI</TableHead>
-                      <TableHead colSpan={4} className="text-center border-r bg-red-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={3} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Thịt gia cầm</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Chi khác</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">Gia cầm sống</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">Chi khác</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead className="text-center bg-blue-100">TỔNG THU<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-100">TỔNG CHI<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-green-100">(1.000đ)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-gray-100">NGÀY</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Gà nguyên con (thu)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Gà cắt khúc (thu)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Tồn đầu</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-blue-100">Tồn cuối</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-red-100">Gà nguyên con (xuất)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-red-100">Gà cắt khúc (xuất)</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-red-100">Tồn đầu</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-red-100">Tồn cuối</TableHead>
+                      <TableHead className="text-center align-middle border-r bg-green-100">Lãi (1.000đ)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {weeklyPoultryTracking && weeklyPoultryTracking.length > 0 ? (
                       weeklyPoultryTracking.map((day) => {
-                        // Calculate financial values
-                        const poultryMeatRevenue = (day.poultryMeatOutput * day.poultryMeatPrice) / 1000
-                        const otherRevenue = 0 // Chi khác thu
-                        const totalRevenue = poultryMeatRevenue + otherRevenue
-                        
-                        const livePoultryInput = day.livePoultryInput || 0
-                        const livePoultryPrice = day.livePoultryPrice || 60000
-                        const livePoultryCost = (livePoultryInput * livePoultryPrice) / 1000
-                        const otherCosts = Math.round(livePoultryInput * 0.5) // 500 VND chi khác per kg
-                        const totalCost = livePoultryCost + otherCosts
-                        
-                        const profit = totalRevenue - totalCost
-
+                        const wholeChickenOutput = Number(day.wholeChickenOutput) || 0
+                        const wholeChickenActualOutput = Number(day.wholeChickenActualOutput) || 0
+                        const chickenPartsOutput = Number(day.chickenPartsOutput) || 0
+                        const chickenPartsActualOutput = Number(day.chickenPartsActualOutput) || 0
+                        const wholeChickenBegin = Number(day.wholeChickenBegin) || 0
+                        const wholeChickenEnd = Number(day.wholeChickenEnd) || 0
+                        const chickenPartsBegin = Number(day.chickenPartsBegin) || 0
+                        const chickenPartsEnd = Number(day.chickenPartsEnd) || 0
+                        const livePoultryInput = Number(day.livePoultryInput) || 0
+                        const livePoultryPrice = Number(day.livePoultryPrice) || 60000
+                        const wholeChickenPrice = Number(day.wholeChickenPrice) || 100000
+                        const chickenPartsPrice = Number(day.chickenPartsPrice) || 120000
+                        // Doanh thu = xuất * giá
+                        const revenue = (wholeChickenActualOutput * wholeChickenPrice + chickenPartsActualOutput * chickenPartsPrice) / 1000
+                        // Chi phí = nhập * giá
+                        const cost = (livePoultryInput * livePoultryPrice) / 1000
+                        const profit = revenue - cost
                         return (
                           <TableRow key={day.date} className="border-b">
                             <TableCell className="text-center border-r font-medium">{format(new Date(day.date), "dd/MM")}</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-blue-700">{totalRevenue.toFixed(0)}</TableCell>
-                            {/* Thịt gia cầm */}
-                            <TableCell className="text-center text-sm">{day.poultryMeatOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatRevenue.toFixed(0)}</TableCell>
-                            {/* Chi khác THU */}
-                            <TableCell className="text-center text-sm">0</TableCell>
-                            <TableCell className="text-center border-r text-sm">0</TableCell>
-                            {/* Tổng chi */}
-                            <TableCell className="text-center border-r font-semibold text-red-700">{totalCost.toFixed(0)}</TableCell>
-                            {/* Gia cầm sống */}
-                            <TableCell className="text-center text-sm">{livePoultryInput}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryCost.toFixed(0)}</TableCell>
-                            {/* Chi khác CHI */}
-                            <TableCell className="text-center text-sm">{Math.round(livePoultryInput * 0.05)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">{otherCosts.toFixed(0)}</TableCell>
-                            {/* Lãi */}
+                            <TableCell className="text-center text-sm">{wholeChickenOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{chickenPartsOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{wholeChickenBegin}</TableCell>
+                            <TableCell className="text-center text-sm">{wholeChickenEnd}</TableCell>
+                            <TableCell className="text-center text-sm">{wholeChickenActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{chickenPartsActualOutput}</TableCell>
+                            <TableCell className="text-center text-sm">{chickenPartsBegin}</TableCell>
+                            <TableCell className="text-center text-sm">{chickenPartsEnd}</TableCell>
                             <TableCell className="text-center font-semibold">
                               <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
                                 {profit >= 0 ? "+" : ""}{profit.toFixed(0)}
@@ -784,7 +751,7 @@ export function PoultryProcessing() {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={12} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={10} className="text-center text-gray-500 py-8">
                           Không có dữ liệu cho tuần đã chọn
                         </TableCell>
                       </TableRow>
