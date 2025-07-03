@@ -86,6 +86,9 @@ interface MonthlyLivestockSummary {
   livestockCost: number
   otherCosts: number
   netProfit: number
+  totalLeanMeatRevenue: number
+  totalBoneRevenue: number
+  totalOrgansRevenue: number
 }
 
 export function LivestockProcessing() {
@@ -1458,30 +1461,30 @@ export function LivestockProcessing() {
                             <TableCell className="text-center border font-medium">{month.month}</TableCell>
                             {/* TỔNG THU */}
                             <TableCell className="text-center border font-bold text-blue-700">
-                              {totalRevenue}
+                              {month.totalRevenue}
                             </TableCell>
                             {/* THU - Thịt xổ lọc */}
                             <TableCell className="text-center border">{month.totalGroundMeatOutput}</TableCell>
-                            <TableCell className="text-center border">{groundMeatRevenue}</TableCell>
+                            <TableCell className="text-center border">{month.totalGroundMeatRevenue}</TableCell>
                             {/* THU - Thịt nạc */}
                             <TableCell className="text-center border">{month.totalLeanMeatOutput}</TableCell>
-                            <TableCell className="text-center border">{leanMeatRevenue}</TableCell>
+                            <TableCell className="text-center border">{month.totalLeanMeatRevenue}</TableCell>
                             {/* THU - Xương xổ */}
                             <TableCell className="text-center border">{month.totalBoneOutput}</TableCell>
-                            <TableCell className="text-center border">{boneRevenue}</TableCell>
+                            <TableCell className="text-center border">{month.totalBoneRevenue}</TableCell>
                             {/* THU - Lòng */}
                             <TableCell className="text-center border">{month.totalOrgansOutput}</TableCell>
-                            <TableCell className="text-center border">{organsRevenue}</TableCell>
+                            <TableCell className="text-center border">{month.totalOrgansRevenue}</TableCell>
                             {/* TỔNG CHI */}
                             <TableCell className="text-center border font-bold text-red-700">
-                              {totalCost}
+                              {month.livestockCost + month.otherCosts}
                             </TableCell>
                             {/* CHI - Lợn hơi */}
                             <TableCell className="text-center border">{month.totalLiveAnimalsInput}</TableCell>
-                            <TableCell className="text-center border">{totalCost}</TableCell>
+                            <TableCell className="text-center border">{month.livestockCost + month.otherCosts}</TableCell>
                             {/* THU-CHI (LÃI) */}
-                            <TableCell className={`text-center border font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {profit >= 0 ? '+' : ''}{profit}
+                            <TableCell className={`text-center border font-bold ${month.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}> 
+                              {month.netProfit >= 0 ? '+' : ''}{month.netProfit}
                             </TableCell>
                           </TableRow>
                         )
@@ -1501,55 +1504,52 @@ export function LivestockProcessing() {
                         <TableCell className="text-center border font-bold">📊 Tổng cộng</TableCell>
                         {/* TỔNG THU */}
                         <TableCell className="text-center border font-bold text-blue-700">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalGroundMeatOutput, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalRevenue || 0), 0)}
                         </TableCell>
                         {/* THU - Thịt xổ lọc */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalGroundMeatOutput * 80000) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalGroundMeatOutput || 0), 0)}
+                        </TableCell>
+                        <TableCell className="text-center border font-bold">
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalGroundMeatRevenue || 0), 0)}
                         </TableCell>
                         {/* THU - Thịt nạc */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalLeanMeatOutput, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalLeanMeatOutput || 0), 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalLeanMeatOutput * 120000) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalLeanMeatRevenue || 0), 0)}
                         </TableCell>
                         {/* THU - Xương xổ */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalBoneOutput, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalBoneOutput || 0), 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalBoneOutput * 30000) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalBoneRevenue || 0), 0)}
                         </TableCell>
                         {/* THU - Lòng */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalOrgansOutput, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalOrgansOutput || 0), 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalOrgansOutput * 50000) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalOrgansRevenue || 0), 0)}
                         </TableCell>
                         {/* TỔNG CHI */}
                         <TableCell className="text-center border font-bold text-red-700">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.livestockCost + month.otherCosts) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) + (month.otherCosts || 0)), 0)}
                         </TableCell>
                         {/* CHI - Lợn hơi */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalLiveAnimalsInput, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalLiveAnimalsInput || 0), 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.livestockCost + month.otherCosts) / 1000), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) + (month.otherCosts || 0)), 0)}
                         </TableCell>
                         {/* THU-CHI (LÃI) */}
                         <TableCell className="text-center border font-bold">
                           {(() => {
-                            const totalRevenue = monthlyLivestockSummary.reduce((sum, month) => {
-                              const groundMeatRevenue = Math.round((month.totalGroundMeatOutput * 80000) / 1000)
-                              const leanMeatRevenue = Math.round((month.totalLeanMeatOutput * 120000) / 1000)
-                              const boneRevenue = Math.round((month.totalBoneOutput * 30000) / 1000)
-                              const organsRevenue = Math.round((month.totalOrgansOutput * 50000) / 1000)
-                              return sum + groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
-                            }, 0)
-                            const totalCost = monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.livestockCost + month.otherCosts) / 1000), 0)
+                            const totalRevenue = monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalRevenue || 0), 0)
+                            const totalCost = monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) + (month.otherCosts || 0)), 0)
                             const profit = totalRevenue - totalCost
                             return (
                               <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
