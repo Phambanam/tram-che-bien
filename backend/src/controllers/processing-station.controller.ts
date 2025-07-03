@@ -1330,14 +1330,14 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
           totalOrgansOutput: monthlyData.totalOrgansOutput,
           totalOrgansActualOutput: monthlyData.totalOrgansActualOutput,
           processingEfficiency: monthlyData.processingEfficiency,
-          // Financial calculations (in thousands VND)
+          // Financial calculations (in thousands VND) - use total OUTPUT (production), not ACTUAL OUTPUT (sales)
           totalRevenue: Math.round(
-            (monthlyData.totalLeanMeatActualOutput * 120) + // Thịt nạc: 120k VND/kg
-            (monthlyData.totalBoneActualOutput * 30) + // Xương xổ: 30k VND/kg
-            (monthlyData.totalGroundMeatActualOutput * 80) + // Thịt xổ lọc: 80k VND/kg
-            (monthlyData.totalOrgansActualOutput * 50) // Lòng: 50k VND/kg
+            (monthlyData.totalLeanMeatOutput * 100) + // Thịt nạc: 100k VND/kg
+            (monthlyData.totalBoneOutput * 50) + // Xương xổ: 50k VND/kg
+            (monthlyData.totalGroundMeatOutput * 120) + // Thịt xổ lọc: 120k VND/kg
+            (monthlyData.totalOrgansOutput * 150) // Lòng: 150k VND/kg
           ),
-          livestockCost: Math.round(monthlyData.totalLiveAnimalsInput * 70), // 70k VND per animal
+          livestockCost: Math.round(monthlyData.totalLiveAnimalsInput * 53), // 53k VND per kg live weight
           otherCosts: Math.round(monthlyData.totalLiveAnimalsInput * 0.05), // 5% other costs
           netProfit: 0 // Will calculate below
         }
@@ -1374,12 +1374,12 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
           totalOrgansActualOutput: estimatedOrgansActual,
           processingEfficiency: Math.round(((estimatedLeanMeat + estimatedBone + estimatedGroundMeat + estimatedOrgans) / estimatedLiveAnimals) * 100),
           totalRevenue: Math.round(
-            (estimatedLeanMeatActual * 120) + 
-            (estimatedBoneActual * 30) + 
-            (estimatedGroundMeatActual * 80) + 
-            (estimatedOrgansActual * 50)
+            (estimatedLeanMeat * 100) + 
+            (estimatedBone * 50) + 
+            (estimatedGroundMeat * 120) + 
+            (estimatedOrgans * 150)
           ),
-          livestockCost: Math.round(estimatedLiveAnimals * 70),
+          livestockCost: Math.round(estimatedLiveAnimals * 53),
           otherCosts: Math.round(estimatedLiveAnimals * 0.05),
           netProfit: 0
         }
