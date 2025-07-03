@@ -1464,7 +1464,7 @@ export function LivestockProcessing() {
                             <TableCell className="text-center border">{month.totalGroundMeatActualOutput}</TableCell>
                             <TableCell className="text-center border">{groundMeatRevenue}</TableCell>
                             {/* THU - Thịt nạc */}
-                            <TableCell className="text-center border">{month.totalLeanMeatActualOutput}</TableCell>
+                            <TableCell className="text-center border">{month.totalLeanMeatOutput}</TableCell>
                             <TableCell className="text-center border">{leanMeatRevenue}</TableCell>
                             {/* THU - Xương xổ */}
                             <TableCell className="text-center border">{month.totalBoneActualOutput}</TableCell>
@@ -1518,7 +1518,7 @@ export function LivestockProcessing() {
                         </TableCell>
                         {/* THU - Thịt nạc */}
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalLeanMeatActualOutput, 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + month.totalLeanMeatOutput, 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
                           {monthlyLivestockSummary.reduce((sum, month) => sum + Math.round((month.totalLeanMeatActualOutput * 120000) / 1000), 0)}
