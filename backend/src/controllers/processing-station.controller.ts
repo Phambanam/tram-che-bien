@@ -1316,6 +1316,17 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
         // Get monthly data
         const monthlyData = await getMonthlyLivestockProcessingData(db, targetYear, targetMonth)
         
+        console.log(`🐷 [DEBUG] Monthly livestock data for ${targetMonth}/${targetYear}:`, {
+          totalLeanMeatOutput: monthlyData.totalLeanMeatOutput,
+          totalBoneOutput: monthlyData.totalBoneOutput,
+          totalGroundMeatOutput: monthlyData.totalGroundMeatOutput,
+          totalOrgansOutput: monthlyData.totalOrgansOutput,
+          totalLeanMeatRevenue: monthlyData.totalLeanMeatRevenue,
+          totalBoneRevenue: monthlyData.totalBoneRevenue,
+          totalGroundMeatRevenue: monthlyData.totalGroundMeatRevenue,
+          totalOrgansRevenue: monthlyData.totalOrgansRevenue
+        })
+        
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
