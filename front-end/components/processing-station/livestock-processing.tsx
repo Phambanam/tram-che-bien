@@ -88,6 +88,7 @@ interface MonthlyLivestockSummary {
   netProfit: number
   totalLeanMeatRevenue: number
   totalBoneRevenue: number
+  totalGroundMeatRevenue: number
   totalOrgansRevenue: number
 }
 
@@ -1465,7 +1466,7 @@ export function LivestockProcessing() {
                             </TableCell>
                             {/* THU - Thịt xổ lọc */}
                             <TableCell className="text-center border">{month.totalGroundMeatOutput}</TableCell>
-                            <TableCell className="text-center border">{month.totalGroundMeatRevenue}</TableCell>
+                            <TableCell className="text-center border">{month.totalGroundMeatRevenue ?? 0}</TableCell>
                             {/* THU - Thịt nạc */}
                             <TableCell className="text-center border">{month.totalLeanMeatOutput}</TableCell>
                             <TableCell className="text-center border">{month.totalLeanMeatRevenue}</TableCell>
