@@ -1330,14 +1330,14 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
           totalOrgansOutput: monthlyData.totalOrgansOutput,
           totalOrgansActualOutput: monthlyData.totalOrgansActualOutput,
           processingEfficiency: monthlyData.processingEfficiency,
-          // Financial calculations (in thousands VND) - use total OUTPUT (production), not ACTUAL OUTPUT (sales)
+          // Financial calculations (in thousands VND) - use pre-calculated revenues from daily data aggregation
           totalRevenue: Math.round(
-            (monthlyData.totalLeanMeatOutput * 100) + // Thịt nạc: 100k VND/kg
-            (monthlyData.totalBoneOutput * 50) + // Xương xổ: 50k VND/kg
-            (monthlyData.totalGroundMeatOutput * 120) + // Thịt xổ lọc: 120k VND/kg
-            (monthlyData.totalOrgansOutput * 150) // Lòng: 150k VND/kg
+            (monthlyData.totalLeanMeatRevenue + 
+             monthlyData.totalBoneRevenue + 
+             monthlyData.totalGroundMeatRevenue + 
+             monthlyData.totalOrgansRevenue) / 1000
           ),
-          livestockCost: Math.round(monthlyData.totalLiveAnimalsInput * 53), // 53k VND per kg live weight
+          livestockCost: Math.round(monthlyData.totalLivestockCost / 1000),
           otherCosts: Math.round(monthlyData.totalLiveAnimalsInput * 0.05), // 5% other costs
           netProfit: 0 // Will calculate below
         }
@@ -1374,12 +1374,12 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
           totalOrgansActualOutput: estimatedOrgansActual,
           processingEfficiency: Math.round(((estimatedLeanMeat + estimatedBone + estimatedGroundMeat + estimatedOrgans) / estimatedLiveAnimals) * 100),
           totalRevenue: Math.round(
-            (estimatedLeanMeat * 100) + 
-            (estimatedBone * 50) + 
-            (estimatedGroundMeat * 120) + 
-            (estimatedOrgans * 150)
+            ((estimatedLeanMeat * 100000) + 
+             (estimatedBone * 50000) + 
+             (estimatedGroundMeat * 120000) + 
+             (estimatedOrgans * 150000)) / 1000
           ),
-          livestockCost: Math.round(estimatedLiveAnimals * 53),
+          livestockCost: Math.round((estimatedLiveAnimals * 53000) / 1000),
           otherCosts: Math.round(estimatedLiveAnimals * 0.05),
           netProfit: 0
         }
@@ -2266,12 +2266,22 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
     const endDate = new Date(year, month, 0).toISOString().split('T')[0]
     
-    // Aggregate data from daily livestock processing records
+    // Aggregate data from daily livestock processing records - calculate daily revenues first, then sum
     const monthlyData = await db.collection("dailyLivestockProcessing")
       .aggregate([
         {
           $match: {
             date: { $gte: startDate, $lte: endDate }
+          }
+        },
+        {
+          $addFields: {
+            // Calculate daily revenues for each product
+            dailyLeanMeatRevenue: { $multiply: ["$leanMeatOutput", "$leanMeatPrice"] },
+            dailyBoneRevenue: { $multiply: ["$boneOutput", "$bonePrice"] },
+            dailyGroundMeatRevenue: { $multiply: ["$groundMeatOutput", "$groundMeatPrice"] },
+            dailyOrgansRevenue: { $multiply: ["$organsOutput", "$organsPrice"] },
+            dailyLivestockCost: { $multiply: ["$liveAnimalsInput", "$liveAnimalPrice"] }
           }
         },
         {
@@ -2286,6 +2296,12 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
             totalGroundMeatActualOutput: { $sum: "$groundMeatActualOutput" },
             totalOrgansOutput: { $sum: "$organsOutput" },
             totalOrgansActualOutput: { $sum: "$organsActualOutput" },
+            // Sum daily revenues (correct way)
+            totalLeanMeatRevenue: { $sum: "$dailyLeanMeatRevenue" },
+            totalBoneRevenue: { $sum: "$dailyBoneRevenue" },
+            totalGroundMeatRevenue: { $sum: "$dailyGroundMeatRevenue" },
+            totalOrgansRevenue: { $sum: "$dailyOrgansRevenue" },
+            totalLivestockCost: { $sum: "$dailyLivestockCost" },
             count: { $sum: 1 }
           }
         }
@@ -2309,7 +2325,13 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
         totalOrgansActualOutput: data.totalOrgansActualOutput || 0,
         processingEfficiency: data.totalLiveAnimalsInput > 0 
           ? Math.round((totalOutput / data.totalLiveAnimalsInput) * 100) 
-          : 70
+          : 70,
+        // Include total revenues calculated from daily data (correct approach)
+        totalLeanMeatRevenue: data.totalLeanMeatRevenue || 0,
+        totalBoneRevenue: data.totalBoneRevenue || 0,
+        totalGroundMeatRevenue: data.totalGroundMeatRevenue || 0,
+        totalOrgansRevenue: data.totalOrgansRevenue || 0,
+        totalLivestockCost: data.totalLivestockCost || 0
       }
     }
     
