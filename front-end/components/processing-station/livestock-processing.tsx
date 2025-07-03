@@ -18,7 +18,7 @@ import { SimpleTableHeader } from './improved-table-header'
 
 interface DailyLivestockProcessing {
   date: string
-  liveAnimalsInput: number // CHI - Lợn hơi chi (con)
+  liveAnimalsInput: number // CHI - Lợn hơi chi (kg)
   // Thịt nạc
   leanMeatOutput: number // THU - Thịt nạc thu (kg) - từ weekly tracking
   leanMeatActualOutput: number // Thịt nạc thực tế đã xuất (kg) - từ supply outputs
@@ -38,7 +38,7 @@ interface DailyLivestockProcessing {
   
   note?: string
   // Price fields
-  liveAnimalPrice?: number // Giá lợn hơi VND/con
+  liveAnimalPrice?: number // Giá lợn hơi VND/kg
   leanMeatPrice?: number // Giá thịt nạc VND/kg
   bonePrice?: number // Giá xương xổ VND/kg
   groundMeatPrice?: number // Giá thịt xổ lọc VND/kg
@@ -485,7 +485,10 @@ export function LivestockProcessing() {
         organsPrice: dailyUpdateData.organsPrice
       }
 
-      const response = await processingStationApi.updateDailyLivestockData(updateData)
+      // Debug: Log the data being sent
+      console.log(`🐷 [LIVESTOCK DEBUG] Sending livestock data for ${updateData.date}:`, updateData)
+      
+      const response = await processingStationApi.updateDailyLivestockData(updateData.date, updateData)
       
       if (response.success) {
         toast({
@@ -666,7 +669,7 @@ export function LivestockProcessing() {
                           ) : (
                             <span>{dailyLivestockProcessing.liveAnimalsInput}</span>
                           )}
-                          <span className="text-xl ml-1">con</span>
+                          <span className="text-xl ml-1">kg</span>
                         </div>
                         <div className="text-xs text-green-600 mt-1">
                           {editingDailyData ? "(Trạm trưởng chỉnh sửa)" : "(Số liệu từ bảng theo dõi tuần)"}
@@ -693,7 +696,7 @@ export function LivestockProcessing() {
                           ) : (
                             <span>{(dailyLivestockProcessing.liveAnimalPrice || 0).toLocaleString('vi-VN')}</span>
                           )}
-                          <span className="text-sm ml-1">đ/con</span>
+                                                      <span className="text-sm ml-1">đ/kg</span>
                         </div>
                         <div className="text-xs text-red-600 mt-1">
                           (Trạm trưởng nhập tay)

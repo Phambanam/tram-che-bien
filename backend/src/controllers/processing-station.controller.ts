@@ -1922,6 +1922,13 @@ export const updateDailyLivestockData = async (req: Request, res: Response) => {
 
     const db = await getDb()
 
+    // Debug: Log the received data
+    console.log(`🐷 [LIVESTOCK DEBUG] Updating livestock data for ${date}:`, {
+      liveAnimalsInput, leanMeatOutput, leanMeatActualOutput, boneOutput, boneActualOutput,
+      groundMeatOutput, groundMeatActualOutput, organsOutput, organsActualOutput,
+      liveAnimalPrice, leanMeatPrice, bonePrice, groundMeatPrice, organsPrice
+    })
+
     // Upsert daily livestock processing data
     const result = await db.collection("dailyLivestockProcessing").findOneAndUpdate(
       { date: date },
