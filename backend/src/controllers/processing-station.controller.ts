@@ -957,6 +957,20 @@ export const getWeeklySausageTracking = async (req: Request, res: Response) => {
     const weekDates = getWeekDates(weekNum, yearNum)
     const weeklyData = []
 
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' })
+    }
+    // Lấy tồn cuối ngày trước tuần (nếu có)
+    const prevDate = new Date(weekDates[0])
+    prevDate.setDate(prevDate.getDate() - 1)
+    const prevDateStr = prevDate.toISOString().split('T')[0]
+    const prevData = await getSausageProcessingData(db, prevDateStr)
+    let wholeChickenPrevRemain = prevData.wholeChickenRemaining || 0
+    let chickenPartsPrevRemain = prevData.chickenPartsRemaining || 0
+
+    let lastWholeChickenRemain = wholeChickenPrevRemain
+    let lastChickenPartsRemain = chickenPartsPrevRemain
+
     for (const date of weekDates) {
       const dateStr = date.toISOString().split('T')[0]
       
@@ -1209,6 +1223,20 @@ export const getWeeklyLivestockTracking = async (req: Request, res: Response) =>
     // Calculate dates for the week
     const weekDates = getWeekDates(weekNum, yearNum)
     const weeklyData = []
+
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' })
+    }
+    // Lấy tồn cuối ngày trước tuần (nếu có)
+    const prevDate = new Date(weekDates[0])
+    prevDate.setDate(prevDate.getDate() - 1)
+    const prevDateStr = prevDate.toISOString().split('T')[0]
+    const prevData = await getLivestockProcessingData(db, prevDateStr)
+    let wholeChickenPrevRemain = prevData.wholeChickenRemaining || 0
+    let chickenPartsPrevRemain = prevData.chickenPartsRemaining || 0
+
+    let lastWholeChickenRemain = wholeChickenPrevRemain
+    let lastChickenPartsRemain = chickenPartsPrevRemain
 
     for (const date of weekDates) {
       const dateStr = date.toISOString().split('T')[0]
@@ -2408,22 +2436,45 @@ export const getWeeklyPoultryTracking = async (req: Request, res: Response) => {
     const weekDates = getWeekDates(weekNum, yearNum)
     const weeklyData = []
 
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' })
+    }
+    // Lấy tồn cuối ngày trước tuần (nếu có)
+    const prevDate = new Date(weekDates[0])
+    prevDate.setDate(prevDate.getDate() - 1)
+    const prevDateStr = prevDate.toISOString().split('T')[0]
+    const prevData = await getPoultryProcessingData(db!, prevDateStr)
+    let wholeChickenPrevRemain = prevData.wholeChickenRemaining || 0
+    let chickenPartsPrevRemain = prevData.chickenPartsRemaining || 0
+
+    let lastWholeChickenRemain = wholeChickenPrevRemain
+    let lastChickenPartsRemain = chickenPartsPrevRemain
+
     for (const date of weekDates) {
       const dateStr = date.toISOString().split('T')[0]
-      
       // Get poultry processing data
-      const processingData = await getPoultryProcessingData(db, dateStr)
-
+      const processingData = await getPoultryProcessingData(db!, dateStr)
+      // Tồn đầu ngày = tồn cuối ngày trước
+      const wholeChickenBegin = lastWholeChickenRemain
+      const chickenPartsBegin = lastChickenPartsRemain
+      // Tồn cuối ngày = tồn đầu + thu - xuất
+      const wholeChickenEnd = wholeChickenBegin + (processingData.wholeChickenOutput || 0) - (processingData.wholeChickenActualOutput || 0)
+      const chickenPartsEnd = chickenPartsBegin + (processingData.chickenPartsOutput || 0) - (processingData.chickenPartsActualOutput || 0)
+      // Lưu lại cho ngày sau
+      lastWholeChickenRemain = wholeChickenEnd
+      lastChickenPartsRemain = chickenPartsEnd
       weeklyData.push({
         date: dateStr,
         dayOfWeek: getDayNameVi(date.getDay()),
         livePoultryInput: processingData.livePoultryInput || 0,
         wholeChickenOutput: processingData.wholeChickenOutput || 0,
         wholeChickenActualOutput: processingData.wholeChickenActualOutput || 0,
-        wholeChickenRemaining: processingData.wholeChickenRemaining || 0,
+        wholeChickenBegin,
+        wholeChickenEnd,
         chickenPartsOutput: processingData.chickenPartsOutput || 0,
         chickenPartsActualOutput: processingData.chickenPartsActualOutput || 0,
-        chickenPartsRemaining: processingData.chickenPartsRemaining || 0,
+        chickenPartsBegin,
+        chickenPartsEnd,
         // Price fields
         livePoultryPrice: processingData.livePoultryPrice || 60000,
         wholeChickenPrice: processingData.wholeChickenPrice || 100000,
@@ -2431,15 +2482,17 @@ export const getWeeklyPoultryTracking = async (req: Request, res: Response) => {
       })
     }
 
-    // Calculate weekly totals
+    // Tổng hợp tuần
     const weeklyTotals = {
       totalLivePoultryInput: weeklyData.reduce((sum, day) => sum + day.livePoultryInput, 0),
       totalWholeChickenOutput: weeklyData.reduce((sum, day) => sum + day.wholeChickenOutput, 0),
       totalWholeChickenActualOutput: weeklyData.reduce((sum, day) => sum + day.wholeChickenActualOutput, 0),
-      totalWholeChickenRemaining: weeklyData.reduce((sum, day) => sum + day.wholeChickenRemaining, 0),
+      totalWholeChickenBegin: weeklyData[0]?.wholeChickenBegin || 0,
+      totalWholeChickenEnd: weeklyData[weeklyData.length-1]?.wholeChickenEnd || 0,
       totalChickenPartsOutput: weeklyData.reduce((sum, day) => sum + day.chickenPartsOutput, 0),
       totalChickenPartsActualOutput: weeklyData.reduce((sum, day) => sum + day.chickenPartsActualOutput, 0),
-      totalChickenPartsRemaining: weeklyData.reduce((sum, day) => sum + day.chickenPartsRemaining, 0)
+      totalChickenPartsBegin: weeklyData[0]?.chickenPartsBegin || 0,
+      totalChickenPartsEnd: weeklyData[weeklyData.length-1]?.chickenPartsEnd || 0
     }
 
     res.json({
