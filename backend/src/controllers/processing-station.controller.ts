@@ -2552,7 +2552,19 @@ export const getMonthlyPoultrySummary = async (req: Request, res: Response) => {
       try {
         // Get monthly data
         const monthlyData = await getMonthlyPoultryProcessingData(db, targetYear, targetMonth)
-        
+        // Lấy tồn cuối ngày trước tháng
+        const prevDate = new Date(targetYear, targetMonth - 1, 1)
+        prevDate.setDate(prevDate.getDate() - 1)
+        const prevDateStr = prevDate.toISOString().split('T')[0]
+        const prevData = await getPoultryProcessingData(db, prevDateStr)
+        const wholeChickenBegin = prevData.wholeChickenRemaining || 0
+        const chickenPartsBegin = prevData.chickenPartsRemaining || 0
+        // Lấy tồn cuối ngày cuối tháng
+        const endDate = new Date(targetYear, targetMonth, 0)
+        const endDateStr = endDate.toISOString().split('T')[0]
+        const endData = await getPoultryProcessingData(db, endDateStr)
+        const wholeChickenEnd = endData.wholeChickenRemaining || 0
+        const chickenPartsEnd = endData.chickenPartsRemaining || 0
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
@@ -2563,6 +2575,10 @@ export const getMonthlyPoultrySummary = async (req: Request, res: Response) => {
           totalChickenPartsOutput: monthlyData.totalChickenPartsOutput,
           totalChickenPartsActualOutput: monthlyData.totalChickenPartsActualOutput,
           processingEfficiency: monthlyData.processingEfficiency,
+          wholeChickenBegin,
+          wholeChickenEnd,
+          chickenPartsBegin,
+          chickenPartsEnd,
           // Financial calculations (in thousands VND)
           totalRevenue: Math.round(
             (monthlyData.totalWholeChickenActualOutput * 100) + // Gà nguyên con: 100k VND/kg
@@ -2572,10 +2588,8 @@ export const getMonthlyPoultrySummary = async (req: Request, res: Response) => {
           otherCosts: Math.round(monthlyData.totalLivePoultryInput * 0.05), // 5% other costs
           netProfit: 0 // Will calculate below
         }
-        
         // Calculate net profit
         summary.netProfit = summary.totalRevenue - (summary.poultryCost + summary.otherCosts)
-        
         monthlySummaries.push(summary)
       } catch (error) {
         // Fallback with estimated data if no real data available
