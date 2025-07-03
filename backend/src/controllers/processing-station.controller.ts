@@ -1341,7 +1341,6 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
           totalOrgansOutput: monthlyData.totalOrgansOutput,
           totalOrgansActualOutput: monthlyData.totalOrgansActualOutput,
           processingEfficiency: monthlyData.processingEfficiency,
-          // Financial calculations (in thousands VND) - use pre-calculated revenues from daily data aggregation
           totalLeanMeatRevenue: Math.round((monthlyData.totalLeanMeatRevenue || 0) / 1000),
           totalBoneRevenue: Math.round((monthlyData.totalBoneRevenue || 0) / 1000),
           totalGroundMeatRevenue: Math.round((monthlyData.totalGroundMeatRevenue || 0) / 1000),
@@ -1353,12 +1352,11 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
              monthlyData.totalOrgansRevenue) / 1000
           ),
           livestockCost: Math.round(monthlyData.totalLivestockCost / 1000),
-          otherCosts: Math.round(monthlyData.totalLiveAnimalsInput * 0.05), // 5% other costs
+          otherCosts: 0, // always 0 as requested
           netProfit: 0 // Will calculate below
         }
-        
         // Calculate net profit
-        summary.netProfit = summary.totalRevenue - (summary.livestockCost + summary.otherCosts)
+        summary.netProfit = summary.totalRevenue - summary.livestockCost;
         
         monthlySummaries.push(summary)
       } catch (error) {
