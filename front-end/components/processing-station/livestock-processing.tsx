@@ -1235,10 +1235,10 @@ export function LivestockProcessing() {
                     {weeklyLivestockTracking && weeklyLivestockTracking.length > 0 ? (
                       weeklyLivestockTracking.map((day) => {
                         // Calculate totals
-                        const groundMeatRevenue = (day.groundMeatActualOutput * day.groundMeatPrice) / 1000
-                        const leanMeatRevenue = (day.leanMeatActualOutput * day.leanMeatPrice) / 1000
-                        const boneRevenue = (day.boneActualOutput * day.bonePrice) / 1000
-                        const organsRevenue = (day.organsActualOutput * day.organsPrice) / 1000
+                        const groundMeatRevenue = (day.groundMeatOutput * day.groundMeatPrice) / 1000
+                        const leanMeatRevenue = (day.leanMeatOutput * day.leanMeatPrice) / 1000
+                        const boneRevenue = (day.boneOutput * day.bonePrice) / 1000
+                        const organsRevenue = (day.organsOutput * day.organsPrice) / 1000
                         const totalRevenue = groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
                         const livestockCost = (day.liveAnimalsInput * day.liveAnimalPrice) / 1000
                         const totalCost = livestockCost
@@ -1251,16 +1251,16 @@ export function LivestockProcessing() {
                               {totalRevenue.toFixed(0)}
                             </TableCell>
                             {/* THU - Thịt xổ lọc */}
-                            <TableCell className="text-center border">{day.groundMeatActualOutput}</TableCell>
+                            <TableCell className="text-center border">{day.groundMeatOutput}</TableCell>
                             <TableCell className="text-center border">{groundMeatRevenue.toFixed(0)}</TableCell>
                             {/* THU - Thịt nạc */}
-                            <TableCell className="text-center border">{day.leanMeatActualOutput}</TableCell>
+                            <TableCell className="text-center border">{day.leanMeatOutput}</TableCell>
                             <TableCell className="text-center border">{leanMeatRevenue.toFixed(0)}</TableCell>
                             {/* THU - Xương xổ */}
-                            <TableCell className="text-center border">{day.boneActualOutput}</TableCell>
+                            <TableCell className="text-center border">{day.boneOutput}</TableCell>
                             <TableCell className="text-center border">{boneRevenue.toFixed(0)}</TableCell>
                             {/* THU - Lòng */}
-                            <TableCell className="text-center border">{day.organsActualOutput}</TableCell>
+                            <TableCell className="text-center border">{day.organsOutput}</TableCell>
                             <TableCell className="text-center border">{organsRevenue.toFixed(0)}</TableCell>
                             {/* TỔNG CHI */}
                             <TableCell className="text-center border font-bold text-red-700">
@@ -1291,40 +1291,40 @@ export function LivestockProcessing() {
                         {/* TỔNG THU */}
                         <TableCell className="text-center border font-bold text-blue-700">
                           {weeklyLivestockTracking.reduce((sum, day) => {
-                            const groundMeatRevenue = (day.groundMeatActualOutput * day.groundMeatPrice) / 1000
-                            const leanMeatRevenue = (day.leanMeatActualOutput * day.leanMeatPrice) / 1000
-                            const boneRevenue = (day.boneActualOutput * day.bonePrice) / 1000
-                            const organsRevenue = (day.organsActualOutput * day.organsPrice) / 1000
+                            const groundMeatRevenue = (day.groundMeatOutput * day.groundMeatPrice) / 1000
+                            const leanMeatRevenue = (day.leanMeatOutput * day.leanMeatPrice) / 1000
+                            const boneRevenue = (day.boneOutput * day.bonePrice) / 1000
+                            const organsRevenue = (day.organsOutput * day.organsPrice) / 1000
                             return sum + groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
                           }, 0).toFixed(0)}
                         </TableCell>
                         {/* THU - Thịt xổ lọc */}
                         <TableCell className="text-center border font-bold">
-                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.groundMeatActualOutput, 0)}
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.groundMeatOutput, 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.groundMeatActualOutput * day.groundMeatPrice) / 1000, 0).toFixed(0)}
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.groundMeatOutput * day.groundMeatPrice) / 1000, 0).toFixed(0)}
                         </TableCell>
                         {/* THU - Thịt nạc */}
                         <TableCell className="text-center border font-bold">
-                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.leanMeatActualOutput, 0)}
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.leanMeatOutput, 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.leanMeatActualOutput * day.leanMeatPrice) / 1000, 0).toFixed(0)}
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.leanMeatOutput * day.leanMeatPrice) / 1000, 0).toFixed(0)}
                         </TableCell>
                         {/* THU - Xương xổ */}
                         <TableCell className="text-center border font-bold">
-                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.boneActualOutput, 0)}
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.boneOutput, 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.boneActualOutput * day.bonePrice) / 1000, 0).toFixed(0)}
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.boneOutput * day.bonePrice) / 1000, 0).toFixed(0)}
                         </TableCell>
                         {/* THU - Lòng */}
                         <TableCell className="text-center border font-bold">
-                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.organsActualOutput, 0)}
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + day.organsOutput, 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.organsActualOutput * day.organsPrice) / 1000, 0).toFixed(0)}
+                          {weeklyLivestockTracking.reduce((sum, day) => sum + (day.organsOutput * day.organsPrice) / 1000, 0).toFixed(0)}
                         </TableCell>
                         {/* TỔNG CHI */}
                         <TableCell className="text-center border font-bold text-red-700">
@@ -1341,10 +1341,10 @@ export function LivestockProcessing() {
                         <TableCell className="text-center border font-bold">
                           {(() => {
                             const totalRevenue = weeklyLivestockTracking.reduce((sum, day) => {
-                              const groundMeatRevenue = (day.groundMeatActualOutput * day.groundMeatPrice) / 1000
-                              const leanMeatRevenue = (day.leanMeatActualOutput * day.leanMeatPrice) / 1000
-                              const boneRevenue = (day.boneActualOutput * day.bonePrice) / 1000
-                              const organsRevenue = (day.organsActualOutput * day.organsPrice) / 1000
+                              const groundMeatRevenue = (day.groundMeatOutput * day.groundMeatPrice) / 1000
+                              const leanMeatRevenue = (day.leanMeatOutput * day.leanMeatPrice) / 1000
+                              const boneRevenue = (day.boneOutput * day.bonePrice) / 1000
+                              const organsRevenue = (day.organsOutput * day.organsPrice) / 1000
                               return sum + groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
                             }, 0)
                             const totalCost = weeklyLivestockTracking.reduce((sum, day) => sum + (day.liveAnimalsInput * day.liveAnimalPrice) / 1000, 0)
