@@ -593,12 +593,12 @@ export function LivestockProcessing() {
                         dailyUpdateData.organsPrice || 0 :
                         dailyLivestockProcessing.organsPrice || 0
                       
-                      // Get current quantities - use ACTUAL OUTPUT (sold quantities) for revenue calculation
+                      // Get current quantities - use OUTPUT (total produced quantities) for revenue calculation
                       const currentLiveAnimalsInput = editingDailyData ? dailyUpdateData.liveAnimalsInput : dailyLivestockProcessing.liveAnimalsInput
-                      const currentLeanMeatActualOutput = editingDailyData ? dailyUpdateData.leanMeatActualOutput : dailyLivestockProcessing.leanMeatActualOutput
-                      const currentBoneActualOutput = editingDailyData ? dailyUpdateData.boneActualOutput : dailyLivestockProcessing.boneActualOutput
-                      const currentGroundMeatActualOutput = editingDailyData ? dailyUpdateData.groundMeatActualOutput : dailyLivestockProcessing.groundMeatActualOutput
-                      const currentOrgansActualOutput = editingDailyData ? dailyUpdateData.organsActualOutput : dailyLivestockProcessing.organsActualOutput
+                      const currentLeanMeatOutput = editingDailyData ? dailyUpdateData.leanMeatOutput : dailyLivestockProcessing.leanMeatOutput
+                      const currentBoneOutput = editingDailyData ? dailyUpdateData.boneOutput : dailyLivestockProcessing.boneOutput
+                      const currentGroundMeatOutput = editingDailyData ? dailyUpdateData.groundMeatOutput : dailyLivestockProcessing.groundMeatOutput
+                      const currentOrgansOutput = editingDailyData ? dailyUpdateData.organsOutput : dailyLivestockProcessing.organsOutput
                       
                       if (currentLiveAnimalPrice === 0) {
                         return (
@@ -608,11 +608,11 @@ export function LivestockProcessing() {
                         )
                       }
                       
-                      // Calculate total revenue from all products (based on actual sales/exports)
-                      const leanMeatRevenue = currentLeanMeatActualOutput * currentLeanMeatPrice
-                      const boneRevenue = currentBoneActualOutput * currentBonePrice
-                      const groundMeatRevenue = currentGroundMeatActualOutput * currentGroundMeatPrice
-                      const organsRevenue = currentOrgansActualOutput * currentOrgansPrice
+                      // Calculate total revenue from all products (based on total production output)
+                      const leanMeatRevenue = currentLeanMeatOutput * currentLeanMeatPrice
+                      const boneRevenue = currentBoneOutput * currentBonePrice
+                      const groundMeatRevenue = currentGroundMeatOutput * currentGroundMeatPrice
+                      const organsRevenue = currentOrgansOutput * currentOrgansPrice
                       const totalRevenue = leanMeatRevenue + boneRevenue + groundMeatRevenue + organsRevenue
                       
                       // Calculate total cost
@@ -648,19 +648,19 @@ export function LivestockProcessing() {
                         dailyUpdateData.organsPrice || 0 :
                         dailyLivestockProcessing.organsPrice || 0
                       
-                      // Get current quantities - use ACTUAL OUTPUT (sold quantities) for revenue calculation
+                      // Get current quantities - use OUTPUT (total produced quantities) for revenue calculation
                       const currentLiveAnimalsInput = editingDailyData ? dailyUpdateData.liveAnimalsInput : dailyLivestockProcessing.liveAnimalsInput
-                      const currentLeanMeatActualOutput = editingDailyData ? dailyUpdateData.leanMeatActualOutput : dailyLivestockProcessing.leanMeatActualOutput
-                      const currentBoneActualOutput = editingDailyData ? dailyUpdateData.boneActualOutput : dailyLivestockProcessing.boneActualOutput
-                      const currentGroundMeatActualOutput = editingDailyData ? dailyUpdateData.groundMeatActualOutput : dailyLivestockProcessing.groundMeatActualOutput
-                      const currentOrgansActualOutput = editingDailyData ? dailyUpdateData.organsActualOutput : dailyLivestockProcessing.organsActualOutput
+                      const currentLeanMeatOutput = editingDailyData ? dailyUpdateData.leanMeatOutput : dailyLivestockProcessing.leanMeatOutput
+                      const currentBoneOutput = editingDailyData ? dailyUpdateData.boneOutput : dailyLivestockProcessing.boneOutput
+                      const currentGroundMeatOutput = editingDailyData ? dailyUpdateData.groundMeatOutput : dailyLivestockProcessing.groundMeatOutput
+                      const currentOrgansOutput = editingDailyData ? dailyUpdateData.organsOutput : dailyLivestockProcessing.organsOutput
                       
                       if (currentLiveAnimalPrice > 0) {
-                        // Calculate total revenue from all products (based on actual sales/exports)
-                        const leanMeatRevenue = currentLeanMeatActualOutput * currentLeanMeatPrice
-                        const boneRevenue = currentBoneActualOutput * currentBonePrice
-                        const groundMeatRevenue = currentGroundMeatActualOutput * currentGroundMeatPrice
-                        const organsRevenue = currentOrgansActualOutput * currentOrgansPrice
+                        // Calculate total revenue from all products (based on total production output)
+                        const leanMeatRevenue = currentLeanMeatOutput * currentLeanMeatPrice
+                        const boneRevenue = currentBoneOutput * currentBonePrice
+                        const groundMeatRevenue = currentGroundMeatOutput * currentGroundMeatPrice
+                        const organsRevenue = currentOrgansOutput * currentOrgansPrice
                         const totalRevenue = leanMeatRevenue + boneRevenue + groundMeatRevenue + organsRevenue
                         
                         const cost = currentLiveAnimalsInput * currentLiveAnimalPrice
