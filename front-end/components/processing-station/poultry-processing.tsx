@@ -51,13 +51,19 @@ interface MonthlyPoultrySummary {
   year: number
   monthNumber: number
   totalLivePoultryInput: number
-  totalPoultryMeatOutput: number
-  totalPoultryMeatActualOutput: number
+  totalWholeChickenOutput?: number
+  totalWholeChickenActualOutput?: number
+  totalChickenPartsOutput?: number
+  totalChickenPartsActualOutput?: number
   processingEfficiency: number
   totalRevenue: number
   poultryCost: number
   otherCosts: number
   netProfit: number
+  wholeChickenBegin?: number
+  wholeChickenEnd?: number
+  chickenPartsBegin?: number
+  chickenPartsEnd?: number
 }
 
 export function PoultryProcessing() {
@@ -843,28 +849,33 @@ export function PoultryProcessing() {
                     <TableRow>
                       <TableHead rowSpan={3} className="text-center align-middle border-r bg-gray-100">THÁNG</TableHead>
                       <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">THU</TableHead>
-                      <TableHead colSpan={4} className="text-center border-r bg-blue-50">TRONG ĐÓ</TableHead>
+                      <TableHead colSpan={4} className="text-center border-r bg-blue-50">GÀ NGUYÊN CON</TableHead>
+                      <TableHead colSpan={4} className="text-center border-r bg-blue-50">GÀ CẮT KHÚC</TableHead>
                       <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">CHI</TableHead>
                       <TableHead colSpan={4} className="text-center border-r bg-red-50">TRONG ĐÓ</TableHead>
                       <TableHead rowSpan={3} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)</TableHead>
                     </TableRow>
                     <TableRow>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Thịt gia cầm</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Chi khác</TableHead>
+                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Tồn đầu</TableHead>
+                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Tồn cuối</TableHead>
+                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Tồn đầu</TableHead>
+                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Tồn cuối</TableHead>
                       <TableHead colSpan={2} className="text-center border-r bg-red-50">Gia cầm sống</TableHead>
                       <TableHead colSpan={2} className="text-center border-r bg-red-50">Chi khác</TableHead>
                     </TableRow>
                     <TableRow>
-                      <TableHead className="text-center bg-blue-100">TỔNG THU<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-100">TỔNG CHI<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center bg-blue-50">SL</TableHead>
+                      <TableHead className="text-center bg-blue-50">SL</TableHead>
+                      <TableHead className="text-center bg-blue-50">SL</TableHead>
+                      <TableHead className="text-center bg-blue-50">SL</TableHead>
+                      <TableHead className="text-center bg-blue-50">SL</TableHead>
+                      <TableHead className="text-center bg-blue-50">SL</TableHead>
+                      <TableHead className="text-center bg-blue-50">SL</TableHead>
+                      <TableHead className="text-center bg-blue-50">SL</TableHead>
+                      <TableHead className="text-center bg-red-50">Số lượng</TableHead>
+                      <TableHead className="text-center border-r bg-red-50">Thành tiền</TableHead>
+                      <TableHead className="text-center bg-red-50">Số lượng</TableHead>
+                      <TableHead className="text-center border-r bg-red-50">Thành tiền</TableHead>
                       <TableHead className="text-center bg-green-100">(1.000đ)</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -888,7 +899,13 @@ export function PoultryProcessing() {
                         return (
                           <TableRow key={month.month} className="border-b">
                             <TableCell className="text-center border-r font-medium">{month.month}</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-blue-700">{totalRevenue.toFixed(0)}</TableCell>
+                            <TableCell className="text-center border-r font-semibold text-blue-700">{month.totalRevenue?.toFixed(0)}</TableCell>
+                            {/* GÀ NGUYÊN CON */}
+                            <TableCell className="text-center text-sm">{month.wholeChickenBegin ?? 0}</TableCell>
+                            <TableCell className="text-center text-sm">{month.wholeChickenEnd ?? 0}</TableCell>
+                            {/* GÀ CẮT KHÚC */}
+                            <TableCell className="text-center text-sm">{month.chickenPartsBegin ?? 0}</TableCell>
+                            <TableCell className="text-center text-sm">{month.chickenPartsEnd ?? 0}</TableCell>
                             {/* Thịt gia cầm */}
                             <TableCell className="text-center text-sm">{month.totalPoultryMeatActualOutput}</TableCell>
                             <TableCell className="text-center text-sm">{poultryMeatRevenue.toFixed(0)}</TableCell>
