@@ -1347,44 +1347,27 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
         
         monthlySummaries.push(summary)
       } catch (error) {
-        // Fallback with estimated data if no real data available
-        const estimatedLiveAnimals = 800 + Math.floor(Math.random() * 400)
-        const estimatedLeanMeat = Math.round(estimatedLiveAnimals * 40) // 40kg lean meat per animal
-        const estimatedBone = Math.round(estimatedLiveAnimals * 15) // 15kg bone per animal
-        const estimatedGroundMeat = Math.round(estimatedLiveAnimals * 10) // 10kg ground meat per animal
-        const estimatedOrgans = Math.round(estimatedLiveAnimals * 5) // 5kg organs per animal
-        
-        const estimatedLeanMeatActual = Math.round(estimatedLeanMeat * 0.95)
-        const estimatedBoneActual = Math.round(estimatedBone * 0.95)
-        const estimatedGroundMeatActual = Math.round(estimatedGroundMeat * 0.95)
-        const estimatedOrgansActual = Math.round(estimatedOrgans * 0.95)
-        
+        // Fallback with zeros if no real data available (no estimated/fake data)
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
           monthNumber: targetMonth,
-          totalLiveAnimalsInput: estimatedLiveAnimals,
-          totalLeanMeatOutput: estimatedLeanMeat,
-          totalLeanMeatActualOutput: estimatedLeanMeatActual,
-          totalBoneOutput: estimatedBone,
-          totalBoneActualOutput: estimatedBoneActual,
-          totalGroundMeatOutput: estimatedGroundMeat,
-          totalGroundMeatActualOutput: estimatedGroundMeatActual,
-          totalOrgansOutput: estimatedOrgans,
-          totalOrgansActualOutput: estimatedOrgansActual,
-          processingEfficiency: Math.round(((estimatedLeanMeat + estimatedBone + estimatedGroundMeat + estimatedOrgans) / estimatedLiveAnimals) * 100),
-          totalRevenue: Math.round(
-            ((estimatedLeanMeat * 100000) + 
-             (estimatedBone * 50000) + 
-             (estimatedGroundMeat * 120000) + 
-             (estimatedOrgans * 150000)) / 1000
-          ),
-          livestockCost: Math.round((estimatedLiveAnimals * 53000) / 1000),
-          otherCosts: Math.round(estimatedLiveAnimals * 0.05),
+          totalLiveAnimalsInput: 0,
+          totalLeanMeatOutput: 0,
+          totalLeanMeatActualOutput: 0,
+          totalBoneOutput: 0,
+          totalBoneActualOutput: 0,
+          totalGroundMeatOutput: 0,
+          totalGroundMeatActualOutput: 0,
+          totalOrgansOutput: 0,
+          totalOrgansActualOutput: 0,
+          processingEfficiency: 0,
+          totalRevenue: 0,
+          livestockCost: 0,
+          otherCosts: 0,
           netProfit: 0
         }
         
-        summary.netProfit = summary.totalRevenue - (summary.livestockCost + summary.otherCosts)
         monthlySummaries.push(summary)
       }
     }
@@ -2335,45 +2318,45 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
       }
     }
     
-    // If no real data, return estimated data
-    const baseLiveAnimals = 800 + Math.floor(Math.random() * 400)
-    const baseLeanMeat = Math.round(baseLiveAnimals * 40) // 40kg lean meat per animal
-    const baseBone = Math.round(baseLiveAnimals * 15) // 15kg bone per animal
-    const baseGroundMeat = Math.round(baseLiveAnimals * 10) // 10kg ground meat per animal
-    const baseOrgans = Math.round(baseLiveAnimals * 5) // 5kg organs per animal
-    
+    // If no real data, return zeros (no estimated/fake data)
     return {
-      totalLiveAnimalsInput: baseLiveAnimals,
-      totalLeanMeatOutput: baseLeanMeat,
-      totalLeanMeatActualOutput: Math.round(baseLeanMeat * 0.95),
-      totalBoneOutput: baseBone,
-      totalBoneActualOutput: Math.round(baseBone * 0.95),
-      totalGroundMeatOutput: baseGroundMeat,
-      totalGroundMeatActualOutput: Math.round(baseGroundMeat * 0.95),
-      totalOrgansOutput: baseOrgans,
-      totalOrgansActualOutput: Math.round(baseOrgans * 0.95),
-      processingEfficiency: Math.round(((baseLeanMeat + baseBone + baseGroundMeat + baseOrgans) / baseLiveAnimals) * 100)
+      totalLiveAnimalsInput: 0,
+      totalLeanMeatOutput: 0,
+      totalLeanMeatActualOutput: 0,
+      totalBoneOutput: 0,
+      totalBoneActualOutput: 0,
+      totalGroundMeatOutput: 0,
+      totalGroundMeatActualOutput: 0,
+      totalOrgansOutput: 0,
+      totalOrgansActualOutput: 0,
+      processingEfficiency: 0,
+      // All revenues and costs are 0 when no data
+      totalLeanMeatRevenue: 0,
+      totalBoneRevenue: 0,
+      totalGroundMeatRevenue: 0,
+      totalOrgansRevenue: 0,
+      totalLivestockCost: 0
     }
   } catch (error) {
     console.error(`Error getting monthly livestock data for ${year}-${month}:`, error)
-    // Return default estimated data
-    const baseLiveAnimals = 1000
-    const baseLeanMeat = 40000 // 40kg per animal
-    const baseBone = 15000 // 15kg per animal
-    const baseGroundMeat = 10000 // 10kg per animal
-    const baseOrgans = 5000 // 5kg per animal
-    
+    // Return zeros when error occurs (no estimated/fake data)
     return {
-      totalLiveAnimalsInput: baseLiveAnimals,
-      totalLeanMeatOutput: baseLeanMeat,
-      totalLeanMeatActualOutput: Math.round(baseLeanMeat * 0.95),
-      totalBoneOutput: baseBone,
-      totalBoneActualOutput: Math.round(baseBone * 0.95),
-      totalGroundMeatOutput: baseGroundMeat,
-      totalGroundMeatActualOutput: Math.round(baseGroundMeat * 0.95),
-      totalOrgansOutput: baseOrgans,
-      totalOrgansActualOutput: Math.round(baseOrgans * 0.95),
-      processingEfficiency: 70
+      totalLiveAnimalsInput: 0,
+      totalLeanMeatOutput: 0,
+      totalLeanMeatActualOutput: 0,
+      totalBoneOutput: 0,
+      totalBoneActualOutput: 0,
+      totalGroundMeatOutput: 0,
+      totalGroundMeatActualOutput: 0,
+      totalOrgansOutput: 0,
+      totalOrgansActualOutput: 0,
+      processingEfficiency: 0,
+      // All revenues and costs are 0 when error
+      totalLeanMeatRevenue: 0,
+      totalBoneRevenue: 0,
+      totalGroundMeatRevenue: 0,
+      totalOrgansRevenue: 0,
+      totalLivestockCost: 0
     }
   }
 }
