@@ -919,12 +919,7 @@ export function SausageProcessing() {
               </div>
             )}
 
-            {/* Info message */}
-            <div className="pt-4 border-t">
-              <p className="text-sm text-gray-500 text-center">
-                Dữ liệu thực tế từ API. StationManager có thể chỉnh sửa dữ liệu ngày.
-              </p>
-            </div>
+           
           </div>
           )}
         </CardContent>

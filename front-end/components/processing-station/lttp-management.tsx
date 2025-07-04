@@ -618,7 +618,7 @@ export function LttpManagement() {
                 </div>
               )}
 
-              {/* Notes */}
+              {/* Notes
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-semibold mb-2">Ghi chú:</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
@@ -626,7 +626,7 @@ export function LttpManagement() {
                   <li>• Số sánh với ngày hiện tại để báo: Chưa hết hạn, Sắp hết hạn (trước 3 ngày), Hết hạn</li>
                   <li>• Chỉ trạm trưởng mới có thể chỉnh sửa và lưu dữ liệu</li>
                 </ul>
-              </div>
+              </div> */}
             </>
           )}
         </CardContent>

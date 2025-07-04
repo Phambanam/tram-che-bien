@@ -655,13 +655,13 @@ export function BeanSproutsProcessing() {
       
       setDetectionResult(result)
       
-      toast({
-        title: "🧪 Test API Completed",
-        description: result.found ? 
-          `Tìm thấy ${result.dishesUsingBeanSprouts?.length || 0} món có giá đỗ. Cần xuất: ${result.totalBeanSproutsRequired?.toFixed(2) || 0} kg` :
-          `Không tìm thấy giá đỗ: ${result.reason}`,
-        variant: result.found ? "default" : "destructive"
-      })
+      // toast({
+      //   title: "🧪 Test API Completed",
+      //   description: result.found ? 
+      //     `Tìm thấy ${result.dishesUsingBeanSprouts?.length || 0} món có giá đỗ. Cần xuất: ${result.totalBeanSproutsRequired?.toFixed(2) || 0} kg` :
+      //     `Không tìm thấy giá đỗ: ${result.reason}`,
+      //   variant: result.found ? "default" : "destructive"
+      // })
       
       // If found bean sprouts for today, refresh the daily data
       if (result.found && dateToTest === format(new Date(), "yyyy-MM-dd")) {
@@ -1022,14 +1022,14 @@ export function BeanSproutsProcessing() {
                       >
                         Chỉnh sửa
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         onClick={() => testBeanSproutsDetection()}
                         disabled={isTestingDetection}
                         className="bg-purple-100 text-purple-700 hover:bg-purple-200"
                       >
                         {isTestingDetection ? "🔄 Đang test..." : "🚀 Test Giá Đỗ API"}
-                      </Button>
+                      </Button> */}
                     </>
                   )}
                 </div>
