@@ -21,6 +21,7 @@ router.get("/livestock/monthly-summary", processing_station_controller_1.getMont
 router.get("/poultry/weekly-tracking", processing_station_controller_1.getWeeklyPoultryTracking);
 router.get("/poultry/monthly-summary", processing_station_controller_1.getMonthlyPoultrySummary);
 // Daily routes with :date param come after specific routes
+router.get("/salt/:date", processing_station_controller_1.getDailySaltData);
 router.get("/sausage/:date", processing_station_controller_1.getDailySausageData);
 router.get("/poultry/:date", processing_station_controller_1.getDailyPoultryData);
 router.get("/livestock/:date", processing_station_controller_1.getDailyLivestockData);
@@ -28,6 +29,7 @@ router.get("/:id", processing_station_controller_1.getProcessingStationItemById)
 // Routes for admin and station manager
 router.post("/", (0, auth_middleware_1.authorize)("admin", "stationManager"), processing_station_controller_1.createProcessingStationItem);
 router.patch("/daily/:date", (0, auth_middleware_1.authorize)("admin", "stationManager"), processing_station_controller_1.updateDailyTofuData);
+router.patch("/salt/:date", (0, auth_middleware_1.authorize)("admin", "stationManager"), processing_station_controller_1.updateDailySaltData);
 router.patch("/sausage/:date", (0, auth_middleware_1.authorize)("admin", "stationManager"), processing_station_controller_1.updateDailySausageData);
 router.patch("/poultry/:date", (0, auth_middleware_1.authorize)("admin", "stationManager"), processing_station_controller_1.updateDailyPoultryData);
 router.patch("/livestock/:date", (0, auth_middleware_1.authorize)("admin", "stationManager"), processing_station_controller_1.updateDailyLivestockData);

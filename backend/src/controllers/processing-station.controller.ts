@@ -1624,6 +1624,13 @@ export const getLttpData = async (req: Request, res: Response) => {
 
     const db = await getDb()
     
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
+    }
+    
     // Get existing LTTP data for date
     const existingLttpData = await db.collection("lttpData").find({
       date: date,
@@ -1911,6 +1918,13 @@ export const updateLttpData = async (req: Request, res: Response) => {
     }
 
     const db = await getDb()
+    
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
+    }
     
     // Delete existing LTTP data for this date
     await db.collection("lttpData").deleteMany({
@@ -2694,8 +2708,8 @@ export const getWeeklyPoultryTracking = async (req: Request, res: Response) => {
     prevDate.setDate(prevDate.getDate() - 1)
     const prevDateStr = prevDate.toISOString().split('T')[0]
     const prevData = await getPoultryProcessingData(db!, prevDateStr)
-    let wholeChickenPrevRemain = prevData.wholeChickenRemaining || 0
-    let chickenPartsPrevRemain = prevData.chickenPartsRemaining || 0
+    let wholeChickenPrevRemain = 0 // Removed - no longer used
+    let chickenPartsPrevRemain = 0 // Removed - no longer used
 
     let lastWholeChickenRemain = wholeChickenPrevRemain
     let lastChickenPartsRemain = chickenPartsPrevRemain
