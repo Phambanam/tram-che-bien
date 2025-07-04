@@ -841,44 +841,42 @@ export function PoultryProcessing() {
                 <Table className="border">
                   <TableHeader>
                     <TableRow>
-                      <TableHead rowSpan={3} className="text-center align-middle border-r bg-gray-100">THÁNG</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100">THÁNG</TableHead>
                       <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">THU</TableHead>
-                      <TableHead colSpan={4} className="text-center border-r bg-blue-50">TRONG ĐÓ</TableHead>
+                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">TRONG ĐÓ</TableHead>
                       <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">CHI</TableHead>
-                      <TableHead colSpan={4} className="text-center border-r bg-red-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={3} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)</TableHead>
+                      <TableHead colSpan={2} className="text-center border-r bg-red-50">TRONG ĐÓ</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)</TableHead>
                     </TableRow>
                     <TableRow>
                       <TableHead colSpan={2} className="text-center border-r bg-blue-50">Thịt gia cầm</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Chi khác</TableHead>
                       <TableHead colSpan={2} className="text-center border-r bg-red-50">Gia cầm sống</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">Chi khác</TableHead>
                     </TableRow>
                     <TableRow>
                       <TableHead className="text-center bg-blue-100">TỔNG THU<br/>(1.000đ)</TableHead>
                       <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
                       <TableHead className="text-center bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border-r bg-blue-50">Chi khác<br/>(1.000đ)</TableHead>
                       <TableHead className="text-center bg-red-100">TỔNG CHI<br/>(1.000đ)</TableHead>
                       <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
                       <TableHead className="text-center bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border-r bg-red-50">Chi khác<br/>(1.000đ)</TableHead>
                       <TableHead className="text-center bg-green-100">(1.000đ)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {monthlyPoultrySummary && monthlyPoultrySummary.length > 0 ? (
                       monthlyPoultrySummary.map((month) => {
-                        // Calculate financial values (assuming default prices if not provided)
+                        // Calculate financial values using data from API
                         const poultryMeatPrice = 150000 // Default price per kg
                         const livePoultryPrice = 60000 // Default price per kg
 
+                        // Use actual output for revenue calculation
                         const poultryMeatRevenue = (month.totalPoultryMeatActualOutput * poultryMeatPrice) / 1000
                         const otherRevenue = 0 // Chi khác thu
                         const totalRevenue = poultryMeatRevenue + otherRevenue
                         
+                        // Use actual input for cost calculation
                         const livePoultryCost = (month.totalLivePoultryInput * livePoultryPrice) / 1000
                         const otherCosts = Math.round(month.totalLivePoultryInput * 0.5) // 500 VND chi khác per kg
                         const totalCost = livePoultryCost + otherCosts
@@ -893,7 +891,6 @@ export function PoultryProcessing() {
                             <TableCell className="text-center text-sm">{month.totalPoultryMeatActualOutput}</TableCell>
                             <TableCell className="text-center text-sm">{poultryMeatRevenue.toFixed(0)}</TableCell>
                             {/* Chi khác THU */}
-                            <TableCell className="text-center text-sm">0</TableCell>
                             <TableCell className="text-center border-r text-sm">0</TableCell>
                             {/* Tổng chi */}
                             <TableCell className="text-center border-r font-semibold text-red-700">{totalCost.toFixed(0)}</TableCell>
@@ -901,7 +898,6 @@ export function PoultryProcessing() {
                             <TableCell className="text-center text-sm">{month.totalLivePoultryInput}</TableCell>
                             <TableCell className="text-center text-sm">{livePoultryCost.toFixed(0)}</TableCell>
                             {/* Chi khác CHI */}
-                            <TableCell className="text-center text-sm">{Math.round(month.totalLivePoultryInput * 0.05)}</TableCell>
                             <TableCell className="text-center border-r text-sm">{otherCosts.toFixed(0)}</TableCell>
                             {/* Lãi */}
                             <TableCell className="text-center font-semibold">
@@ -914,7 +910,7 @@ export function PoultryProcessing() {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={12} className="text-center text-gray-500 py-8">
+                        <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                           Không có dữ liệu cho tháng đã chọn
                         </TableCell>
                       </TableRow>

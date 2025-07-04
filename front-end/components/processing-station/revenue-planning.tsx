@@ -277,11 +277,7 @@ export function RevenuePlanning() {
             <CardTitle className="text-center text-lg font-bold">
               TỔNG HỢP KẾT QUẢ THÁNG {selectedMonth.toString().padStart(2, '0')} NĂM {selectedYear}
             </CardTitle>
-            {user && (user.role === "admin" || user.role === "stationManager") && (
-              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
-                Dữ liệu được tự động tính toán
-              </Badge>
-            )}
+            
           </div>
           <div className="flex gap-4 justify-center">
             <div className="flex items-center gap-2">
