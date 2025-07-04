@@ -295,9 +295,13 @@ export function PoultryProcessing() {
       await processingStationApi.updateDailyPoultryData(dailyPoultryProcessing.date, {
         livePoultryInput: dailyUpdateData.livePoultryInput,
         poultryMeatOutput: dailyUpdateData.poultryMeatOutput,
+        poultryMeatActualOutput: dailyPoultryProcessing.poultryMeatActualOutput,
+        poultryMeatRemaining: dailyPoultryProcessing.poultryMeatRemaining,
         note: dailyUpdateData.note,
         livePoultryPrice: dailyUpdateData.livePoultryPrice,
-        poultryMeatPrice: dailyUpdateData.poultryMeatPrice
+        poultryMeatPrice: dailyUpdateData.poultryMeatPrice,
+        wholeChickenOutput: dailyUpdateData.poultryMeatOutput,
+        wholeChickenActualOutput: dailyPoultryProcessing.poultryMeatActualOutput
       })
 
       // Refresh all data to update weekly and monthly views
