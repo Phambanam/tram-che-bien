@@ -44,6 +44,8 @@ interface WeeklyPoultryTracking {
   otherCosts: number // Chi khác
   totalCost: number // Tổng chi
   profit: number // Lãi (Thu - Chi)
+  wholeChickenOutput: number
+  wholeChickenPrice: number
 }
 
 interface MonthlyPoultrySummary {
@@ -58,6 +60,7 @@ interface MonthlyPoultrySummary {
   poultryCost: number
   otherCosts: number
   netProfit: number
+  totalWholeChickenOutput: number
 }
 
 export function PoultryProcessing() {
@@ -745,7 +748,9 @@ export function PoultryProcessing() {
                           poultryMeatActualOutput: 0,
                           poultryMeatRemaining: 0,
                           livePoultryPrice: 60000,
-                          poultryMeatPrice: 150000
+                          poultryMeatPrice: 150000,
+                          wholeChickenOutput: 0,
+                          wholeChickenPrice: 0
                         }
                         const meatKg = dayData.poultryMeatOutput || 0
                         const meatMoney = (meatKg * (dayData.poultryMeatPrice || 0)) / 1000
@@ -849,7 +854,8 @@ export function PoultryProcessing() {
                           totalRevenue: 0,
                           poultryCost: 0,
                           otherCosts: 0,
-                          netProfit: 0
+                          netProfit: 0,
+                          totalWholeChickenOutput: 0
                         }
                         const meatKg = m.totalPoultryMeatActualOutput || 0
                         const meatMoney = (meatKg * 150000) / 1000
