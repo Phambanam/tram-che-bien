@@ -35,17 +35,11 @@ interface WeeklyPoultryTracking {
   livePoultryInput: number
   poultryMeatOutput: number
   poultryMeatActualOutput: number
-  poultryMeatRemaining: number
+  poultryMeatBegin: number
+  poultryMeatEnd: number
   livePoultryPrice: number
   poultryMeatPrice: number
-  // Financial calculations
-  revenue: number // Thu từ thịt gia cầm
-  cost: number // Chi gia cầm sống
-  otherCosts: number // Chi khác
-  totalCost: number // Tổng chi
-  profit: number // Lãi (Thu - Chi)
-  wholeChickenOutput: number
-  wholeChickenPrice: number
+  note: string
 }
 
 interface MonthlyPoultrySummary {
@@ -56,13 +50,14 @@ interface MonthlyPoultrySummary {
   totalPoultryMeatOutput: number
   totalPoultryMeatActualOutput: number
   processingEfficiency: number
+  poultryMeatBegin: number
+  poultryMeatEnd: number
   avgLivePoultryPrice: number
   avgPoultryMeatPrice: number
   totalRevenue: number
   poultryCost: number
   otherCosts: number
   netProfit: number
-  totalWholeChickenOutput: number
 }
 
 export function PoultryProcessing() {
@@ -229,9 +224,13 @@ export function PoultryProcessing() {
         year: selectedYear
       })
 
+      console.log('Weekly API Response:', response)
+
       if (response.success && response.data && response.data.dailyData) {
+        console.log('Setting weekly data:', response.data.dailyData)
         setWeeklyPoultryTracking(response.data.dailyData)
       } else {
+        console.log('No weekly data found')
         setWeeklyPoultryTracking([])
       }
     } catch (error) {
@@ -254,9 +253,13 @@ export function PoultryProcessing() {
         monthCount: 6
       })
 
+      console.log('Monthly API Response:', response)
+
       if (response.success && response.data && response.data.monthlySummaries) {
+        console.log('Setting monthly data:', response.data.monthlySummaries)
         setMonthlyPoultrySummary(response.data.monthlySummaries)
       } else {
+        console.log('No monthly data found')
         setMonthlyPoultrySummary([])
       }
     } catch (error) {
@@ -304,9 +307,7 @@ export function PoultryProcessing() {
         poultryMeatRemaining: dailyPoultryProcessing.poultryMeatRemaining,
         note: dailyUpdateData.note,
         livePoultryPrice: dailyUpdateData.livePoultryPrice,
-        poultryMeatPrice: dailyUpdateData.poultryMeatPrice,
-        wholeChickenOutput: dailyUpdateData.poultryMeatOutput,
-        wholeChickenActualOutput: dailyPoultryProcessing.poultryMeatActualOutput
+        poultryMeatPrice: dailyUpdateData.poultryMeatPrice
       })
 
       // Refresh all data to update weekly and monthly views
@@ -706,19 +707,15 @@ export function PoultryProcessing() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full border-2 border-black">
+                <table className="w-full border-collapse border border-black">
                   <thead>
                     <tr>
-                      <th rowSpan={2} className="border border-black p-2 bg-gray-100 font-bold">NGÀY</th>
-                      <th colSpan={2} className="border border-black p-2 bg-blue-100 font-bold">THU</th>
-                      <th colSpan={2} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
-                      <th rowSpan={2} className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)</th>
-                    </tr>
-                    <tr>
-                      <th className="border border-black p-1 bg-blue-50 text-sm">Thịt gia cầm<br/>(kg)</th>
-                      <th className="border border-black p-1 bg-blue-50 text-sm">Thành Tiền<br/>(1.000đ)</th>
-                      <th className="border border-black p-1 bg-red-50 text-sm">Gia cầm sống<br/>(kg)</th>
-                      <th className="border border-black p-1 bg-red-50 text-sm">Thành Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Ngày</th>
+                      <th className="border border-black p-2 text-center">Thịt gia cầm thu (kg)</th>
+                      <th className="border border-black p-2 text-center">Thành tiền (1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Gia cầm sống chi (kg)</th>
+                      <th className="border border-black p-2 text-center">Thành tiền (1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Lãi (1.000đ)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -748,9 +745,11 @@ export function PoultryProcessing() {
                           livePoultryInput: 0,
                           poultryMeatOutput: 0,
                           poultryMeatActualOutput: 0,
-                          poultryMeatRemaining: 0,
+                          poultryMeatBegin: 0,
+                          poultryMeatEnd: 0,
                           livePoultryPrice: 60000,
-                          poultryMeatPrice: 150000
+                          poultryMeatPrice: 150000,
+                          note: ""
                         }
                         
                         // Thịt gia cầm thu (kg)
@@ -767,9 +766,9 @@ export function PoultryProcessing() {
                             <td className="border border-black p-2 text-center font-medium">
                               {format(date, "dd/MM")}
                             </td>
-                            <td className="border border-black p-1 text-center">{meatKg}</td>
+                            <td className="border border-black p-1 text-center">{meatKg.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{meatMoney.toLocaleString()}</td>
-                            <td className="border border-black p-1 text-center">{inputKg}</td>
+                            <td className="border border-black p-1 text-center">{inputKg.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{inputMoney.toLocaleString()}</td>
                             <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                               {profit >= 0 ? '+' : ''}{profit.toLocaleString()}
@@ -789,7 +788,7 @@ export function PoultryProcessing() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
+                <Calendar className="h-5 w-5" />
                 Tổng hợp gia cầm theo tháng
               </CardTitle>
               <div className="flex gap-4">
@@ -833,15 +832,15 @@ export function PoultryProcessing() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full border-2 border-black">
+                <table className="w-full border-collapse border border-black">
                   <thead>
                     <tr>
-                      <th className="border border-black p-2 bg-gray-100 font-bold">THÁNG</th>
-                      <th className="border border-black p-2 bg-blue-100 font-bold">THU<br/>(Thịt gia cầm kg)</th>
-                      <th className="border border-black p-2 bg-blue-50 font-bold">Thành Tiền<br/>(1.000đ)</th>
-                      <th className="border border-black p-2 bg-red-100 font-bold">CHI<br/>(Gia cầm sống kg)</th>
-                      <th className="border border-black p-2 bg-red-50 font-bold">Thành Tiền<br/>(1.000đ)</th>
-                      <th className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)</th>
+                      <th className="border border-black p-2 text-center">Tháng</th>
+                      <th className="border border-black p-2 text-center">Thịt gia cầm thu (kg)</th>
+                      <th className="border border-black p-2 text-center">Thành tiền (1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Gia cầm sống chi (kg)</th>
+                      <th className="border border-black p-2 text-center">Thành tiền (1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Lãi (1.000đ)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -858,6 +857,8 @@ export function PoultryProcessing() {
                           totalPoultryMeatOutput: 0,
                           totalPoultryMeatActualOutput: 0,
                           processingEfficiency: 0,
+                          poultryMeatBegin: 0,
+                          poultryMeatEnd: 0,
                           avgLivePoultryPrice: 60000,
                           avgPoultryMeatPrice: 150000,
                           totalRevenue: 0,
@@ -869,18 +870,18 @@ export function PoultryProcessing() {
                         // Thịt gia cầm thu (kg)
                         const meatKg = m.totalPoultryMeatOutput || 0
                         // Thành tiền (1.000đ)
-                        const meatMoney = Math.round((meatKg * (m.avgPoultryMeatPrice || 150000)) / 1000)
+                        const meatMoney = m.totalRevenue || 0
                         // Chi phí gia cầm sống
                         const inputKg = m.totalLivePoultryInput || 0
-                        const inputMoney = Math.round((inputKg * (m.avgLivePoultryPrice || 60000)) / 1000)
-                        const profit = meatMoney - inputMoney
+                        const inputMoney = m.poultryCost || 0
+                        const profit = m.netProfit || 0
 
                         return (
                           <tr key={monthNum}>
                             <td className="border border-black p-2 text-center font-medium">{m.month}</td>
-                            <td className="border border-black p-1 text-center">{meatKg}</td>
+                            <td className="border border-black p-1 text-center">{meatKg.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{meatMoney.toLocaleString()}</td>
-                            <td className="border border-black p-1 text-center">{inputKg}</td>
+                            <td className="border border-black p-1 text-center">{inputKg.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{inputMoney.toLocaleString()}</td>
                             <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                               {profit >= 0 ? '+' : ''}{profit.toLocaleString()}
