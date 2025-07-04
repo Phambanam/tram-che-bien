@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -32,12 +33,12 @@ interface DailyPoultryProcessing {
 interface WeeklyPoultryTracking {
   date: string
   dayOfWeek: string
-  livePoultryInput: number
-  poultryMeatOutput: number
-  poultryMeatActualOutput: number
-  poultryMeatRemaining: number
-  livePoultryPrice: number
-  poultryMeatPrice: number
+  livePoultryInput: number // CHI: số kg gia cầm sống
+  poultryMeatOutput: number // THU: số kg thịt gia cầm
+  poultryMeatActualOutput: number // Số kg thịt gia cầm đã xuất
+  poultryMeatRemaining: number // Số kg thịt gia cầm còn tồn
+  livePoultryPrice: number // Giá gia cầm sống (VND/kg)
+  poultryMeatPrice: number // Giá thịt gia cầm (VND/kg)
   // Financial calculations
   revenue: number // Thu từ thịt gia cầm
   cost: number // Chi gia cầm sống
@@ -162,10 +163,13 @@ export function PoultryProcessing() {
         console.log('🔍 Current Poultry Data Extracted:', currentData)
         
         if (currentData && Object.keys(currentData).length > 0) {
+          // Remove any existing carry over notes before adding new one
+          const cleanedNote = currentData.note?.replace(/\n📦 Chuyển từ.*?kg thịt gia cầm/g, '') || ''
+          
           stationData = {
             livePoultryInput: currentData.livePoultryInput || 0,
             poultryMeatOutput: (currentData.poultryMeatOutput || 0) + carryOverAmount, // Add carry over
-            note: (currentData.note || "") + carryOverNote, // Add carry over note
+            note: cleanedNote + carryOverNote, // Add new carry over note to cleaned note
             livePoultryPrice: currentData.livePoultryPrice || 60000,
             poultryMeatPrice: currentData.poultryMeatPrice || 150000
           }
@@ -224,9 +228,28 @@ export function PoultryProcessing() {
         year: selectedYear
       })
 
-      if (response.success && response.data && response.data.dailyData) {
-        setWeeklyPoultryTracking(response.data.dailyData)
+      console.log('🔍 Weekly API Response:', response)
+
+      // Fix nested structure access
+      const dailyData = response?.data?.data?.dailyData || response?.data?.dailyData || []
+      console.log('🔍 Weekly Data Extracted:', dailyData)
+
+      if (Array.isArray(dailyData) && dailyData.length > 0) {
+        // Map API fields directly to our simplified interface
+        const processedData = dailyData.map(day => ({
+          date: day.date,
+          dayOfWeek: day.dayOfWeek,
+          livePoultryInput: day.livePoultryInput || 0,
+          poultryMeatOutput: day.poultryMeatOutput || 0,
+          poultryMeatActualOutput: day.poultryMeatActualOutput || 0,
+          poultryMeatRemaining: Math.max(0, (day.poultryMeatOutput || 0) - (day.poultryMeatActualOutput || 0)),
+          livePoultryPrice: day.livePoultryPrice || 60000,
+          poultryMeatPrice: day.poultryMeatPrice || 150000
+        }))
+        console.log('🔍 Weekly Data Processed:', processedData)
+        setWeeklyPoultryTracking(processedData)
       } else {
+        console.log('❌ No valid weekly data found')
         setWeeklyPoultryTracking([])
       }
     } catch (error) {
@@ -249,9 +272,27 @@ export function PoultryProcessing() {
         monthCount: 6
       })
 
-      if (response.success && response.data && response.data.monthlySummaries) {
-        setMonthlyPoultrySummary(response.data.monthlySummaries)
+      console.log('🔍 Monthly API Response:', response)
+
+      // Fix nested structure access
+      const monthlyData = response?.data?.data?.monthlySummaries || response?.data?.monthlySummaries || []
+      console.log('🔍 Monthly Data Extracted:', monthlyData)
+
+      if (Array.isArray(monthlyData) && monthlyData.length > 0) {
+        // Make sure all required fields are present
+        const processedData = monthlyData.map(month => ({
+          ...month,
+          totalPoultryMeatOutput: month.totalPoultryMeatOutput || 0,
+          totalPoultryMeatActualOutput: month.totalPoultryMeatActualOutput || 0,
+          totalLivePoultryInput: month.totalLivePoultryInput || 0,
+          totalRevenue: month.totalRevenue || 0,
+          poultryCost: month.poultryCost || 0,
+          otherCosts: 0 // Set otherCosts to 0 as requested
+        }))
+        console.log('🔍 Monthly Data Processed:', processedData)
+        setMonthlyPoultrySummary(processedData)
       } else {
+        console.log('❌ No valid monthly data found')
         setMonthlyPoultrySummary([])
       }
     } catch (error) {
@@ -721,7 +762,7 @@ export function PoultryProcessing() {
                   <TableBody>
                     {weeklyPoultryTracking && weeklyPoultryTracking.length > 0 ? (
                       weeklyPoultryTracking.map((day) => {
-                        const poultryMeatOutput = Number(day.poultryMeatOutput) || 0
+                        const poultryMeatOutput = Number(day.poultryMeatActualOutput) || 0
                         const poultryMeatPrice = Number(day.poultryMeatPrice) || 150000
                         const poultryMeatRevenue = (poultryMeatOutput * poultryMeatPrice) / 1000
                         const totalRevenue = isNaN(poultryMeatRevenue) ? 0 : poultryMeatRevenue

@@ -838,14 +838,25 @@ export const processingStationApi = {
 
   // New methods for daily poultry processing
   getDailyPoultryData: async (date: string) => {
-    return apiRequest<any>(`/processing-station/poultry/${date}`)
+    const response = await fetch(`/api/poultry-processing/daily/${date}`)
+    if (!response.ok) throw new Error('Failed to fetch daily poultry data')
+    return response.json()
   },
 
-  updateDailyPoultryData: async (date: string, data: any) => {
-    return apiRequest<{ success: boolean; message: string }>(`/processing-station/poultry/${date}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
+  updateDailyPoultryData: async (date: string, data: {
+    livePoultryInput: number
+    poultryMeatOutput: number
+    note?: string
+    livePoultryPrice?: number
+    poultryMeatPrice?: number
+  }) => {
+    const response = await fetch(`/api/poultry-processing/daily/${date}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
     })
+    if (!response.ok) throw new Error('Failed to update daily poultry data')
+    return response.json()
   },
 
   // New methods for daily livestock processing
@@ -931,12 +942,9 @@ export const processingStationApi = {
     week: number
     year: number
   }) => {
-    const queryParams = new URLSearchParams()
-    queryParams.append("week", params.week.toString())
-    queryParams.append("year", params.year.toString())
-    
-    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-    return apiRequest<{ success: boolean; data: any }>(`/processing-station/poultry/weekly-tracking${query}`)
+    const response = await fetch(`/api/poultry-processing/weekly?week=${params.week}&year=${params.year}`)
+    if (!response.ok) throw new Error('Failed to fetch weekly poultry tracking')
+    return response.json()
   },
 
   getMonthlyPoultrySummary: async (params: {
@@ -944,13 +952,14 @@ export const processingStationApi = {
     year: number
     monthCount?: number
   }) => {
-    const queryParams = new URLSearchParams()
-    queryParams.append("month", params.month.toString())
-    queryParams.append("year", params.year.toString())
-    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    const url = new URL('/api/poultry-processing/monthly', window.location.origin)
+    url.searchParams.append('month', params.month.toString())
+    url.searchParams.append('year', params.year.toString())
+    if (params.monthCount) url.searchParams.append('monthCount', params.monthCount.toString())
     
-    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
-    return apiRequest<{ success: boolean; data: any }>(`/processing-station/poultry/monthly-summary${query}`)
+    const response = await fetch(url)
+    if (!response.ok) throw new Error('Failed to fetch monthly poultry summary')
+    return response.json()
   },
 
   // Weekly and Monthly data APIs
