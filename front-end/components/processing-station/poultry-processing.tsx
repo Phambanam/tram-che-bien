@@ -700,40 +700,33 @@ export function PoultryProcessing() {
                 <Table className="border">
                   <TableHeader>
                     <TableRow>
-                      <TableHead rowSpan={3} className="text-center align-middle border-r bg-gray-100">NGÀY</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">THU</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">CHI</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={3} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">NGÀY</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={2} className="text-center border">THU</TableHead>  
+                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={2} className="text-center border">CHI</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
                     </TableRow>
                     <TableRow>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Thịt gia cầm</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">Chi khác</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">Gia cầm sống</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">Chi khác</TableHead>
+                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
+                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
                     </TableRow>
                     <TableRow>
-                      <TableHead className="text-center bg-blue-100">TỔNG THU<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-100">TỔNG CHI<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-green-100">(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Thịt gia cầm<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Gia cầm sống<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {weeklyPoultryTracking && weeklyPoultryTracking.length > 0 ? (
                       weeklyPoultryTracking.map((day) => {
-                        const poultryMeatOutput = day.poultryMeatOutput || 0
-                        const poultryMeatPrice = day.poultryMeatPrice || 0
+                        const poultryMeatOutput = Number(day.poultryMeatOutput) || 0
+                        const poultryMeatPrice = Number(day.poultryMeatPrice) || 150000
                         const poultryMeatRevenue = (poultryMeatOutput * poultryMeatPrice) / 1000
                         const totalRevenue = isNaN(poultryMeatRevenue) ? 0 : poultryMeatRevenue
-                        const livePoultryInput = day.livePoultryInput || 0
-                        const livePoultryPrice = day.livePoultryPrice || 0
+                        const livePoultryInput = Number(day.livePoultryInput) || 0
+                        const livePoultryPrice = Number(day.livePoultryPrice) || 60000
                         const livePoultryCost = (livePoultryInput * livePoultryPrice) / 1000
                         const totalCost = isNaN(livePoultryCost) ? 0 : livePoultryCost
                         const otherCosts = Math.round(livePoultryInput * 0.5)
@@ -761,6 +754,54 @@ export function PoultryProcessing() {
                       <TableRow>
                         <TableCell colSpan={10} className="text-center text-gray-500 py-8">
                           Không có dữ liệu cho tuần đã chọn
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    
+                    {/* Tổng cộng */}
+                    {weeklyPoultryTracking && weeklyPoultryTracking.length > 0 && (
+                      <TableRow className="bg-gradient-to-r from-gray-100 to-gray-200 font-semibold border-t-2">
+                        <TableCell className="text-center border font-bold">📊 Tổng cộng</TableCell>
+                        {/* TỔNG THU */}
+                        <TableCell className="text-center border font-bold text-blue-700">
+                          {weeklyPoultryTracking.reduce((sum, day) => {
+                            const poultryMeatRevenue = Math.round((day.poultryMeatOutput * (day.poultryMeatPrice || 0)) / 1000)
+                            return sum + poultryMeatRevenue
+                          }, 0).toFixed(0)}
+                        </TableCell>
+                        {/* THU - Thịt gia cầm */}
+                        <TableCell className="text-center border font-bold">
+                          {weeklyPoultryTracking.reduce((sum, day) => sum + day.poultryMeatOutput, 0)}
+                        </TableCell>
+                        <TableCell className="text-center border font-bold">
+                          {weeklyPoultryTracking.reduce((sum, day) => sum + Math.round((day.poultryMeatOutput * (day.poultryMeatPrice || 0)) / 1000), 0).toFixed(0)}
+                        </TableCell>
+                        {/* TỔNG CHI */}
+                        <TableCell className="text-center border font-bold text-red-700">
+                          {weeklyPoultryTracking.reduce((sum, day) => sum + Math.round((day.livePoultryInput * (day.livePoultryPrice || 0)) / 1000), 0).toFixed(0)}
+                        </TableCell>
+                        {/* CHI - Gia cầm sống */}
+                        <TableCell className="text-center border font-bold">
+                          {weeklyPoultryTracking.reduce((sum, day) => sum + day.livePoultryInput, 0)}
+                        </TableCell>
+                        <TableCell className="text-center border font-bold">
+                          {weeklyPoultryTracking.reduce((sum, day) => sum + Math.round((day.livePoultryInput * (day.livePoultryPrice || 0)) / 1000), 0).toFixed(0)}
+                        </TableCell>
+                        {/* THU-CHI (LÃI) */}
+                        <TableCell className="text-center border font-bold">
+                          {(() => {
+                            const totalRevenue = weeklyPoultryTracking.reduce((sum, day) => {
+                              const poultryMeatRevenue = Math.round((day.poultryMeatOutput * (day.poultryMeatPrice || 0)) / 1000)
+                              return sum + poultryMeatRevenue
+                            }, 0)
+                            const totalCost = weeklyPoultryTracking.reduce((sum, day) => sum + Math.round((day.livePoultryInput * (day.livePoultryPrice || 0)) / 1000), 0)
+                            const profit = totalRevenue - totalCost
+                            return (
+                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
+                                {profit >= 0 ? "+" : ""}{profit.toFixed(0)}
+                              </span>
+                            )
+                          })()}
                         </TableCell>
                       </TableRow>
                     )}
@@ -822,29 +863,22 @@ export function PoultryProcessing() {
                 <Table className="border">
                   <TableHeader>
                     <TableRow>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100">THÁNG</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">THU</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">CHI</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">THÁNG</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={2} className="text-center border">THU</TableHead>  
+                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
+                      <TableHead colSpan={2} className="text-center border">CHI</TableHead>
+                      <TableHead rowSpan={3} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
                     </TableRow>
                     <TableRow>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Thịt gia cầm</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">Chi khác</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">Gia cầm sống</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">Chi khác</TableHead>
+                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
+                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
                     </TableRow>
                     <TableRow>
-                      <TableHead className="text-center bg-blue-100">TỔNG THU<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-100">TỔNG CHI<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-green-100">(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Thịt gia cầm<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
+                      <TableHead className="text-center border">Gia cầm sống<br/>Số lượng (kg)</TableHead>
+                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -852,10 +886,10 @@ export function PoultryProcessing() {
                       monthlyPoultrySummary.map((month) => {
                         const poultryMeatPrice = 150000
                         const livePoultryPrice = 60000
-                        const poultryMeatOutput = month.totalPoultryMeatActualOutput || 0
+                        const poultryMeatOutput = Number(month.totalPoultryMeatActualOutput) || 0
                         const poultryMeatRevenue = (poultryMeatOutput * poultryMeatPrice) / 1000
                         const totalRevenue = isNaN(poultryMeatRevenue) ? 0 : poultryMeatRevenue
-                        const livePoultryInput = month.totalLivePoultryInput || 0
+                        const livePoultryInput = Number(month.totalLivePoultryInput) || 0
                         const livePoultryCost = (livePoultryInput * livePoultryPrice) / 1000
                         const totalCost = isNaN(livePoultryCost) ? 0 : livePoultryCost
                         const otherCosts = Math.round(livePoultryInput * 0.5)
@@ -886,6 +920,48 @@ export function PoultryProcessing() {
                         </TableCell>
                       </TableRow>
                     )}
+                    
+                    {/* Tổng cộng */}
+                    {monthlyPoultrySummary && monthlyPoultrySummary.length > 0 && (
+                      <TableRow className="bg-gradient-to-r from-gray-100 to-gray-200 font-semibold border-t-2">
+                        <TableCell className="text-center border font-bold">📊 Tổng cộng</TableCell>
+                        {/* TỔNG THU */}
+                        <TableCell className="text-center border font-bold text-blue-700">
+                          {monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.totalRevenue / 1000), 0)}
+                        </TableCell>
+                        {/* THU - Thịt gia cầm */}
+                        <TableCell className="text-center border font-bold">
+                          {monthlyPoultrySummary.reduce((sum, month) => sum + month.totalPoultryMeatOutput, 0)}
+                        </TableCell>
+                        <TableCell className="text-center border font-bold">
+                          {monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.totalRevenue / 1000), 0)}
+                        </TableCell>
+                        {/* TỔNG CHI */}
+                        <TableCell className="text-center border font-bold text-red-700">
+                          {monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.poultryCost / 1000), 0)}
+                        </TableCell>
+                        {/* CHI - Gia cầm sống */}
+                        <TableCell className="text-center border font-bold">
+                          {monthlyPoultrySummary.reduce((sum, month) => sum + month.totalLivePoultryInput, 0)}
+                        </TableCell>
+                        <TableCell className="text-center border font-bold">
+                          {monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.poultryCost / 1000), 0)}
+                        </TableCell>
+                        {/* THU-CHI (LÃI) */}
+                        <TableCell className="text-center border font-bold">
+                          {(() => {
+                            const totalRevenue = monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.totalRevenue / 1000), 0)
+                            const totalCost = monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.poultryCost / 1000), 0)
+                            const profit = totalRevenue - totalCost
+                            return (
+                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
+                                {profit >= 0 ? "+" : ""}{profit}
+                              </span>
+                            )
+                          })()}
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -895,4 +971,4 @@ export function PoultryProcessing() {
       </Tabs>
     </div>
   )
-} 
+}
