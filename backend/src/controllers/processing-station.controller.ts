@@ -2872,14 +2872,17 @@ export const getWeeklyPoultryTracking = async (req: Request, res: Response) => {
     }
 
     // Tổng hợp tuần
+    const daysWithData = weeklyData.filter(day => day.livePoultryInput > 0 || day.poultryMeatOutput > 0)
     const weeklyTotals = {
       totalLivePoultryInput: weeklyData.reduce((sum, day) => sum + day.livePoultryInput, 0),
       totalPoultryMeatOutput: weeklyData.reduce((sum, day) => sum + day.poultryMeatOutput, 0),
       totalPoultryMeatActualOutput: weeklyData.reduce((sum, day) => sum + day.poultryMeatActualOutput, 0),
       totalPoultryMeatBegin: weeklyData[0]?.poultryMeatBegin || 0,
       totalPoultryMeatEnd: weeklyData[weeklyData.length-1]?.poultryMeatEnd || 0,
-      avgLivePoultryPrice: Math.round(weeklyData.reduce((sum, day) => sum + day.livePoultryPrice, 0) / weeklyData.length),
-      avgPoultryMeatPrice: Math.round(weeklyData.reduce((sum, day) => sum + day.poultryMeatPrice, 0) / weeklyData.length)
+      avgLivePoultryPrice: daysWithData.length > 0 ? 
+        Math.round(daysWithData.reduce((sum, day) => sum + day.livePoultryPrice, 0) / daysWithData.length) : 60000,
+      avgPoultryMeatPrice: daysWithData.length > 0 ? 
+        Math.round(daysWithData.reduce((sum, day) => sum + day.poultryMeatPrice, 0) / daysWithData.length) : 150000
     }
 
     res.json({
