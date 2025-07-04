@@ -1453,7 +1453,7 @@ export function LivestockProcessing() {
                         const boneRevenue = Math.round((month.totalBoneOutput * 30000) / 1000) // 30k per kg
                         const organsRevenue = Math.round((month.totalOrgansOutput * 50000) / 1000) // 50k per kg
                         const totalRevenue = groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
-                        const totalCost = Math.round((month.livestockCost + month.otherCosts) / 1000)
+                        const totalCost = Math.round((month.livestockCost) / 1000)
                         const profit = totalRevenue - totalCost
                         
                         return (
@@ -1478,11 +1478,11 @@ export function LivestockProcessing() {
                             <TableCell className="text-center border">{month.totalOrgansRevenue}</TableCell>
                             {/* TỔNG CHI */}
                             <TableCell className="text-center border font-bold text-red-700">
-                              {month.livestockCost + month.otherCosts}
+                              {month.livestockCost }
                             </TableCell>
                             {/* CHI - Lợn hơi */}
                             <TableCell className="text-center border">{month.totalLiveAnimalsInput}</TableCell>
-                            <TableCell className="text-center border">{month.livestockCost + month.otherCosts}</TableCell>
+                            <TableCell className="text-center border">{month.livestockCost }</TableCell>
                             {/* THU-CHI (LÃI) */}
                             <TableCell className={`text-center border font-bold ${month.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}> 
                               {month.netProfit >= 0 ? '+' : ''}{month.netProfit}
@@ -1537,20 +1537,20 @@ export function LivestockProcessing() {
                         </TableCell>
                         {/* TỔNG CHI */}
                         <TableCell className="text-center border font-bold text-red-700">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) + (month.otherCosts || 0)), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) ), 0)}
                         </TableCell>
                         {/* CHI - Lợn hơi */}
                         <TableCell className="text-center border font-bold">
                           {monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalLiveAnimalsInput || 0), 0)}
                         </TableCell>
                         <TableCell className="text-center border font-bold">
-                          {monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) + (month.otherCosts || 0)), 0)}
+                          {monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) ), 0)}
                         </TableCell>
                         {/* THU-CHI (LÃI) */}
                         <TableCell className="text-center border font-bold">
                           {(() => {
                             const totalRevenue = monthlyLivestockSummary.reduce((sum, month) => sum + (month.totalRevenue || 0), 0)
-                            const totalCost = monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) + (month.otherCosts || 0)), 0)
+                            const totalCost = monthlyLivestockSummary.reduce((sum, month) => sum + ((month.livestockCost || 0) ), 0)
                             const profit = totalRevenue - totalCost
                             return (
                               <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>

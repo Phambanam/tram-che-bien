@@ -1624,15 +1624,21 @@ export const getLttpData = async (req: Request, res: Response) => {
 
     const db = await getDb()
     
-    // Get LTTP data for date
-    const lttpData = await db.collection("lttpData").find({
+    // Get existing LTTP data for date
+    const existingLttpData = await db.collection("lttpData").find({
       date: date,
       unitId: user.unitId
     }).toArray()
 
+    // Aggregate data from all processing modules
+    const aggregatedData = await aggregateProcessingData(db, date, user.unitId)
+    
+    // Combine existing LTTP data with aggregated processing data
+    const combinedData = [...existingLttpData, ...aggregatedData]
+
     res.status(200).json({
       success: true,
-      data: lttpData
+      data: combinedData
     })
   } catch (error) {
     console.error("Error fetching LTTP data:", error)
@@ -1640,6 +1646,250 @@ export const getLttpData = async (req: Request, res: Response) => {
       success: false,
       message: "Đã xảy ra lỗi khi lấy dữ liệu LTTP"
     })
+  }
+}
+
+// Helper function to aggregate data from all processing modules
+async function aggregateProcessingData(db: any, date: string, unitId: string) {
+  const aggregatedItems = []
+
+  try {
+    // 1. Tofu Processing Data
+    const tofuData = await db.collection("dailyTofuProcessing").findOne({ date: date })
+    if (tofuData) {
+      aggregatedItems.push({
+        id: `tofu-${date}`,
+        category: "Chế biến",
+        name: "Đậu phụ",
+        unit: "Kg",
+        unitPrice: tofuData.tofuPrice || 15000,
+        quantity: tofuData.tofuInput || 0,
+        previousAmount: 0, // Will be calculated from previous day
+        previousExpiry: date,
+        todayInputQuantity: tofuData.tofuInput || 0,
+        todayInputAmount: (tofuData.tofuInput || 0) * (tofuData.tofuPrice || 15000),
+        todayOutputQuantity: tofuData.tofuOutput || 0,
+        todayOutputAmount: (tofuData.tofuOutput || 0) * (tofuData.tofuPrice || 15000),
+        todayOutputExpiry: date,
+        endDayAmount: (tofuData.tofuInput || 0) - (tofuData.tofuOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "tofu-processing"
+      })
+    }
+
+    // 2. Salt Processing Data
+    const saltData = await db.collection("dailySaltProcessing").findOne({ date: date })
+    if (saltData) {
+      aggregatedItems.push({
+        id: `salt-${date}`,
+        category: "Chế biến",
+        name: "Dưa muối",
+        unit: "Kg",
+        unitPrice: saltData.saltPrice || 8000,
+        quantity: saltData.saltInput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: saltData.saltInput || 0,
+        todayInputAmount: (saltData.saltInput || 0) * (saltData.saltPrice || 8000),
+        todayOutputQuantity: saltData.saltOutput || 0,
+        todayOutputAmount: (saltData.saltOutput || 0) * (saltData.saltPrice || 8000),
+        todayOutputExpiry: date,
+        endDayAmount: (saltData.saltInput || 0) - (saltData.saltOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "salt-processing"
+      })
+    }
+
+    // 3. Sausage Processing Data
+    const sausageData = await db.collection("dailySausageProcessing").findOne({ date: date })
+    if (sausageData) {
+      // Giò lụa
+      aggregatedItems.push({
+        id: `sausage-${date}`,
+        category: "Chế biến",
+        name: "Giò lụa",
+        unit: "Kg",
+        unitPrice: sausageData.sausagePrice || 140000,
+        quantity: sausageData.sausageInput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: sausageData.sausageInput || 0,
+        todayInputAmount: (sausageData.sausageInput || 0) * (sausageData.sausagePrice || 140000),
+        todayOutputQuantity: sausageData.sausageOutput || 0,
+        todayOutputAmount: (sausageData.sausageOutput || 0) * (sausageData.sausagePrice || 140000),
+        todayOutputExpiry: date,
+        endDayAmount: (sausageData.sausageInput || 0) - (sausageData.sausageOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "sausage-processing"
+      })
+
+      // Chả quế
+      aggregatedItems.push({
+        id: `chaque-${date}`,
+        category: "Chế biến",
+        name: "Chả quế",
+        unit: "Kg",
+        unitPrice: sausageData.chaQuePrice || 140000,
+        quantity: sausageData.chaQueInput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: sausageData.chaQueInput || 0,
+        todayInputAmount: (sausageData.chaQueInput || 0) * (sausageData.chaQuePrice || 140000),
+        todayOutputQuantity: sausageData.chaQueOutput || 0,
+        todayOutputAmount: (sausageData.chaQueOutput || 0) * (sausageData.chaQuePrice || 140000),
+        todayOutputExpiry: date,
+        endDayAmount: (sausageData.chaQueInput || 0) - (sausageData.chaQueOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "sausage-processing"
+      })
+    }
+
+    // 4. Poultry Processing Data
+    const poultryData = await db.collection("dailyPoultryProcessing").findOne({ date: date })
+    if (poultryData) {
+      aggregatedItems.push({
+        id: `poultry-${date}`,
+        category: "Chế biến",
+        name: "Thịt gia cầm",
+        unit: "Kg",
+        unitPrice: poultryData.poultryMeatPrice || 150000,
+        quantity: poultryData.poultryMeatOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: poultryData.poultryMeatOutput || 0,
+        todayInputAmount: (poultryData.poultryMeatOutput || 0) * (poultryData.poultryMeatPrice || 150000),
+        todayOutputQuantity: poultryData.poultryMeatActualOutput || 0,
+        todayOutputAmount: (poultryData.poultryMeatActualOutput || 0) * (poultryData.poultryMeatPrice || 150000),
+        todayOutputExpiry: date,
+        endDayAmount: (poultryData.poultryMeatOutput || 0) - (poultryData.poultryMeatActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "poultry-processing"
+      })
+    }
+
+    // 5. Livestock Processing Data
+    const livestockData = await db.collection("dailyLivestockProcessing").findOne({ date: date })
+    if (livestockData) {
+      // Thịt nạc
+      aggregatedItems.push({
+        id: `lean-meat-${date}`,
+        category: "Chế biến",
+        name: "Thịt nạc",
+        unit: "Kg",
+        unitPrice: livestockData.leanMeatPrice || 160000,
+        quantity: livestockData.leanMeatOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: livestockData.leanMeatOutput || 0,
+        todayInputAmount: (livestockData.leanMeatOutput || 0) * (livestockData.leanMeatPrice || 160000),
+        todayOutputQuantity: livestockData.leanMeatActualOutput || 0,
+        todayOutputAmount: (livestockData.leanMeatActualOutput || 0) * (livestockData.leanMeatPrice || 160000),
+        todayOutputExpiry: date,
+        endDayAmount: (livestockData.leanMeatOutput || 0) - (livestockData.leanMeatActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "livestock-processing"
+      })
+
+      // Xương xổ
+      aggregatedItems.push({
+        id: `bone-${date}`,
+        category: "Chế biến",
+        name: "Xương xổ",
+        unit: "Kg",
+        unitPrice: livestockData.bonePrice || 40000,
+        quantity: livestockData.boneOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: livestockData.boneOutput || 0,
+        todayInputAmount: (livestockData.boneOutput || 0) * (livestockData.bonePrice || 40000),
+        todayOutputQuantity: livestockData.boneActualOutput || 0,
+        todayOutputAmount: (livestockData.boneActualOutput || 0) * (livestockData.bonePrice || 40000),
+        todayOutputExpiry: date,
+        endDayAmount: (livestockData.boneOutput || 0) - (livestockData.boneActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "livestock-processing"
+      })
+
+      // Thịt xổ lọc
+      aggregatedItems.push({
+        id: `ground-meat-${date}`,
+        category: "Chế biến",
+        name: "Thịt xổ lọc",
+        unit: "Kg",
+        unitPrice: livestockData.groundMeatPrice || 120000,
+        quantity: livestockData.groundMeatOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: livestockData.groundMeatOutput || 0,
+        todayInputAmount: (livestockData.groundMeatOutput || 0) * (livestockData.groundMeatPrice || 120000),
+        todayOutputQuantity: livestockData.groundMeatActualOutput || 0,
+        todayOutputAmount: (livestockData.groundMeatActualOutput || 0) * (livestockData.groundMeatPrice || 120000),
+        todayOutputExpiry: date,
+        endDayAmount: (livestockData.groundMeatOutput || 0) - (livestockData.groundMeatActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "livestock-processing"
+      })
+
+      // Lòng
+      aggregatedItems.push({
+        id: `organs-${date}`,
+        category: "Chế biến",
+        name: "Lòng",
+        unit: "Kg",
+        unitPrice: livestockData.organsPrice || 80000,
+        quantity: livestockData.organsOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: livestockData.organsOutput || 0,
+        todayInputAmount: (livestockData.organsOutput || 0) * (livestockData.organsPrice || 80000),
+        todayOutputQuantity: livestockData.organsActualOutput || 0,
+        todayOutputAmount: (livestockData.organsActualOutput || 0) * (livestockData.organsPrice || 80000),
+        todayOutputExpiry: date,
+        endDayAmount: (livestockData.organsOutput || 0) - (livestockData.organsActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "livestock-processing"
+      })
+    }
+
+    // 6. Bean Sprouts Processing Data
+    const beanSproutsData = await db.collection("dailyBeanSproutsProcessing").findOne({ date: date })
+    if (beanSproutsData) {
+      aggregatedItems.push({
+        id: `bean-sprouts-${date}`,
+        category: "Chế biến",
+        name: "Giá đỗ",
+        unit: "Kg",
+        unitPrice: beanSproutsData.beanSproutsPrice || 12000,
+        quantity: beanSproutsData.beanSproutsInput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: beanSproutsData.beanSproutsInput || 0,
+        todayInputAmount: (beanSproutsData.beanSproutsInput || 0) * (beanSproutsData.beanSproutsPrice || 12000),
+        todayOutputQuantity: beanSproutsData.beanSproutsOutput || 0,
+        todayOutputAmount: (beanSproutsData.beanSproutsOutput || 0) * (beanSproutsData.beanSproutsPrice || 12000),
+        todayOutputExpiry: date,
+        endDayAmount: (beanSproutsData.beanSproutsInput || 0) - (beanSproutsData.beanSproutsOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "bean-sprouts-processing"
+      })
+    }
+
+    console.log(`📊 Aggregated ${aggregatedItems.length} items from processing modules for date: ${date}`)
+    return aggregatedItems
+
+  } catch (error) {
+    console.error("Error aggregating processing data:", error)
+    return []
   }
 }
 
