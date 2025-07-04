@@ -56,6 +56,8 @@ interface MonthlyPoultrySummary {
   totalPoultryMeatOutput: number
   totalPoultryMeatActualOutput: number
   processingEfficiency: number
+  avgLivePoultryPrice: number
+  avgPoultryMeatPrice: number
   totalRevenue: number
   poultryCost: number
   otherCosts: number
@@ -748,24 +750,29 @@ export function PoultryProcessing() {
                           poultryMeatActualOutput: 0,
                           poultryMeatRemaining: 0,
                           livePoultryPrice: 60000,
-                          poultryMeatPrice: 150000,
-                          wholeChickenOutput: 0,
-                          wholeChickenPrice: 0
+                          poultryMeatPrice: 150000
                         }
+                        
+                        // Thịt gia cầm thu (kg)
                         const meatKg = dayData.poultryMeatOutput || 0
-                        const meatMoney = (meatKg * (dayData.poultryMeatPrice || 0)) / 1000
+                        // Thành tiền (1.000đ)
+                        const meatMoney = Math.round((meatKg * (dayData.poultryMeatPrice || 150000)) / 1000)
+                        // Chi phí gia cầm sống
                         const inputKg = dayData.livePoultryInput || 0
-                        const inputMoney = (inputKg * (dayData.livePoultryPrice || 0)) / 1000
+                        const inputMoney = Math.round((inputKg * (dayData.livePoultryPrice || 60000)) / 1000)
                         const profit = meatMoney - inputMoney
+
                         return (
                           <tr key={dateStr}>
-                            <td className="border border-black p-2 text-center font-medium">{format(date, "dd/MM")}</td>
+                            <td className="border border-black p-2 text-center font-medium">
+                              {format(date, "dd/MM")}
+                            </td>
                             <td className="border border-black p-1 text-center">{meatKg}</td>
-                            <td className="border border-black p-1 text-center">{meatMoney.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center">{meatMoney.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{inputKg}</td>
-                            <td className="border border-black p-1 text-center">{inputMoney.toFixed(0)}</td>
-                            <td className="border border-black p-1 text-center font-bold {profit >= 0 ? 'text-green-600' : 'text-red-600'}">
-                              {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
+                            <td className="border border-black p-1 text-center">{inputMoney.toLocaleString()}</td>
+                            <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {profit >= 0 ? '+' : ''}{profit.toLocaleString()}
                             </td>
                           </tr>
                         )
@@ -851,26 +858,32 @@ export function PoultryProcessing() {
                           totalPoultryMeatOutput: 0,
                           totalPoultryMeatActualOutput: 0,
                           processingEfficiency: 0,
+                          avgLivePoultryPrice: 60000,
+                          avgPoultryMeatPrice: 150000,
                           totalRevenue: 0,
                           poultryCost: 0,
                           otherCosts: 0,
-                          netProfit: 0,
-                          totalWholeChickenOutput: 0
+                          netProfit: 0
                         }
-                        const meatKg = m.totalPoultryMeatActualOutput || 0
-                        const meatMoney = (meatKg * 150000) / 1000
+                        
+                        // Thịt gia cầm thu (kg)
+                        const meatKg = m.totalPoultryMeatOutput || 0
+                        // Thành tiền (1.000đ)
+                        const meatMoney = Math.round((meatKg * (m.avgPoultryMeatPrice || 150000)) / 1000)
+                        // Chi phí gia cầm sống
                         const inputKg = m.totalLivePoultryInput || 0
-                        const inputMoney = (inputKg * 60000) / 1000
+                        const inputMoney = Math.round((inputKg * (m.avgLivePoultryPrice || 60000)) / 1000)
                         const profit = meatMoney - inputMoney
+
                         return (
                           <tr key={monthNum}>
                             <td className="border border-black p-2 text-center font-medium">{m.month}</td>
                             <td className="border border-black p-1 text-center">{meatKg}</td>
-                            <td className="border border-black p-1 text-center">{meatMoney.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center">{meatMoney.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{inputKg}</td>
-                            <td className="border border-black p-1 text-center">{inputMoney.toFixed(0)}</td>
-                            <td className="border border-black p-1 text-center font-bold {profit >= 0 ? 'text-green-600' : 'text-red-600'}">
-                              {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
+                            <td className="border border-black p-1 text-center">{inputMoney.toLocaleString()}</td>
+                            <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {profit >= 0 ? '+' : ''}{profit.toLocaleString()}
                             </td>
                           </tr>
                         )
