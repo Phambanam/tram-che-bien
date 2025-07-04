@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -33,12 +32,12 @@ interface DailyPoultryProcessing {
 interface WeeklyPoultryTracking {
   date: string
   dayOfWeek: string
-  livePoultryInput: number // CHI: số kg gia cầm sống
-  poultryMeatOutput: number // THU: số kg thịt gia cầm
-  poultryMeatActualOutput: number // Số kg thịt gia cầm đã xuất
-  poultryMeatRemaining: number // Số kg thịt gia cầm còn tồn
-  livePoultryPrice: number // Giá gia cầm sống (VND/kg)
-  poultryMeatPrice: number // Giá thịt gia cầm (VND/kg)
+  livePoultryInput: number
+  poultryMeatOutput: number
+  poultryMeatActualOutput: number
+  poultryMeatRemaining: number
+  livePoultryPrice: number
+  poultryMeatPrice: number
   // Financial calculations
   revenue: number // Thu từ thịt gia cầm
   cost: number // Chi gia cầm sống
@@ -163,13 +162,10 @@ export function PoultryProcessing() {
         console.log('🔍 Current Poultry Data Extracted:', currentData)
         
         if (currentData && Object.keys(currentData).length > 0) {
-          // Remove any existing carry over notes before adding new one
-          const cleanedNote = currentData.note?.replace(/\n📦 Chuyển từ.*?kg thịt gia cầm/g, '') || ''
-          
           stationData = {
             livePoultryInput: currentData.livePoultryInput || 0,
             poultryMeatOutput: (currentData.poultryMeatOutput || 0) + carryOverAmount, // Add carry over
-            note: cleanedNote + carryOverNote, // Add new carry over note to cleaned note
+            note: (currentData.note || "") + carryOverNote, // Add carry over note
             livePoultryPrice: currentData.livePoultryPrice || 60000,
             poultryMeatPrice: currentData.poultryMeatPrice || 150000
           }
@@ -228,28 +224,9 @@ export function PoultryProcessing() {
         year: selectedYear
       })
 
-      console.log('🔍 Weekly API Response:', response)
-
-      // Fix nested structure access
-      const dailyData = response?.data?.data?.dailyData || response?.data?.dailyData || []
-      console.log('🔍 Weekly Data Extracted:', dailyData)
-
-      if (Array.isArray(dailyData) && dailyData.length > 0) {
-        // Map API fields directly to our simplified interface
-        const processedData = dailyData.map(day => ({
-          date: day.date,
-          dayOfWeek: day.dayOfWeek,
-          livePoultryInput: day.livePoultryInput || 0,
-          poultryMeatOutput: day.poultryMeatOutput || 0,
-          poultryMeatActualOutput: day.poultryMeatActualOutput || 0,
-          poultryMeatRemaining: Math.max(0, (day.poultryMeatOutput || 0) - (day.poultryMeatActualOutput || 0)),
-          livePoultryPrice: day.livePoultryPrice || 60000,
-          poultryMeatPrice: day.poultryMeatPrice || 150000
-        }))
-        console.log('🔍 Weekly Data Processed:', processedData)
-        setWeeklyPoultryTracking(processedData)
+      if (response.success && response.data && response.data.dailyData) {
+        setWeeklyPoultryTracking(response.data.dailyData)
       } else {
-        console.log('❌ No valid weekly data found')
         setWeeklyPoultryTracking([])
       }
     } catch (error) {
@@ -272,27 +249,9 @@ export function PoultryProcessing() {
         monthCount: 6
       })
 
-      console.log('🔍 Monthly API Response:', response)
-
-      // Fix nested structure access
-      const monthlyData = response?.data?.data?.monthlySummaries || response?.data?.monthlySummaries || []
-      console.log('🔍 Monthly Data Extracted:', monthlyData)
-
-      if (Array.isArray(monthlyData) && monthlyData.length > 0) {
-        // Make sure all required fields are present
-        const processedData = monthlyData.map(month => ({
-          ...month,
-          totalPoultryMeatOutput: month.totalPoultryMeatOutput || 0,
-          totalPoultryMeatActualOutput: month.totalPoultryMeatActualOutput || 0,
-          totalLivePoultryInput: month.totalLivePoultryInput || 0,
-          totalRevenue: month.totalRevenue || 0,
-          poultryCost: month.poultryCost || 0,
-          otherCosts: 0 // Set otherCosts to 0 as requested
-        }))
-        console.log('🔍 Monthly Data Processed:', processedData)
-        setMonthlyPoultrySummary(processedData)
+      if (response.success && response.data && response.data.monthlySummaries) {
+        setMonthlyPoultrySummary(response.data.monthlySummaries)
       } else {
-        console.log('❌ No valid monthly data found')
         setMonthlyPoultrySummary([])
       }
     } catch (error) {
@@ -738,116 +697,73 @@ export function PoultryProcessing() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <Table className="border">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead rowSpan={3} className="text-center align-middle border">NGÀY</TableHead>
-                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
-                      <TableHead colSpan={2} className="text-center border">THU</TableHead>  
-                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
-                      <TableHead colSpan={2} className="text-center border">CHI</TableHead>
-                      <TableHead rowSpan={3} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
-                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead className="text-center border">Thịt gia cầm<br/>Số lượng (kg)</TableHead>
-                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border">Gia cầm sống<br/>Số lượng (kg)</TableHead>
-                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {weeklyPoultryTracking && weeklyPoultryTracking.length > 0 ? (
-                      weeklyPoultryTracking.map((day) => {
-                        const poultryMeatOutput = Number(day.poultryMeatActualOutput) || 0
-                        const poultryMeatPrice = Number(day.poultryMeatPrice) || 150000
-                        const poultryMeatRevenue = (poultryMeatOutput * poultryMeatPrice) / 1000
-                        const totalRevenue = isNaN(poultryMeatRevenue) ? 0 : poultryMeatRevenue
-                        const livePoultryInput = Number(day.livePoultryInput) || 0
-                        const livePoultryPrice = Number(day.livePoultryPrice) || 60000
-                        const livePoultryCost = (livePoultryInput * livePoultryPrice) / 1000
-                        const totalCost = isNaN(livePoultryCost) ? 0 : livePoultryCost
-                        const otherCosts = Math.round(livePoultryInput * 0.5)
-                        const profit = totalRevenue - totalCost - otherCosts
+                <table className="w-full border-2 border-black">
+                  <thead>
+                    <tr>
+                      <th rowSpan={2} className="border border-black p-2 bg-gray-100 font-bold">NGÀY</th>
+                      <th colSpan={2} className="border border-black p-2 bg-blue-100 font-bold">THU</th>
+                      <th colSpan={2} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                      <th rowSpan={2} className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)</th>
+                    </tr>
+                    <tr>
+                      <th className="border border-black p-1 bg-blue-50 text-sm">Thịt gia cầm<br/>(kg)</th>
+                      <th className="border border-black p-1 bg-blue-50 text-sm">Thành Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-1 bg-red-50 text-sm">Gia cầm sống<br/>(kg)</th>
+                      <th className="border border-black p-1 bg-red-50 text-sm">Thành Tiền<br/>(1.000đ)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Generate 7 days for the selected week */}
+                    {(() => {
+                      // Helper to get all days in week (Mon-Sun)
+                      const getWeekDates = (week: number, year: number) => {
+                        const simple = new Date(year, 0, 1 + (week - 1) * 7)
+                        const dow = simple.getDay()
+                        const monday = new Date(simple)
+                        monday.setDate(simple.getDate() - ((dow + 6) % 7))
+                        return Array.from({ length: 7 }, (_, i) => {
+                          const d = new Date(monday)
+                          d.setDate(monday.getDate() + i)
+                          return d
+                        })
+                      }
+                      const weekDates = getWeekDates(selectedWeek, selectedYear)
+                      // Map backend data by date string
+                      const dataByDate = Object.fromEntries(
+                        weeklyPoultryTracking.map(day => [format(new Date(day.date), "yyyy-MM-dd"), day])
+                      )
+                      return weekDates.map((date, idx) => {
+                        const dateStr = format(date, "yyyy-MM-dd")
+                        const dayData = dataByDate[dateStr] || {
+                          date: dateStr,
+                          livePoultryInput: 0,
+                          poultryMeatOutput: 0,
+                          poultryMeatActualOutput: 0,
+                          poultryMeatRemaining: 0,
+                          livePoultryPrice: 60000,
+                          poultryMeatPrice: 150000
+                        }
+                        const meatKg = dayData.poultryMeatOutput || 0
+                        const meatMoney = (meatKg * (dayData.poultryMeatPrice || 0)) / 1000
+                        const inputKg = dayData.livePoultryInput || 0
+                        const inputMoney = (inputKg * (dayData.livePoultryPrice || 0)) / 1000
+                        const profit = meatMoney - inputMoney
                         return (
-                          <TableRow key={day.date} className="border-b">
-                            <TableCell className="text-center border-r font-medium">{format(new Date(day.date), "dd/MM")}</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-blue-700">{totalRevenue.toFixed(0)}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatRevenue.toFixed(0)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">0</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-red-700">{totalCost.toFixed(0)}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryInput}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryCost.toFixed(0)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">{otherCosts.toFixed(0)}</TableCell>
-                            <TableCell className="text-center font-semibold">
-                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                                {profit >= 0 ? "+" : ""}{isNaN(profit) ? 0 : profit.toFixed(0)}
-                              </span>
-                            </TableCell>
-                          </TableRow>
+                          <tr key={dateStr}>
+                            <td className="border border-black p-2 text-center font-medium">{format(date, "dd/MM")}</td>
+                            <td className="border border-black p-1 text-center">{meatKg}</td>
+                            <td className="border border-black p-1 text-center">{meatMoney.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center">{inputKg}</td>
+                            <td className="border border-black p-1 text-center">{inputMoney.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center font-bold {profit >= 0 ? 'text-green-600' : 'text-red-600'}">
+                              {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
+                            </td>
+                          </tr>
                         )
                       })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={10} className="text-center text-gray-500 py-8">
-                          Không có dữ liệu cho tuần đã chọn
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    
-                    {/* Tổng cộng */}
-                    {weeklyPoultryTracking && weeklyPoultryTracking.length > 0 && (
-                      <TableRow className="bg-gradient-to-r from-gray-100 to-gray-200 font-semibold border-t-2">
-                        <TableCell className="text-center border font-bold">📊 Tổng cộng</TableCell>
-                        {/* TỔNG THU */}
-                        <TableCell className="text-center border font-bold text-blue-700">
-                          {weeklyPoultryTracking.reduce((sum, day) => {
-                            const poultryMeatRevenue = Math.round((day.poultryMeatOutput * (day.poultryMeatPrice || 0)) / 1000)
-                            return sum + poultryMeatRevenue
-                          }, 0).toFixed(0)}
-                        </TableCell>
-                        {/* THU - Thịt gia cầm */}
-                        <TableCell className="text-center border font-bold">
-                          {weeklyPoultryTracking.reduce((sum, day) => sum + day.poultryMeatOutput, 0)}
-                        </TableCell>
-                        <TableCell className="text-center border font-bold">
-                          {weeklyPoultryTracking.reduce((sum, day) => sum + Math.round((day.poultryMeatOutput * (day.poultryMeatPrice || 0)) / 1000), 0).toFixed(0)}
-                        </TableCell>
-                        {/* TỔNG CHI */}
-                        <TableCell className="text-center border font-bold text-red-700">
-                          {weeklyPoultryTracking.reduce((sum, day) => sum + Math.round((day.livePoultryInput * (day.livePoultryPrice || 0)) / 1000), 0).toFixed(0)}
-                        </TableCell>
-                        {/* CHI - Gia cầm sống */}
-                        <TableCell className="text-center border font-bold">
-                          {weeklyPoultryTracking.reduce((sum, day) => sum + day.livePoultryInput, 0)}
-                        </TableCell>
-                        <TableCell className="text-center border font-bold">
-                          {weeklyPoultryTracking.reduce((sum, day) => sum + Math.round((day.livePoultryInput * (day.livePoultryPrice || 0)) / 1000), 0).toFixed(0)}
-                        </TableCell>
-                        {/* THU-CHI (LÃI) */}
-                        <TableCell className="text-center border font-bold">
-                          {(() => {
-                            const totalRevenue = weeklyPoultryTracking.reduce((sum, day) => {
-                              const poultryMeatRevenue = Math.round((day.poultryMeatOutput * (day.poultryMeatPrice || 0)) / 1000)
-                              return sum + poultryMeatRevenue
-                            }, 0)
-                            const totalCost = weeklyPoultryTracking.reduce((sum, day) => sum + Math.round((day.livePoultryInput * (day.livePoultryPrice || 0)) / 1000), 0)
-                            const profit = totalRevenue - totalCost
-                            return (
-                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                                {profit >= 0 ? "+" : ""}{profit.toFixed(0)}
-                              </span>
-                            )
-                          })()}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -901,110 +817,57 @@ export function PoultryProcessing() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <Table className="border">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead rowSpan={3} className="text-center align-middle border">THÁNG</TableHead>
-                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG THU<br/>(1.000đ)</TableHead>
-                      <TableHead colSpan={2} className="text-center border">THU</TableHead>  
-                      <TableHead rowSpan={3} className="text-center align-middle border">TỔNG CHI<br/>(1.000đ)</TableHead>
-                      <TableHead colSpan={2} className="text-center border">CHI</TableHead>
-                      <TableHead rowSpan={3} className="text-center align-middle border">THU-CHI<br/>(LÃI)<br/>(1.000đ)</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
-                      <TableHead colSpan={2} className="text-center border">TRONG ĐÓ</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead className="text-center border">Thịt gia cầm<br/>Số lượng (kg)</TableHead>
-                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border">Gia cầm sống<br/>Số lượng (kg)</TableHead>
-                      <TableHead className="text-center border">Thành Tiền<br/>(1.000đ)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {monthlyPoultrySummary && monthlyPoultrySummary.length > 0 ? (
-                      monthlyPoultrySummary.map((month) => {
-                        const poultryMeatPrice = 150000
-                        const livePoultryPrice = 60000
-                        const poultryMeatOutput = Number(month.totalPoultryMeatActualOutput) || 0
-                        const poultryMeatRevenue = (poultryMeatOutput * poultryMeatPrice) / 1000
-                        const totalRevenue = isNaN(poultryMeatRevenue) ? 0 : poultryMeatRevenue
-                        const livePoultryInput = Number(month.totalLivePoultryInput) || 0
-                        const livePoultryCost = (livePoultryInput * livePoultryPrice) / 1000
-                        const totalCost = isNaN(livePoultryCost) ? 0 : livePoultryCost
-                        const otherCosts = Math.round(livePoultryInput * 0.5)
-                        const profit = totalRevenue - totalCost - otherCosts
+                <table className="w-full border-2 border-black">
+                  <thead>
+                    <tr>
+                      <th className="border border-black p-2 bg-gray-100 font-bold">THÁNG</th>
+                      <th className="border border-black p-2 bg-blue-100 font-bold">THU<br/>(Thịt gia cầm kg)</th>
+                      <th className="border border-black p-2 bg-blue-50 font-bold">Thành Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-2 bg-red-100 font-bold">CHI<br/>(Gia cầm sống kg)</th>
+                      <th className="border border-black p-2 bg-red-50 font-bold">Thành Tiền<br/>(1.000đ)</th>
+                      <th className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Hiển thị 12 tháng trong năm, nếu thiếu thì dòng 0 */}
+                    {(() => {
+                      const months = Array.from({ length: 12 }, (_, i) => i + 1)
+                      const dataByMonth = Object.fromEntries(
+                        monthlyPoultrySummary.map(m => [m.monthNumber, m])
+                      )
+                      return months.map(monthNum => {
+                        const m = dataByMonth[monthNum] || {
+                          month: `${monthNum}/${selectedMonthYear}`,
+                          totalLivePoultryInput: 0,
+                          totalPoultryMeatOutput: 0,
+                          totalPoultryMeatActualOutput: 0,
+                          processingEfficiency: 0,
+                          totalRevenue: 0,
+                          poultryCost: 0,
+                          otherCosts: 0,
+                          netProfit: 0
+                        }
+                        const meatKg = m.totalPoultryMeatActualOutput || 0
+                        const meatMoney = (meatKg * 150000) / 1000
+                        const inputKg = m.totalLivePoultryInput || 0
+                        const inputMoney = (inputKg * 60000) / 1000
+                        const profit = meatMoney - inputMoney
                         return (
-                          <TableRow key={month.month} className="border-b">
-                            <TableCell className="text-center border-r font-medium">{month.month}</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-blue-700">{totalRevenue.toFixed(0)}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatRevenue.toFixed(0)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">0</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-red-700">{totalCost.toFixed(0)}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryInput}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryCost.toFixed(0)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">{otherCosts.toFixed(0)}</TableCell>
-                            <TableCell className="text-center font-semibold">
-                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                                {profit >= 0 ? "+" : ""}{isNaN(profit) ? 0 : profit.toFixed(0)}
-                              </span>
-                            </TableCell>
-                          </TableRow>
+                          <tr key={monthNum}>
+                            <td className="border border-black p-2 text-center font-medium">{m.month}</td>
+                            <td className="border border-black p-1 text-center">{meatKg}</td>
+                            <td className="border border-black p-1 text-center">{meatMoney.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center">{inputKg}</td>
+                            <td className="border border-black p-1 text-center">{inputMoney.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center font-bold {profit >= 0 ? 'text-green-600' : 'text-red-600'}">
+                              {profit >= 0 ? '+' : ''}{profit.toFixed(0)}
+                            </td>
+                          </tr>
                         )
                       })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={10} className="text-center text-gray-500 py-8">
-                          Không có dữ liệu cho tháng đã chọn
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    
-                    {/* Tổng cộng */}
-                    {monthlyPoultrySummary && monthlyPoultrySummary.length > 0 && (
-                      <TableRow className="bg-gradient-to-r from-gray-100 to-gray-200 font-semibold border-t-2">
-                        <TableCell className="text-center border font-bold">📊 Tổng cộng</TableCell>
-                        {/* TỔNG THU */}
-                        <TableCell className="text-center border font-bold text-blue-700">
-                          {monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.totalRevenue / 1000), 0)}
-                        </TableCell>
-                        {/* THU - Thịt gia cầm */}
-                        <TableCell className="text-center border font-bold">
-                          {monthlyPoultrySummary.reduce((sum, month) => sum + month.totalPoultryMeatOutput, 0)}
-                        </TableCell>
-                        <TableCell className="text-center border font-bold">
-                          {monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.totalRevenue / 1000), 0)}
-                        </TableCell>
-                        {/* TỔNG CHI */}
-                        <TableCell className="text-center border font-bold text-red-700">
-                          {monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.poultryCost / 1000), 0)}
-                        </TableCell>
-                        {/* CHI - Gia cầm sống */}
-                        <TableCell className="text-center border font-bold">
-                          {monthlyPoultrySummary.reduce((sum, month) => sum + month.totalLivePoultryInput, 0)}
-                        </TableCell>
-                        <TableCell className="text-center border font-bold">
-                          {monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.poultryCost / 1000), 0)}
-                        </TableCell>
-                        {/* THU-CHI (LÃI) */}
-                        <TableCell className="text-center border font-bold">
-                          {(() => {
-                            const totalRevenue = monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.totalRevenue / 1000), 0)
-                            const totalCost = monthlyPoultrySummary.reduce((sum, month) => sum + Math.round(month.poultryCost / 1000), 0)
-                            const profit = totalRevenue - totalCost
-                            return (
-                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                                {profit >= 0 ? "+" : ""}{profit}
-                              </span>
-                            )
-                          })()}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -1012,4 +875,4 @@ export function PoultryProcessing() {
       </Tabs>
     </div>
   )
-}
+} 
