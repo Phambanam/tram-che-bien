@@ -30,7 +30,6 @@ import unitPersonnelDailyRoutes from "./routes/unit-personnel-daily.routes"
 import tofuCalculationRoutes from "./routes/tofu-calculation.routes"
 import saltCalculationRoutes from "./routes/salt-calculation.routes"
 import beanSproutsCalculationRoutes from "./routes/bean-sprouts-calculation.routes"
-import poultryProcessingRoutes from "./routes/poultry-processing.routes"
 
 // Load environment variables
 dotenv.config()
@@ -91,7 +90,6 @@ app.use("/api/unit-personnel-daily", unitPersonnelDailyRoutes)
 app.use("/api/tofu-calculation", tofuCalculationRoutes)
 app.use("/api/salt-calculation", saltCalculationRoutes)
 app.use("/api/bean-sprouts-calculation", beanSproutsCalculationRoutes)
-app.use("/api/poultry-processing", poultryProcessingRoutes)
 // routes
 app.use("/api/upload", uploadRoutes)
 

@@ -2,28 +2,19 @@ import type { Request, Response, NextFunction } from "express"
 
 export class AppError extends Error {
   statusCode: number
-  status: string
   isOperational: boolean
 
   constructor(message: string, statusCode: number) {
     super(message)
     this.statusCode = statusCode
-    this.status = `${statusCode}`.startsWith("4") ? "fail" : "error"
     this.isOperational = true
 
     Error.captureStackTrace(this, this.constructor)
   }
 }
 
-export const notFound = (req: Request, res: Response, next: NextFunction) => {
-  const error = new Error(`Not Found - ${req.originalUrl}`)
-  res.status(404)
-  next(error)
-}
-
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  err.statusCode = err.statusCode || 500
-  err.status = err.status || "error"
+export const errorHandler = (err: Error | AppError, req: Request, res: Response, next: NextFunction) => {
+  console.error("Error:", err)
 
   // Default error
   let statusCode = 500
