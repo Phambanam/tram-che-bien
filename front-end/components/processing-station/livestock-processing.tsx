@@ -1238,7 +1238,7 @@ export function LivestockProcessing() {
                   <TableBody>
                     {weeklyLivestockTracking && weeklyLivestockTracking.length > 0 ? (
                       weeklyLivestockTracking.map((day) => {
-                        // Calculate totals
+                        // SỬA: Tính lãi dựa trên lượng sản xuất (output) thay vì lượng thực tế xuất (actualOutput)
                         const groundMeatRevenue = (day.groundMeatOutput * day.groundMeatPrice) / 1000
                         const leanMeatRevenue = (day.leanMeatOutput * day.leanMeatPrice) / 1000
                         const boneRevenue = (day.boneOutput * day.bonePrice) / 1000
@@ -1246,6 +1246,7 @@ export function LivestockProcessing() {
                         const totalRevenue = groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
                         const livestockCost = (day.liveAnimalsInput * day.liveAnimalPrice) / 1000
                         const totalCost = livestockCost
+                        // Lãi = Thu từ lượng sản xuất - Chi (không tính actualOutput)
                         const profit = totalRevenue - totalCost
 
                         return (
@@ -1447,13 +1448,14 @@ export function LivestockProcessing() {
                   <TableBody>
                     {monthlyLivestockSummary && monthlyLivestockSummary.length > 0 ? (
                       monthlyLivestockSummary.map((month) => {
-                        // Calculate revenue breakdown (thousands VND)
+                        // SỬA: Tính lãi dựa trên lượng sản xuất (totalOutput) thay vì lượng thực tế xuất (totalActualOutput)
                         const groundMeatRevenue = Math.round((month.totalGroundMeatOutput * 80000) / 1000) // 80k per kg
                         const leanMeatRevenue = Math.round((month.totalLeanMeatOutput * 120000) / 1000) // 120k per kg
                         const boneRevenue = Math.round((month.totalBoneOutput * 30000) / 1000) // 30k per kg
                         const organsRevenue = Math.round((month.totalOrgansOutput * 50000) / 1000) // 50k per kg
                         const totalRevenue = groundMeatRevenue + leanMeatRevenue + boneRevenue + organsRevenue
                         const totalCost = Math.round((month.livestockCost) / 1000)
+                        // Lãi = Thu từ lượng sản xuất - Chi (không tính actualOutput)
                         const profit = totalRevenue - totalCost
                         
                         return (
