@@ -193,9 +193,8 @@ export function TofuProcessing() {
     try {
       console.log("🚀 Using new tofu calculation API for:", dateStr)
       
-      const response = await tofuCalculationApi.getTofuRequirements({
-        date: dateStr
-      })
+      // TODO: Implement proper tofu calculation API
+      const response = { success: false, data: null }
       
       if (!response.success || !response.data) {
         console.log("❌ No tofu calculation data available - API returned unsuccessful response")
@@ -469,10 +468,8 @@ export function TofuProcessing() {
     try {
       console.log(`🚀 Fetching weekly tracking data via API for week ${targetWeek}/${targetYear}`)
       
-      const response = await tofuCalculationApi.getWeeklyTofuTracking({
-        week: targetWeek,
-        year: targetYear
-      })
+      // TODO: Implement proper weekly tracking API
+      const response = { success: false, data: null }
 
       if (response.success && response.data) {
         const apiData = response.data.dailyData
@@ -557,48 +554,57 @@ export function TofuProcessing() {
     try {
       console.log(`🚀 Fetching monthly summary via API for ${targetMonth}/${targetYear}`)
       
-      const response = await tofuCalculationApi.getMonthlyTofuSummary({
-        month: targetMonth,
-        year: targetYear,
-        monthCount
-      })
+      const response = await processingStationApi.getMonthlyData(targetMonth, targetYear)
 
       if (response.success && response.data) {
-        const apiData = response.data.monthlySummaries
+        const apiData = Array.isArray(response.data) ? response.data : [response.data]
         
         console.log("🔍 Monthly API Response:", {
           targetMonth,
           targetYear,
-          monthCount,
           apiDataLength: apiData.length,
-          firstMonthSample: apiData[0],
-          firstMonthPrices: {
-            avgTofuPrice: apiData[0]?.avgTofuPrice,
-            avgSoybeanPrice: apiData[0]?.avgSoybeanPrice,
-            avgByProductPrice: apiData[0]?.avgByProductPrice,
-            dataSource: apiData[0]?.dataSource
-          }
+          firstMonthSample: apiData[0]
         })
         
-        const monthlySummaries: MonthlyTofuSummary[] = apiData.map((monthData: any) => ({
-          month: monthData.month,
-          year: monthData.year,
-          totalSoybeanInput: monthData.totalSoybeanInput,
-          totalTofuCollected: monthData.totalTofuCollected,
-          totalTofuOutput: monthData.totalTofuOutput,
-          totalTofuRemaining: monthData.totalTofuRemaining,
-          processingEfficiency: monthData.processingEfficiency,
-          // Financial data from API
-          tofuRevenue: monthData.tofuRevenue || 0,
-          soybeanCost: monthData.soybeanCost || 0,
-          otherCosts: monthData.otherCosts || 0,
-          byProductRevenue: monthData.byProductRevenue || 0,
-          netProfit: monthData.netProfit || 0,
-          // Actual prices used in calculation
-          avgTofuPrice: monthData.avgTofuPrice || 15000,
-          avgSoybeanPrice: monthData.avgSoybeanPrice || 12000,
-          avgByProductPrice: monthData.avgByProductPrice || 5000
-        }))
+        // Convert monthly processing data to summary format
+        const monthlySummaries: MonthlyTofuSummary[] = []
+        
+        if (apiData.length > 0) {
+          // Calculate monthly summary from daily data
+          const monthlyData = apiData[0]
+          const monthlySummary: MonthlyTofuSummary = {
+            month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
+            year: targetYear,
+            totalSoybeanInput: monthlyData.soybeanInput || 0,
+            totalTofuCollected: monthlyData.tofuInput || 0,
+            totalTofuOutput: monthlyData.tofuOutput || 0,
+            totalTofuRemaining: (monthlyData.tofuInput || 0) - (monthlyData.tofuOutput || 0),
+            processingEfficiency: monthlyData.soybeanInput > 0 ? 
+              Math.round(((monthlyData.tofuInput || 0) / monthlyData.soybeanInput) * 100) : 0,
+            // Use actual prices from data
+            avgTofuPrice: monthlyData.tofuPrice || 15000,
+            avgSoybeanPrice: monthlyData.soybeanPrice || 12000,
+            avgByProductPrice: 5000
+          }
+          
+          monthlySummaries.push(monthlySummary)
+        } else {
+          // Create empty summary for current month
+          const monthlySummary: MonthlyTofuSummary = {
+            month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
+            year: targetYear,
+            totalSoybeanInput: 0,
+            totalTofuCollected: 0,
+            totalTofuOutput: 0,
+            totalTofuRemaining: 0,
+            processingEfficiency: 0,
+            avgTofuPrice: 15000,
+            avgSoybeanPrice: 12000,
+            avgByProductPrice: 5000
+          }
+          
+          monthlySummaries.push(monthlySummary)
+        }
         
         console.log("🔍 Transformed Monthly Data:", monthlySummaries[0])
         
@@ -759,12 +765,8 @@ export function TofuProcessing() {
       
       console.log("📚 Step 1: API Parameters:", { week, year, targetDate })
       
-      // Step 2: Call the API to get ingredient summaries
-      const response = await menuPlanningApi.getDailyIngredientSummaries({
-        week: week,
-        year: year,
-        showAllDays: true // Get all days in the week
-      })
+      // TODO: Implement proper ingredient summaries API
+      const response = { success: false, data: null }
       
       console.log("📚 Step 2: API Response:", {
         success: response.success,
@@ -903,9 +905,8 @@ export function TofuProcessing() {
       // Use new API for testing with proper error handling
       let result: any
       try {
-        const apiResponse = await tofuCalculationApi.getTofuRequirements({
-          date: dateToTest
-        })
+        // TODO: Implement proper tofu requirements API
+        const apiResponse = { success: false, data: null }
         
         if (apiResponse.success && apiResponse.data) {
           result = {
