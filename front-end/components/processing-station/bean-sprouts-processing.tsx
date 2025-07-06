@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sprout, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -100,10 +101,7 @@ export function BeanSproutsProcessing() {
   const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isTestingDetection, setIsTestingDetection] = useState(false)
 
-  // Helper function to get current week of year using date-fns
-  const getCurrentWeekOfYear = (date: Date = new Date()) => {
-    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
-  }
+  // Note: using imported getCurrentWeekOfYear from date-utils helper
 
   // Filter states
   const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
@@ -114,28 +112,7 @@ export function BeanSproutsProcessing() {
   const { toast } = useToast()
   const { user } = useAuth()
 
-  // Get current week dates
-  const getCurrentWeekDates = () => {
-    const today = new Date()
-    const currentDay = today.getDay()
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1))
-    
-    const weekDates = []
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(monday)
-      date.setDate(monday.getDate() + i)
-      weekDates.push(date)
-    }
-    
-    return weekDates
-  }
-
-  // Get day name in Vietnamese
-  const getDayName = (dayIndex: number) => {
-    const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
-    return days[dayIndex]
-  }
+  // Note: using imported getCurrentWeekDates and getDayName from date-utils helper
 
   // Fetch prices from supply management
   const fetchPricesFromSupply = async (date: string) => {
@@ -437,11 +414,11 @@ export function BeanSproutsProcessing() {
     try {
       console.log(`🚀 Generating weekly bean sprouts tracking data for week ${targetWeek}/${targetYear}`)
       
-      // Generate sample data for current week since API doesn't exist
-      const weekDates = getCurrentWeekDates()
-      const weeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date) => ({
+      // Generate data for the specific week
+      const weekDates = getWeekDates(targetWeek, targetYear)
+      const weeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date, index) => ({
         date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayName(date.getDay()),
+        dayOfWeek: getDayNameForWeekPosition(index), // Use position-based day name
         soybeansInput: 0,
         beanSproutsInput: 0,
         beanSproutsOutput: 0,
@@ -458,16 +435,17 @@ export function BeanSproutsProcessing() {
       console.log(`✅ Weekly bean sprouts tracking data generated:`, {
         week: targetWeek,
         year: targetYear,
-        totalDays: weeklyData.length
+        totalDays: weeklyData.length,
+        dateRange: `${format(weekDates[0], "dd/MM")} - ${format(weekDates[6], "dd/MM")}`
       })
     } catch (error) {
       console.error("❌ Error fetching weekly bean sprouts tracking data via API:", error)
       
-      // Fallback: Generate sample data for current week
-      const weekDates = getCurrentWeekDates()
-      const sampleWeeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date) => ({
+      // Fallback: Generate sample data for selected week
+      const weekDates = getWeekDates(targetWeek, targetYear)
+      const sampleWeeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date, index) => ({
         date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayName(date.getDay()),
+        dayOfWeek: getDayNameForWeekPosition(index),
         soybeansInput: 0,
         beanSproutsInput: 0,
         beanSproutsOutput: 0,
@@ -661,6 +639,16 @@ export function BeanSproutsProcessing() {
     
     loadData()
   }, [])
+
+  // Update weekly data when week/year selection changes
+  useEffect(() => {
+    fetchWeeklyTracking(selectedWeek, selectedYear)
+  }, [selectedWeek, selectedYear])
+
+  // Update monthly data when month/year selection changes
+  useEffect(() => {
+    fetchMonthlyBeanSproutsSummary(selectedMonth, selectedMonthYear)
+  }, [selectedMonth, selectedMonthYear])
 
   // Test detection with custom date using new API
   const testBeanSproutsDetection = async (targetDate?: string) => {
@@ -1205,7 +1193,7 @@ export function BeanSproutsProcessing() {
                             {isToday && <div className="text-xs text-blue-600 mt-1">(Hôm nay)</div>}
                           </td>
                           <td className="border border-black p-2 text-center font-medium">
-                            {day.dayOfWeek}
+                            {getDayNameForWeekPosition(index)}
                           </td>
                           {/* THU - Giá đỗ */}
                           <td className="border border-black p-1 text-center font-semibold text-green-600">

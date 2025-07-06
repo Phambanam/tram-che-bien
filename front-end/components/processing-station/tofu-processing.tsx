@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Package, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
-import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, unitPersonnelDailyApi } from "@/lib/api-client"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
+import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, tofuCalculationApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Unit } from "@/types"
@@ -101,10 +102,7 @@ export function TofuProcessing() {
   const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isTestingDetection, setIsTestingDetection] = useState(false)
 
-  // Helper function to get current week of year using date-fns
-  const getCurrentWeekOfYear = (date: Date = new Date()) => {
-    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
-  }
+  // Note: using imported getCurrentWeekOfYear from date-utils helper
 
   // Filter states
   const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
@@ -115,28 +113,7 @@ export function TofuProcessing() {
   const { toast } = useToast()
   const { user } = useAuth()
 
-  // Get current week dates
-  const getCurrentWeekDates = () => {
-    const today = new Date()
-    const currentDay = today.getDay()
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1))
-    
-    const weekDates = []
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(monday)
-      date.setDate(monday.getDate() + i)
-      weekDates.push(date)
-    }
-    
-    return weekDates
-  }
-
-  // Get day name in Vietnamese
-  const getDayName = (dayIndex: number) => {
-    const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
-    return days[dayIndex]
-  }
+  // Note: using imported getCurrentWeekDates and getDayName from date-utils helper
 
   // Fetch prices from supply management
   const fetchPricesFromSupply = async (date: string) => {
@@ -497,19 +474,33 @@ export function TofuProcessing() {
       if (response.success && response.data) {
         const apiData = response.data.dailyData
         
-        const weeklyData: WeeklyTofuTracking[] = apiData.map((day: any) => ({
-          date: day.date,
-          dayOfWeek: day.dayOfWeek,
-          soybeanInput: day.soybeanInput,
-          tofuInput: day.tofuInput,
-          tofuOutput: day.tofuOutput,
-          tofuRemaining: day.tofuRemaining,
-          byProductQuantity: day.byProductQuantity || 0,
-          byProductPrice: day.byProductPrice || 5000,
-          soybeanPrice: day.soybeanPrice || 12000,
-          tofuPrice: day.tofuPrice || 15000,
-          otherCosts: day.otherCosts || 0
-        }))
+        // Generate correct week dates first (Monday to Sunday)
+        const weekDates = getWeekDates(targetWeek, targetYear)
+        
+        // Create a map of API data by date
+        const apiDataByDate = Object.fromEntries(
+          apiData.map((day: any) => [day.date, day])
+        )
+        
+        // Map to correct positions based on week dates, not API order
+        const weeklyData: WeeklyTofuTracking[] = weekDates.map((date, index) => {
+          const dateStr = format(date, "yyyy-MM-dd")
+          const dayData = apiDataByDate[dateStr] || {}
+          
+          return {
+            date: dateStr,
+            dayOfWeek: getDayNameForWeekPosition(index), // Now using correct position!
+            soybeanInput: dayData.soybeanInput || 0,
+            tofuInput: dayData.tofuInput || 0,
+            tofuOutput: dayData.tofuOutput || 0,
+            tofuRemaining: dayData.tofuRemaining || 0,
+            byProductQuantity: dayData.byProductQuantity || 0,
+            byProductPrice: dayData.byProductPrice || 5000,
+            soybeanPrice: dayData.soybeanPrice || 12000,
+            tofuPrice: dayData.tofuPrice || 15000,
+            otherCosts: dayData.otherCosts || 0
+          }
+        })
 
         setWeeklyTracking(weeklyData)
         
@@ -525,11 +516,11 @@ export function TofuProcessing() {
     } catch (error: any) {
       console.error("❌ Error fetching weekly tracking data via API:", error)
       
-      // Fallback: Generate sample data for current week
-      const weekDates = getCurrentWeekDates()
-      const sampleWeeklyData: WeeklyTofuTracking[] = weekDates.map((date) => ({
+      // Fallback: Generate sample data for selected week
+      const weekDates = getWeekDates(targetWeek, targetYear)
+      const sampleWeeklyData: WeeklyTofuTracking[] = weekDates.map((date, index) => ({
         date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayName(date.getDay()),
+        dayOfWeek: getDayNameForWeekPosition(index),
         soybeanInput: 0,
         tofuInput: 0,
         tofuOutput: 0,
@@ -751,6 +742,16 @@ export function TofuProcessing() {
     
     loadData()
   }, [])
+
+  // Update weekly data when week/year selection changes
+  useEffect(() => {
+    fetchWeeklyTracking(selectedWeek, selectedYear)
+  }, [selectedWeek, selectedYear])
+
+  // Update monthly data when month/year selection changes
+  useEffect(() => {
+    fetchMonthlyTofuSummary(selectedMonth, selectedMonthYear)
+  }, [selectedMonth, selectedMonthYear])
 
   // EXAMPLE: Comprehensive function demonstrating how to use getDailyIngredientSummaries API
   // This shows the complete flow from API call to tofu detection and calculation
@@ -1458,7 +1459,7 @@ export function TofuProcessing() {
                             {isToday && <div className="text-xs text-blue-600 mt-1">(Hôm nay)</div>}
                           </td>
                           <td className="border border-black p-2 text-center font-medium">
-                            {day.dayOfWeek}
+                            {getDayNameForWeekPosition(index)}
                           </td>
                           {/* THU - Đậu phụ */}
                           <td className="border border-black p-1 text-center font-semibold text-green-600">
