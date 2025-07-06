@@ -2892,7 +2892,13 @@ export const getWeeklyPoultryTracking = async (req: Request, res: Response) => {
         year: yearNum,
         weekDates: weekDates.map(d => d.toISOString().split('T')[0]),
         dailyData: weeklyData,
-        totals: weeklyTotals
+        totals: weeklyTotals,
+        // Add metadata about data availability
+        hasData: daysWithData.length > 0,
+        daysWithData: daysWithData.length,
+        message: daysWithData.length === 0 ? 
+          `Chưa có dữ liệu gia cầm hải sản cho tuần ${weekNum}/${yearNum}. Vui lòng nhập dữ liệu hàng ngày trước.` :
+          `Có ${daysWithData.length}/7 ngày có dữ liệu trong tuần này.`
       }
     })
 
@@ -3005,13 +3011,21 @@ export const getMonthlyPoultrySummary = async (req: Request, res: Response) => {
       }
     }
 
+    const monthsWithData = monthlySummaries.filter(m => m.totalLivePoultryInput > 0 || m.totalPoultryMeatOutput > 0)
+
     res.json({
       success: true,
       data: {
         targetMonth: monthNum,
         targetYear: yearNum,
         monthCount: monthCountNum,
-        monthlySummaries
+        monthlySummaries,
+        // Add metadata about data availability
+        hasData: monthsWithData.length > 0,
+        monthsWithData: monthsWithData.length,
+        message: monthsWithData.length === 0 ? 
+          `Chưa có dữ liệu gia cầm hải sản cho ${monthCountNum} tháng gần đây. Vui lòng nhập dữ liệu hàng ngày trước.` :
+          `Có ${monthsWithData.length}/${monthCountNum} tháng có dữ liệu.`
       }
     })
 
