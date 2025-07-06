@@ -100,18 +100,30 @@ export function RegisterForm() {
     setIsLoading(true)
 
     try {
-      await authApi.register(values)
+      console.log('🚀 Register form submitting:', values)
+      const response = await authApi.register(values)
+      
+      console.log('📋 Register form response:', response)
 
-      toast({
-        title: "Đăng ký thành công",
-        description: "Tài khoản của bạn đang chờ phê duyệt",
-      })
-      router.push("/login")
+      if (response.success) {
+        toast({
+          title: "Đăng ký thành công",
+          description: response.message || "Tài khoản của bạn đang chờ phê duyệt",
+        })
+        router.push("/login")
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Đăng ký thất bại",
+          description: response.message || "Đã xảy ra lỗi khi đăng ký",
+        })
+      }
     } catch (error) {
+      console.error('❌ Register form error:', error)
       toast({
         variant: "destructive",
         title: "Đăng ký thất bại",
-        description: error instanceof Error ? error.message : "Đã xảy ra lỗi khi đăng ký",
+        description: error instanceof Error ? error.message : "Đã xảy ra lỗi không xác định",
       })
     } finally {
       setIsLoading(false)
@@ -247,7 +259,7 @@ export function RegisterForm() {
                 <SelectContent>
                   <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem>
                   <SelectItem value="brigadeAssistant">Trợ lý hậu cần Lữ đoàn</SelectItem>
-                  {/* <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem> */}
+                  <SelectItem value="stationManager">Trạm trưởng</SelectItem>
                   <SelectItem value="commander">Chỉ huy</SelectItem>
                 </SelectContent>
               </Select>

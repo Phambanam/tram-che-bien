@@ -174,6 +174,8 @@ export function UsersTable() {
         return "Trợ lý Lữ đoàn"
       case "unitAssistant":
         return "Trợ lý hậu cần Tiểu đoàn"
+      case "stationManager":
+        return "Trạm trưởng"
       case "commander":
         return "Chỉ huy"
       default:
@@ -327,6 +329,7 @@ export function UsersTable() {
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="brigadeAssistant">Trợ lý Lữ đoàn</SelectItem>
                   <SelectItem value="unitAssistant">Trợ lý hậu cần Tiểu đoàn</SelectItem>
+                  <SelectItem value="stationManager">Trạm trưởng</SelectItem>
                   <SelectItem value="commander">Chỉ huy</SelectItem>
                 </SelectContent>
               </Select>

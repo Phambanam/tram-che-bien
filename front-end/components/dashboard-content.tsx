@@ -12,6 +12,13 @@ import { contentApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 
+interface UploadedImage {
+  id: string
+  url: string
+  name: string
+  uploadedAt: string
+}
+
 interface Article {
   id: string
   title: string
@@ -19,6 +26,7 @@ interface Article {
   type: "article" | "image" | "video"
   imageUrl?: string
   videoUrl?: string
+  images?: UploadedImage[]
   author: string
   createdAt: string
   status: "published" | "draft"
@@ -77,6 +85,7 @@ export function DashboardContent() {
             type: item.type,
             imageUrl: item.imageUrl,
             videoUrl: item.videoUrl,
+            images: item.images || [],
             author: item.author || "Unknown Author",
             createdAt: item.createdAt,
             status: "published" as const
@@ -171,6 +180,7 @@ export function DashboardContent() {
             type: item.type,
             imageUrl: item.imageUrl,
             videoUrl: item.videoUrl,
+            images: item.images || [],
             author: item.author || "Unknown Author",
             createdAt: item.createdAt,
             status: "published" as const
@@ -204,6 +214,7 @@ export function DashboardContent() {
             type: item.type,
             imageUrl: item.imageUrl,
             videoUrl: item.videoUrl,
+            images: item.images || [],
             author: item.author || "Unknown Author",
             createdAt: item.createdAt,
             status: "published" as const
@@ -241,6 +252,7 @@ export function DashboardContent() {
             type: item.type,
             imageUrl: item.imageUrl,
             videoUrl: item.videoUrl,
+            images: item.images || [],
             author: item.author || "Unknown Author",
             createdAt: item.createdAt,
             status: "published" as const

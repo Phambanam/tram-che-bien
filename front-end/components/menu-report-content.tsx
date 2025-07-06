@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { CalendarIcon, FileDown, Plus, Printer, Copy, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
+import { CalendarIcon, FileDown, Plus, Printer, Copy, Edit, Trash2, ChevronLeft, ChevronRight, CheckCircle, XCircle } from "lucide-react"
 import { format, addDays, startOfWeek, endOfWeek, getWeek, getYear, parseISO } from "date-fns"
 import { vi } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast"
 import { menusApi, dishesApi, menuPlanningApi } from "@/lib/api-client"
 import { DishTooltip } from "@/components/dish-tooltip"
 import { MultiSelect, Option } from "@/components/ui/multi-select"
+import { useAuth } from "@/components/auth/auth-provider"
 import { 
   exportMenuToExcel, 
   exportIngredientsToExcel, 
@@ -62,7 +63,7 @@ interface DailyMenu {
   id: string
   date: string
   mealCount: number
-  status: "pending" | "approved"
+  status?: "pending" | "approved" | "rejected" // Status for approval workflow
   meals: Meal[]
 }
 
@@ -115,6 +116,9 @@ export function MenuReportContent() {
   const [ingredientSummaries, setIngredientSummaries] = useState<DailyIngredientSummary[]>([])
   const [loadingIngredients, setLoadingIngredients] = useState(false)
   
+  // Auth context
+  const { user } = useAuth()
+  
   // Ingredient tab specific states
   const [selectedIngredientDate, setSelectedIngredientDate] = useState<Date | null>(null)
   const [showAllDays, setShowAllDays] = useState(true)
@@ -137,6 +141,19 @@ export function MenuReportContent() {
   })
   
   const { toast } = useToast()
+
+  // Permission check functions
+  const canCreateEditMenu = () => {
+    return user?.role === "brigadeAssistant" || user?.role === "admin"
+  }
+
+  const canApproveMenu = () => {
+    return user?.role === "commander" || user?.role === "admin"
+  }
+
+  const canViewOnly = () => {
+    return !canCreateEditMenu() && !canApproveMenu()
+  }
 
   // Calculate week start and end dates
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 })
@@ -190,8 +207,30 @@ export function MenuReportContent() {
 
   const loadAvailableDishes = async () => {
     try {
-      const response = await dishesApi.getDishes()
-      console.log("Available dishes loaded:", response)
+      console.log("Attempting to load all dishes...")
+      
+      // Try without any parameters first (this should use backend defaults)
+      // Add cache busting timestamp
+      let response = await dishesApi.getDishes({ t: Date.now() })
+      console.log("No params response:", response)
+      
+      // If that doesn't work, try with explicit large limit
+      if (!response.data || response.data.length < 14) {
+        console.log("Trying with limit 100...")
+        response = await dishesApi.getDishes({ limit: 300 })
+        console.log("Limit 100 response:", response)
+      }
+      
+      // If still not enough, try with even larger limit  
+      if (!response.data || response.data.length < 14) {
+        console.log("Trying with limit 500...")
+        response = await dishesApi.getDishes({ limit: 500 })
+        console.log("Limit 500 response:", response)
+      }
+      
+      console.log("Final response totalCount:", response.totalCount)
+      console.log("Final response data length:", response.data?.length || 0)
+      console.log("Final dishes data:", response.data)
       setAvailableDishes(response.data || [])
     } catch (error) {
       console.error("Error loading dishes:", error)
@@ -474,6 +513,46 @@ export function MenuReportContent() {
     }
   }
 
+  // Approve daily menu
+  const handleApproveMenu = async (dailyMenuId: string) => {
+    try {
+      await menusApi.approveDailyMenu(dailyMenuId)
+      
+      toast({
+        title: "Thành công",
+        description: "Phê duyệt thực đơn thành công",
+      })
+      
+      loadMenuData()
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể phê duyệt thực đơn",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Reject daily menu
+  const handleRejectMenu = async (dailyMenuId: string) => {
+    try {
+      await menusApi.rejectDailyMenu(dailyMenuId)
+      
+      toast({
+        title: "Thành công",
+        description: "Từ chối thực đơn thành công",
+      })
+      
+      loadMenuData()
+    } catch (error: any) {
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể từ chối thực đơn",
+        variant: "destructive",
+      })
+    }
+  }
+
   // Copy menu from one day to another
   const handleCopyMenu = async (sourceDailyMenuId: string, targetDate: string) => {
     try {
@@ -591,6 +670,11 @@ export function MenuReportContent() {
     label: dish.name + (dish.mainLTTP ? ` (${dish.mainLTTP.lttpName})` : ''),
     dish: dish // Store dish object for tooltip
   }))
+  
+  // Debug log for dish options
+  console.log("Available dishes for MultiSelect:", availableDishes.length)
+  console.log("Dish options created:", dishOptions.length)
+  console.log("Dish options:", dishOptions)
 
   // Handle export menu to Excel
   const handleExportMenuToExcel = () => {
@@ -761,9 +845,28 @@ export function MenuReportContent() {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="w-full max-w-full">
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-[#b45f06]">BÁO CÁO THỰC ĐƠN TUẦN</h2>
+
+        {/* User permission info */}
+        {user && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-blue-100">
+                {user.role === "commander" ? "Chỉ huy" :
+                 user.role === "brigadeAssistant" ? "Trợ lý Lữ đoàn" :
+                 user.role === "admin" ? "Quản trị viên" :
+                 "Lực lượng khác"}
+              </Badge>
+              <span className="text-sm text-blue-700">
+                {canApproveMenu() && !canCreateEditMenu() ? "Bạn có quyền phê duyệt thực đơn" :
+                 canCreateEditMenu() ? "Bạn có quyền tạo và chỉnh sửa thực đơn" :
+                 "Bạn chỉ có quyền xem thực đơn"}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
@@ -779,7 +882,7 @@ export function MenuReportContent() {
             </Button>
           </div>
           <div className="flex gap-2">
-            {!currentMenu && (
+            {!currentMenu && canCreateEditMenu() && (
               <Button onClick={() => setIsCreateMenuDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Tạo thực đơn tuần
@@ -816,10 +919,12 @@ export function MenuReportContent() {
                 ) : !currentMenu ? (
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">Chưa có thực đơn cho tuần này</p>
-                    <Button onClick={() => setIsCreateMenuDialogOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Tạo thực đơn tuần
-                    </Button>
+                    {canCreateEditMenu() && (
+                      <Button onClick={() => setIsCreateMenuDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Tạo thực đơn tuần
+                      </Button>
+                    )}
                   </div>
                 ) : (
                 <div className="overflow-x-auto">
@@ -891,18 +996,42 @@ export function MenuReportContent() {
                             </ul>
                           </TableCell>
                           <TableCell>
-                                <Badge variant={dailyMenu.status === "approved" ? "success" : "outline"}>
-                                  {dailyMenu.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
-                            </Badge>
+                            {dailyMenu.status && (
+                              <Badge 
+                                variant={
+                                  dailyMenu.status === "approved" ? "default" : 
+                                  dailyMenu.status === "rejected" ? "destructive" : 
+                                  "secondary"
+                                }
+                              >
+                                {dailyMenu.status === "approved" ? "Đã phê duyệt" :
+                                 dailyMenu.status === "rejected" ? "Đã từ chối" :
+                                 "Chờ phê duyệt"}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="outline" size="sm" onClick={() => setIsCopyMenuDialogOpen(true)}>
-                                <Copy className="h-3.5 w-3.5" />
-                              </Button>
+                              {canCreateEditMenu() && (
+                                <>
+                                  <Button variant="outline" size="sm" onClick={() => setIsCopyMenuDialogOpen(true)}>
+                                    <Copy className="h-3.5 w-3.5" />
+                                  </Button>
                                   <Button variant="outline" size="sm" onClick={() => openAddDishDialog(dailyMenu.id, "morning")}>
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                              {canApproveMenu() && (!dailyMenu.status || dailyMenu.status === "pending") && (
+                                <>
+                                  <Button variant="outline" size="sm" onClick={() => handleApproveMenu(dailyMenu.id)}>
+                                    <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleRejectMenu(dailyMenu.id)}>
+                                    <XCircle className="h-3.5 w-3.5 text-red-600" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -937,10 +1066,12 @@ export function MenuReportContent() {
                 </Popover>
               </div>
               <div className="flex gap-2">
-                <Button className="flex items-center gap-2" onClick={() => openGeneralAddDishDialog()}>
-                  <Plus className="h-4 w-4" />
-                  Thêm món ăn
-                </Button>
+                {canCreateEditMenu() && (
+                  <Button className="flex items-center gap-2" onClick={() => openGeneralAddDishDialog()}>
+                    <Plus className="h-4 w-4" />
+                    Thêm món ăn
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -962,12 +1093,32 @@ export function MenuReportContent() {
                         Thực đơn ngày {format(parseISO(item.date), "dd/MM/yyyy")} ({item.date})
                       </CardTitle>
                       <div className="flex items-center gap-2">
-                        <Badge variant={item.status === "approved" ? "success" : "outline"}>
-                          {item.status === "approved" ? "Đã duyệt" : "Chờ duyệt"}
-                        </Badge>
+                        {item.status && (
+                          <Badge 
+                            variant={
+                              item.status === "approved" ? "default" : 
+                              item.status === "rejected" ? "destructive" : 
+                              "secondary"
+                            }
+                          >
+                            {item.status === "approved" ? "Đã phê duyệt" :
+                             item.status === "rejected" ? "Đã từ chối" :
+                             "Chờ phê duyệt"}
+                          </Badge>
+                        )}
                         <div className="text-sm font-medium">
                           Số người ăn: <span className="font-bold">{item.mealCount}</span>
                         </div>
+                        {canApproveMenu() && (!item.status || item.status === "pending") && (
+                          <div className="flex gap-1">
+                            <Button variant="outline" size="sm" onClick={() => handleApproveMenu(item.id)}>
+                              <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleRejectMenu(item.id)}>
+                              <XCircle className="h-3.5 w-3.5 text-red-600" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -977,9 +1128,11 @@ export function MenuReportContent() {
                         <div key={meal.id} className="space-y-4">
                         <div className="flex justify-between items-center">
                             <h3 className="text-lg font-semibold">{getMealTypeLabel(meal.type)}</h3>
-                            <Button variant="outline" size="sm" onClick={() => openAddDishDialog(item.id, meal.type)}>
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Thêm
-                          </Button>
+                            {canCreateEditMenu() && (
+                              <Button variant="outline" size="sm" onClick={() => openAddDishDialog(item.id, meal.type)}>
+                                <Plus className="h-3.5 w-3.5 mr-1" /> Thêm
+                              </Button>
+                            )}
                         </div>
                         <ul className="space-y-2">
                             {meal.dishes.map((dish, index) => (
@@ -990,9 +1143,11 @@ export function MenuReportContent() {
                                   </span>
                                 </DishTooltip>
                               <div className="flex gap-1">
+                                {canCreateEditMenu() && (
                                   <Button variant="ghost" size="sm" onClick={() => handleRemoveDish(meal.id, dish._id)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
                               </div>
                             </li>
                           ))}
@@ -1011,16 +1166,18 @@ export function MenuReportContent() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-10">
                   <p className="text-gray-500 mb-4">Không có thực đơn cho ngày này</p>
-                  {currentMenu ? (
-                    <Button onClick={() => setIsCreateDailyMenuDialogOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Tạo thực đơn ngày
-                          </Button>
-                  ) : (
-                    <Button onClick={() => setIsCreateMenuDialogOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Tạo thực đơn tuần
-                    </Button>
+                  {canCreateEditMenu() && (
+                    currentMenu ? (
+                      <Button onClick={() => setIsCreateDailyMenuDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Tạo thực đơn ngày
+                      </Button>
+                    ) : (
+                      <Button onClick={() => setIsCreateMenuDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Tạo thực đơn tuần
+                      </Button>
+                    )
                   )}
                 </CardContent>
               </Card>
@@ -1073,7 +1230,7 @@ export function MenuReportContent() {
                     )}
                   </div>
                   
-                  <div className="flex gap-2">
+                  {/* <div className="flex gap-2">
                     <Button variant="outline" className="flex items-center gap-2" onClick={handleExportIngredientsToExcel}>
                       <FileDown className="h-4 w-4" />
                       Xuất danh sách nguyên liệu
@@ -1082,7 +1239,7 @@ export function MenuReportContent() {
                       <Printer className="h-4 w-4" />
                       In danh sách
                                 </Button>
-                              </div>
+                              </div> */}
                       </div>
 
                 {loadingIngredients ? (
@@ -1267,7 +1424,7 @@ export function MenuReportContent() {
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Chọn món ăn từ thư viện" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[200px] overflow-y-auto">
                     {availableDishes.map((dish) => (
                       <SelectItem key={dish._id} value={dish._id}>
                         {dish.name} {dish.mainLTTP && `(${dish.mainLTTP.lttpName})`}
@@ -1546,13 +1703,14 @@ export function MenuReportContent() {
                 <h3 className="text-lg font-semibold">Chọn món ăn cho từng buổi</h3>
                 
                 {/* Morning Meal */}
-                <div className="space-y-3">
+                {/* <div className="space-y-3 max-h-[200px] overflow-y-auto">
                   <div className="flex justify-between items-center">
                     <h4 className="font-medium text-orange-600">🌅 Buổi sáng</h4>
                     <div className="text-xs text-gray-500">
                       Đã chọn: {dailyMenuForm.meals.morning.length} món
                     </div>
                   </div>
+                  
                   <MultiSelect
                     options={dishOptions}
                     selected={dailyMenuForm.meals.morning}
@@ -1560,6 +1718,24 @@ export function MenuReportContent() {
                     placeholder="Chọn món ăn cho buổi sáng..."
                     className="max-w-full"
                   />
+                </div> */}
+                {/* Morning Meal */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium text-orange-600">🌅 Buổi sáng</h4>
+                    <div className="text-xs text-gray-500">
+                      Đã chọn: {dailyMenuForm.meals.morning.length} món
+                    </div>
+                  </div>
+                  <div className="max-h-[100px] overflow-y-auto">
+                    <MultiSelect
+                      options={dishOptions}
+                      selected={dailyMenuForm.meals.morning}
+                      onChange={(selected) => handleMealDishesChange("morning", selected)}
+                      placeholder="Chọn món ăn cho buổi sáng..."
+                      className="max-w-full max-h-[100px]"
+                    />
+                  </div>
                 </div>
 
                 {/* Noon Meal */}

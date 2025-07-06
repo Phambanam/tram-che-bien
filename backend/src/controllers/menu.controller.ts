@@ -110,7 +110,7 @@ export const getMenuById = async (req: Request, res: Response) => {
         return {
           id: dailyMenu._id.toString(),
           menuId: dailyMenu.menuId.toString(),
-          date: dailyMenu.date.toISOString().split('T')[0],
+          date: dailyMenu.date instanceof Date ? dailyMenu.date.toISOString().split('T')[0] : dailyMenu.date,
           mealCount: dailyMenu.mealCount,
           status: dailyMenu.status,
           meals: meals,
@@ -144,7 +144,7 @@ export const getMenuById = async (req: Request, res: Response) => {
 
 // @desc    Create new menu
 // @route   POST /api/menus
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const createMenu = async (req: Request, res: Response) => {
   try {
     const { week, year, startDate, endDate } = req.body
@@ -195,7 +195,7 @@ export const createMenu = async (req: Request, res: Response) => {
 
 // @desc    Update menu
 // @route   PATCH /api/menus/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const updateMenu = async (req: Request, res: Response) => {
   try {
     const menuId = req.params.id
@@ -270,7 +270,7 @@ export const updateMenu = async (req: Request, res: Response) => {
 
 // @desc    Delete menu
 // @route   DELETE /api/menus/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const deleteMenu = async (req: Request, res: Response) => {
   try {
     const menuId = req.params.id
@@ -324,7 +324,7 @@ export const deleteMenu = async (req: Request, res: Response) => {
 
 // @desc    Create daily menu
 // @route   POST /api/menus/:id/daily-menus
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const createDailyMenu = async (req: Request, res: Response) => {
   try {
     const menuId = req.params.id
@@ -375,7 +375,7 @@ export const createDailyMenu = async (req: Request, res: Response) => {
       menuId: new ObjectId(menuId),
       date: new Date(date),
       mealCount,
-      status: "active",
+      status: "pending", // Default to pending for approval workflow
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -408,7 +408,7 @@ export const createDailyMenu = async (req: Request, res: Response) => {
 
 // @desc    Update daily menu
 // @route   PATCH /api/menus/daily-menus/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const updateDailyMenu = async (req: Request, res: Response) => {
   try {
     const dailyMenuId = req.params.id
@@ -490,7 +490,7 @@ export const updateDailyMenu = async (req: Request, res: Response) => {
 
 // @desc    Delete daily menu
 // @route   DELETE /api/menus/daily-menus/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const deleteDailyMenu = async (req: Request, res: Response) => {
   try {
     const dailyMenuId = req.params.id
@@ -533,7 +533,7 @@ export const deleteDailyMenu = async (req: Request, res: Response) => {
 
 // @desc    Update meal dishes
 // @route   PATCH /api/menus/meals/:id
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const updateMealDishes = async (req: Request, res: Response) => {
   try {
     const mealId = req.params.id
@@ -608,7 +608,7 @@ export const updateMealDishes = async (req: Request, res: Response) => {
 
 // @desc    Add dish to meal
 // @route   POST /api/menus/meals/:id/dishes
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const addDishToMeal = async (req: Request, res: Response) => {
   try {
     const mealId = req.params.id
@@ -711,7 +711,7 @@ export const addDishToMeal = async (req: Request, res: Response) => {
 
 // @desc    Remove dish from meal
 // @route   DELETE /api/menus/meals/:id/dishes/:dishId
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const removeDishFromMeal = async (req: Request, res: Response) => {
   try {
     const mealId = req.params.id
@@ -765,7 +765,7 @@ export const removeDishFromMeal = async (req: Request, res: Response) => {
 
 // @desc    Copy daily menu
 // @route   POST /api/menus/daily-menus/:id/copy
-// @access  Private (Admin only)
+// @access  Private (Brigade Assistant only)
 export const copyDailyMenu = async (req: Request, res: Response) => {
   try {
     const sourceDailyMenuId = req.params.id
@@ -816,7 +816,7 @@ export const copyDailyMenu = async (req: Request, res: Response) => {
       menuId: sourceDailyMenu.menuId,
       date: new Date(targetDate),
       mealCount: mealCount || sourceDailyMenu.mealCount,
-      status: "active",
+      status: "pending", // Default to pending for approval workflow
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -848,6 +848,126 @@ export const copyDailyMenu = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Đã xảy ra lỗi khi sao chép thực đơn ngày"
+    })
+  }
+}
+
+// @desc    Approve daily menu
+// @route   POST /api/menus/daily-menus/:id/approve
+// @access  Private (Commander only)
+export const approveDailyMenu = async (req: Request, res: Response) => {
+  try {
+    const dailyMenuId = req.params.id
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(dailyMenuId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn ngày không hợp lệ"
+      })
+    }
+
+    const db = await getDb()
+
+    // Check if daily menu exists
+    const dailyMenu = await db.collection("dailyMenus").findOne({ _id: new ObjectId(dailyMenuId) })
+    if (!dailyMenu) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
+    }
+
+    // Update daily menu status to approved
+    const result = await db.collection("dailyMenus").updateOne(
+      { _id: new ObjectId(dailyMenuId) },
+      {
+        $set: {
+          status: "approved",
+          approvedBy: req.user?.id,
+          approvedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Phê duyệt thực đơn ngày thành công",
+    })
+  } catch (error) {
+    console.error("Error approving daily menu:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi phê duyệt thực đơn ngày"
+    })
+  }
+}
+
+// @desc    Reject daily menu
+// @route   POST /api/menus/daily-menus/:id/reject
+// @access  Private (Commander only)
+export const rejectDailyMenu = async (req: Request, res: Response) => {
+  try {
+    const dailyMenuId = req.params.id
+    const { reason } = req.body
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(dailyMenuId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID thực đơn ngày không hợp lệ"
+      })
+    }
+
+    const db = await getDb()
+
+    // Check if daily menu exists
+    const dailyMenu = await db.collection("dailyMenus").findOne({ _id: new ObjectId(dailyMenuId) })
+    if (!dailyMenu) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
+    }
+
+    // Update daily menu status to rejected
+    const result = await db.collection("dailyMenus").updateOne(
+      { _id: new ObjectId(dailyMenuId) },
+      {
+        $set: {
+          status: "rejected",
+          rejectedBy: req.user?.id,
+          rejectedAt: new Date(),
+          rejectionReason: reason || "Không có lý do cụ thể",
+          updatedAt: new Date(),
+        },
+      },
+    )
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thực đơn ngày"
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Từ chối thực đơn ngày thành công",
+    })
+  } catch (error) {
+    console.error("Error rejecting daily menu:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi từ chối thực đơn ngày"
     })
   }
 }
