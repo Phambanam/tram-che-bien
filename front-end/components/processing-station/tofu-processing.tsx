@@ -477,19 +477,33 @@ export function TofuProcessing() {
       if (response.success && response.data) {
         const apiData = response.data.dailyData
         
-        const weeklyData: WeeklyTofuTracking[] = apiData.map((day: any, index: number) => ({
-          date: day.date,
-          dayOfWeek: getDayNameForWeekPosition(index), // Use position-based day name instead of API value
-          soybeanInput: day.soybeanInput,
-          tofuInput: day.tofuInput,
-          tofuOutput: day.tofuOutput,
-          tofuRemaining: day.tofuRemaining,
-          byProductQuantity: day.byProductQuantity || 0,
-          byProductPrice: day.byProductPrice || 5000,
-          soybeanPrice: day.soybeanPrice || 12000,
-          tofuPrice: day.tofuPrice || 15000,
-          otherCosts: day.otherCosts || 0
-        }))
+        // Generate correct week dates first (Monday to Sunday)
+        const weekDates = getWeekDates(targetWeek, targetYear)
+        
+        // Create a map of API data by date
+        const apiDataByDate = Object.fromEntries(
+          apiData.map((day: any) => [day.date, day])
+        )
+        
+        // Map to correct positions based on week dates, not API order
+        const weeklyData: WeeklyTofuTracking[] = weekDates.map((date, index) => {
+          const dateStr = format(date, "yyyy-MM-dd")
+          const dayData = apiDataByDate[dateStr] || {}
+          
+          return {
+            date: dateStr,
+            dayOfWeek: getDayNameForWeekPosition(index), // Now using correct position!
+            soybeanInput: dayData.soybeanInput || 0,
+            tofuInput: dayData.tofuInput || 0,
+            tofuOutput: dayData.tofuOutput || 0,
+            tofuRemaining: dayData.tofuRemaining || 0,
+            byProductQuantity: dayData.byProductQuantity || 0,
+            byProductPrice: dayData.byProductPrice || 5000,
+            soybeanPrice: dayData.soybeanPrice || 12000,
+            tofuPrice: dayData.tofuPrice || 15000,
+            otherCosts: dayData.otherCosts || 0
+          }
+        })
 
         setWeeklyTracking(weeklyData)
         
