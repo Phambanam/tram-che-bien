@@ -125,10 +125,11 @@ export function RevenuePlanning() {
         const livestockResponse = await processingStationApi.getDailyLivestockData(date)
         if (livestockResponse.success && livestockResponse.data) {
           const livestockData = livestockResponse.data.data || livestockResponse.data
-          const leanMeatRevenue = (livestockData.leanMeatActualOutput || 0) * (livestockData.leanMeatPrice || 160000)
-          const boneRevenue = (livestockData.boneActualOutput || 0) * (livestockData.bonePrice || 40000)
-          const groundMeatRevenue = (livestockData.groundMeatActualOutput || 0) * (livestockData.groundMeatPrice || 120000)
-          const organsRevenue = (livestockData.organsActualOutput || 0) * (livestockData.organsPrice || 80000)
+          // SỬA: Tính lãi dựa trên lượng sản xuất (output) thay vì lượng thực tế xuất (actualOutput)
+          const leanMeatRevenue = (livestockData.leanMeatOutput || 0) * (livestockData.leanMeatPrice || 160000)
+          const boneRevenue = (livestockData.boneOutput || 0) * (livestockData.bonePrice || 40000)
+          const groundMeatRevenue = (livestockData.groundMeatOutput || 0) * (livestockData.groundMeatPrice || 120000)
+          const organsRevenue = (livestockData.organsOutput || 0) * (livestockData.organsPrice || 80000)
           const livestockCost = (livestockData.liveAnimalsInput || 0) * (livestockData.liveAnimalPrice || 70000)
           dailySummary.livestockProfit = (leanMeatRevenue + boneRevenue + groundMeatRevenue + organsRevenue) - livestockCost
         }
@@ -141,7 +142,8 @@ export function RevenuePlanning() {
         const poultryResponse = await processingStationApi.getDailyPoultryData(date)
         if (poultryResponse.success && poultryResponse.data) {
           const poultryData = poultryResponse.data.data || poultryResponse.data
-          const poultryRevenue = (poultryData.poultryMeatActualOutput || 0) * (poultryData.poultryMeatPrice || 150000)
+          // SỬA: Tính lãi dựa trên lượng sản xuất (output) thay vì lượng thực tế xuất (actualOutput)
+          const poultryRevenue = (poultryData.poultryMeatOutput || 0) * (poultryData.poultryMeatPrice || 150000)
           const poultryCost = (poultryData.livePoultryInput || 0) * (poultryData.livePoultryPrice || 60000)
           dailySummary.poultryProfit = poultryRevenue - poultryCost
         }

@@ -35,15 +35,11 @@ interface WeeklyPoultryTracking {
   livePoultryInput: number
   poultryMeatOutput: number
   poultryMeatActualOutput: number
-  poultryMeatRemaining: number
+  poultryMeatBegin: number
+  poultryMeatEnd: number
   livePoultryPrice: number
   poultryMeatPrice: number
-  // Financial calculations
-  revenue: number // Thu từ thịt gia cầm
-  cost: number // Chi gia cầm sống
-  otherCosts: number // Chi khác
-  totalCost: number // Tổng chi
-  profit: number // Lãi (Thu - Chi)
+  note: string
 }
 
 interface MonthlyPoultrySummary {
@@ -54,6 +50,10 @@ interface MonthlyPoultrySummary {
   totalPoultryMeatOutput: number
   totalPoultryMeatActualOutput: number
   processingEfficiency: number
+  poultryMeatBegin: number
+  poultryMeatEnd: number
+  avgLivePoultryPrice: number
+  avgPoultryMeatPrice: number
   totalRevenue: number
   poultryCost: number
   otherCosts: number
@@ -86,6 +86,9 @@ export function PoultryProcessing() {
     livePoultryPrice: 60000,
     poultryMeatPrice: 150000
   })
+
+  // Lưu carry over amount để tính lãi đúng
+  const [carryOverAmount, setCarryOverAmount] = useState(0)
 
   const [weeklyPoultryTracking, setWeeklyPoultryTracking] = useState<WeeklyPoultryTracking[]>([])
   const [monthlyPoultrySummary, setMonthlyPoultrySummary] = useState<MonthlyPoultrySummary[]>([])
@@ -137,6 +140,7 @@ export function PoultryProcessing() {
           
           // Calculate carry over for poultry meat
           carryOverAmount = Math.max(0, previousPoultryMeatOutput - previousPoultryMeatActualOutput)
+          setCarryOverAmount(carryOverAmount) // Lưu vào state
           
           console.log(`🔍 Carry over calculation: Thịt gia cầm: ${previousPoultryMeatOutput} - ${previousPoultryMeatActualOutput} = ${carryOverAmount}kg`)
           
@@ -148,9 +152,11 @@ export function PoultryProcessing() {
           }
         } else {
           console.log('❌ No previous day data found for carry over')
+          setCarryOverAmount(0) // Không có carry over
         }
       } catch (error) {
         console.log("No poultry carry over data from previous day:", error)
+        setCarryOverAmount(0) // Không có carry over
       }
 
       try {
@@ -224,9 +230,22 @@ export function PoultryProcessing() {
         year: selectedYear
       })
 
+      console.log('Weekly API Response:', response)
+
       if (response.success && response.data && response.data.dailyData) {
+        console.log('Setting weekly data:', response.data.dailyData)
         setWeeklyPoultryTracking(response.data.dailyData)
+        
+        // Show info message if no data
+        if (response.data.hasData === false) {
+          toast({
+            title: "ℹ️ Thông tin",
+            description: response.data.message || "Chưa có dữ liệu cho tuần này",
+            variant: "default"
+          })
+        }
       } else {
+        console.log('No weekly data found')
         setWeeklyPoultryTracking([])
       }
     } catch (error) {
@@ -249,9 +268,22 @@ export function PoultryProcessing() {
         monthCount: 6
       })
 
+      console.log('Monthly API Response:', response)
+
       if (response.success && response.data && response.data.monthlySummaries) {
+        console.log('Setting monthly data:', response.data.monthlySummaries)
         setMonthlyPoultrySummary(response.data.monthlySummaries)
+        
+        // Show info message if no data
+        if (response.data.hasData === false) {
+          toast({
+            title: "ℹ️ Thông tin",
+            description: response.data.message || "Chưa có dữ liệu cho tháng này",
+            variant: "default"
+          })
+        }
       } else {
+        console.log('No monthly data found')
         setMonthlyPoultrySummary([])
       }
     } catch (error) {
@@ -295,6 +327,8 @@ export function PoultryProcessing() {
       await processingStationApi.updateDailyPoultryData(dailyPoultryProcessing.date, {
         livePoultryInput: dailyUpdateData.livePoultryInput,
         poultryMeatOutput: dailyUpdateData.poultryMeatOutput,
+        poultryMeatActualOutput: dailyPoultryProcessing.poultryMeatActualOutput,
+        poultryMeatRemaining: dailyPoultryProcessing.poultryMeatRemaining,
         note: dailyUpdateData.note,
         livePoultryPrice: dailyUpdateData.livePoultryPrice,
         poultryMeatPrice: dailyUpdateData.poultryMeatPrice
@@ -387,7 +421,9 @@ export function PoultryProcessing() {
                             dailyUpdateData.livePoultryPrice || 0 :
                             dailyPoultryProcessing.livePoultryPrice || 0
                           
-                          const currentPoultryMeatOutput = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          // SỬA: Tính lãi chỉ từ lượng sản xuất thực sự trong ngày (trừ carry over)
+                          const currentPoultryMeatOutputTotal = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          const currentPoultryMeatOutputActual = Math.max(0, currentPoultryMeatOutputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                           const currentLivePoultryInput = editingDailyData ? dailyUpdateData.livePoultryInput : dailyPoultryProcessing.livePoultryInput
                           
                           if (currentPoultryMeatPrice === 0 || currentLivePoultryPrice === 0) {
@@ -398,7 +434,8 @@ export function PoultryProcessing() {
                             )
                           }
                           
-                          const revenue = currentPoultryMeatOutput * currentPoultryMeatPrice
+                          // Revenue = Chỉ lượng sản xuất thực sự trong ngày × Giá (không tính carry over)
+                          const revenue = currentPoultryMeatOutputActual * currentPoultryMeatPrice
                           const cost = currentLivePoultryInput * currentLivePoultryPrice
                           const dailyProfit = revenue - cost
                           
@@ -420,11 +457,13 @@ export function PoultryProcessing() {
                             dailyUpdateData.livePoultryPrice || 0 :
                             dailyPoultryProcessing.livePoultryPrice || 0
                           
-                          const currentPoultryMeatOutput = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          // SỬA: Tính revenue chỉ từ lượng sản xuất thực sự (trừ carry over)
+                          const currentPoultryMeatOutputTotal = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          const currentPoultryMeatOutputActual = Math.max(0, currentPoultryMeatOutputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                           const currentLivePoultryInput = editingDailyData ? dailyUpdateData.livePoultryInput : dailyPoultryProcessing.livePoultryInput
                           
                           if (currentPoultryMeatPrice && currentLivePoultryPrice) {
-                            const revenue = currentPoultryMeatOutput * currentPoultryMeatPrice
+                            const revenue = currentPoultryMeatOutputActual * currentPoultryMeatPrice // Chỉ lượng sản xuất thực sự
                             const cost = currentLivePoultryInput * currentLivePoultryPrice
                             return (
                               <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
@@ -696,76 +735,103 @@ export function PoultryProcessing() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Show message if no data */}
+              {weeklyPoultryTracking.every(day => day.livePoultryInput === 0 && day.poultryMeatOutput === 0) && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-700">
+                        <strong>Chưa có dữ liệu cho tuần {selectedWeek}/{selectedYear}</strong>
+                        <br />
+                        Vui lòng nhập dữ liệu chế biến gia cầm hàng ngày trong tab "Theo ngày" trước khi xem thống kê tuần.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
-                <Table className="border">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead rowSpan={3} className="text-center align-middle border-r bg-gray-100">NGÀY</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">THU</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">CHI</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={3} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Thịt gia cầm</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">Chi khác</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">Gia cầm sống</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">Chi khác</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead className="text-center bg-blue-100">TỔNG THU<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-100">TỔNG CHI<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-green-100">(1.000đ)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {weeklyPoultryTracking && weeklyPoultryTracking.length > 0 ? (
-                      weeklyPoultryTracking.map((day) => {
-                        const poultryMeatOutput = day.poultryMeatOutput || 0
-                        const poultryMeatPrice = day.poultryMeatPrice || 0
-                        const poultryMeatRevenue = (poultryMeatOutput * poultryMeatPrice) / 1000
-                        const totalRevenue = isNaN(poultryMeatRevenue) ? 0 : poultryMeatRevenue
-                        const livePoultryInput = day.livePoultryInput || 0
-                        const livePoultryPrice = day.livePoultryPrice || 0
-                        const livePoultryCost = (livePoultryInput * livePoultryPrice) / 1000
-                        const totalCost = isNaN(livePoultryCost) ? 0 : livePoultryCost
-                        const otherCosts = Math.round(livePoultryInput * 0.5)
-                        const profit = totalRevenue - totalCost - otherCosts
+                <table className="w-full border-collapse border border-black">
+                  <thead>
+                    <tr>
+                      <th className="border border-black p-2 text-center">Ngày</th>
+                      <th className="border border-black p-2 text-center">Thịt gia cầm thu (kg)</th>
+                      <th className="border border-black p-2 text-center">Thành tiền (1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Gia cầm sống chi (kg)</th>
+                      <th className="border border-black p-2 text-center">Thành tiền (1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Lãi (1.000đ)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Generate 7 days for the selected week */}
+                    {(() => {
+                      // Helper to get all days in week (Mon-Sun)
+                      const getWeekDates = (week: number, year: number) => {
+                        const simple = new Date(year, 0, 1 + (week - 1) * 7)
+                        const dow = simple.getDay()
+                        const monday = new Date(simple)
+                        monday.setDate(simple.getDate() - ((dow + 6) % 7))
+                        return Array.from({ length: 7 }, (_, i) => {
+                          const d = new Date(monday)
+                          d.setDate(monday.getDate() + i)
+                          return d
+                        })
+                      }
+                      const weekDates = getWeekDates(selectedWeek, selectedYear)
+                      // Map backend data by date string
+                      const dataByDate = Object.fromEntries(
+                        weeklyPoultryTracking.map(day => [format(new Date(day.date), "yyyy-MM-dd"), day])
+                      )
+                      return weekDates.map((date, idx) => {
+                        const dateStr = format(date, "yyyy-MM-dd")
+                        const dayData = dataByDate[dateStr] || {
+                          date: dateStr,
+                          livePoultryInput: 0,
+                          poultryMeatOutput: 0,
+                          poultryMeatActualOutput: 0,
+                          poultryMeatBegin: 0,
+                          poultryMeatEnd: 0,
+                          livePoultryPrice: 60000,
+                          poultryMeatPrice: 150000,
+                          note: ""
+                        }
+                        
+                        // SỬA: Tính lãi dựa trên thu/chi trong ngày (không tính tồn kho)
+                        const meatOutputKg = dayData.poultryMeatOutput || 0 // Lượng sản xuất trong ngày
+                        const meatActualKg = dayData.poultryMeatActualOutput || 0 // Lượng thực tế đã bán
+                        // Thu trong ngày = lượng sản xuất × giá (để tính lãi)
+                        const meatRevenueForProfit = Math.round((meatOutputKg * (dayData.poultryMeatPrice || 150000)) / 1000)
+                        // Hiển thị "Thu" = Thu + Tồn kho (chỉ để hiển thị)
+                        const meatMoney = Math.round((meatActualKg * (dayData.poultryMeatPrice || 150000)) / 1000)
+                        // Chi phí gia cầm sống
+                        const inputKg = dayData.livePoultryInput || 0
+                        const inputMoney = Math.round((inputKg * (dayData.livePoultryPrice || 60000)) / 1000)
+                        // Lãi = Thu trong ngày - Chi trong ngày (không tính tồn kho)
+                        const profit = meatRevenueForProfit - inputMoney
+
                         return (
-                          <TableRow key={day.date} className="border-b">
-                            <TableCell className="text-center border-r font-medium">{format(new Date(day.date), "dd/MM")}</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-blue-700">{totalRevenue.toFixed(0)}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatRevenue.toFixed(0)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">0</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-red-700">{totalCost.toFixed(0)}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryInput}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryCost.toFixed(0)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">{otherCosts.toFixed(0)}</TableCell>
-                            <TableCell className="text-center font-semibold">
-                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                                {profit >= 0 ? "+" : ""}{isNaN(profit) ? 0 : profit.toFixed(0)}
-                              </span>
-                            </TableCell>
-                          </TableRow>
+                          <tr key={dateStr}>
+                            <td className="border border-black p-2 text-center font-medium">
+                              {format(date, "dd/MM")}
+                            </td>
+                            <td className="border border-black p-1 text-center">{meatOutputKg.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{meatRevenueForProfit.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{inputKg.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{inputMoney.toLocaleString()}</td>
+                            <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {profit >= 0 ? '+' : ''}{profit.toLocaleString()}
+                            </td>
+                          </tr>
                         )
                       })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={10} className="text-center text-gray-500 py-8">
-                          Không có dữ liệu cho tuần đã chọn
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -775,7 +841,7 @@ export function PoultryProcessing() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
+                <Calendar className="h-5 w-5" />
                 Tổng hợp gia cầm theo tháng
               </CardTitle>
               <div className="flex gap-4">
@@ -818,76 +884,87 @@ export function PoultryProcessing() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Show message if no data */}
+              {monthlyPoultrySummary.every(month => month.totalLivePoultryInput === 0 && month.totalPoultryMeatOutput === 0) && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-yellow-700">
+                        <strong>Chưa có dữ liệu cho các tháng gần đây</strong>
+                        <br />
+                        Vui lòng nhập dữ liệu chế biến gia cầm hàng ngày trong tab "Theo ngày" trước khi xem thống kê tháng.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
-                <Table className="border">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100">THÁNG</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-blue-100">THU</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle border-r bg-red-100">CHI</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">TRONG ĐÓ</TableHead>
-                      <TableHead rowSpan={2} className="text-center align-middle bg-green-100">THU-CHI<br/>(LÃI)</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead colSpan={2} className="text-center border-r bg-blue-50">Thịt gia cầm</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">Chi khác</TableHead>
-                      <TableHead colSpan={2} className="text-center border-r bg-red-50">Gia cầm sống</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">Chi khác</TableHead>
-                    </TableRow>
-                    <TableRow>
-                      <TableHead className="text-center bg-blue-100">TỔNG THU<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-blue-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border-r bg-blue-50">(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-100">TỔNG CHI<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-red-50">Số lượng<br/>(kg)</TableHead>
-                      <TableHead className="text-center bg-red-50">Thành Tiền<br/>(1.000đ)</TableHead>
-                      <TableHead className="text-center border-r bg-red-50">(1.000đ)</TableHead>
-                      <TableHead className="text-center bg-green-100">(1.000đ)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {monthlyPoultrySummary && monthlyPoultrySummary.length > 0 ? (
-                      monthlyPoultrySummary.map((month) => {
-                        const poultryMeatPrice = 150000
-                        const livePoultryPrice = 60000
-                        const poultryMeatOutput = month.totalPoultryMeatActualOutput || 0
-                        const poultryMeatRevenue = (poultryMeatOutput * poultryMeatPrice) / 1000
-                        const totalRevenue = isNaN(poultryMeatRevenue) ? 0 : poultryMeatRevenue
-                        const livePoultryInput = month.totalLivePoultryInput || 0
-                        const livePoultryCost = (livePoultryInput * livePoultryPrice) / 1000
-                        const totalCost = isNaN(livePoultryCost) ? 0 : livePoultryCost
-                        const otherCosts = Math.round(livePoultryInput * 0.5)
-                        const profit = totalRevenue - totalCost - otherCosts
+                <table className="w-full border-collapse border border-black">
+                  <thead>
+                    <tr>
+                      <th className="border border-black p-2 text-center">Tháng</th>
+                      <th className="border border-black p-2 text-center">Thịt gia cầm thu (kg)</th>
+                      <th className="border border-black p-2 text-center">Thành tiền (1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Gia cầm sống chi (kg)</th>
+                      <th className="border border-black p-2 text-center">Thành tiền (1.000đ)</th>
+                      <th className="border border-black p-2 text-center">Lãi (1.000đ)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Hiển thị 12 tháng trong năm, nếu thiếu thì dòng 0 */}
+                    {(() => {
+                      const months = Array.from({ length: 12 }, (_, i) => i + 1)
+                      const dataByMonth = Object.fromEntries(
+                        monthlyPoultrySummary.map(m => [m.monthNumber, m])
+                      )
+                      return months.map(monthNum => {
+                        const m = dataByMonth[monthNum] || {
+                          month: `${monthNum}/${selectedMonthYear}`,
+                          totalLivePoultryInput: 0,
+                          totalPoultryMeatOutput: 0,
+                          totalPoultryMeatActualOutput: 0,
+                          processingEfficiency: 0,
+                          poultryMeatBegin: 0,
+                          poultryMeatEnd: 0,
+                          avgLivePoultryPrice: 60000,
+                          avgPoultryMeatPrice: 150000,
+                          totalRevenue: 0,
+                          poultryCost: 0,
+                          otherCosts: 0,
+                          netProfit: 0
+                        }
+                        
+                        // Thịt gia cầm thu (kg)
+                        const meatKg = m.totalPoultryMeatOutput || 0
+                        // Thành tiền (1.000đ)
+                        const meatMoney = m.totalRevenue || 0
+                        // Chi phí gia cầm sống
+                        const inputKg = m.totalLivePoultryInput || 0
+                        const inputMoney = m.poultryCost || 0
+                        const profit = m.netProfit || 0
+
                         return (
-                          <TableRow key={month.month} className="border-b">
-                            <TableCell className="text-center border-r font-medium">{month.month}</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-blue-700">{totalRevenue.toFixed(0)}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatOutput}</TableCell>
-                            <TableCell className="text-center text-sm">{poultryMeatRevenue.toFixed(0)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">0</TableCell>
-                            <TableCell className="text-center border-r font-semibold text-red-700">{totalCost.toFixed(0)}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryInput}</TableCell>
-                            <TableCell className="text-center text-sm">{livePoultryCost.toFixed(0)}</TableCell>
-                            <TableCell className="text-center border-r text-sm">{otherCosts.toFixed(0)}</TableCell>
-                            <TableCell className="text-center font-semibold">
-                              <span className={profit >= 0 ? "text-green-600" : "text-red-600"}>
-                                {profit >= 0 ? "+" : ""}{isNaN(profit) ? 0 : profit.toFixed(0)}
-                              </span>
-                            </TableCell>
-                          </TableRow>
+                          <tr key={monthNum}>
+                            <td className="border border-black p-2 text-center font-medium">{m.month}</td>
+                            <td className="border border-black p-1 text-center">{meatKg.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{meatMoney.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{inputKg.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{inputMoney.toLocaleString()}</td>
+                            <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {profit >= 0 ? '+' : ''}{profit.toLocaleString()}
+                            </td>
+                          </tr>
                         )
                       })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={10} className="text-center text-gray-500 py-8">
-                          Không có dữ liệu cho tháng đã chọn
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
