@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Droplets } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Droplets, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, saltCalculationApi } from "@/lib/api-client"
@@ -55,6 +56,11 @@ interface MonthlySaltSummary {
   totalSaltOutput: number
   totalSaltRemaining: number
   processingEfficiency: number // percentage
+  otherCosts?: number // Chi khác (VND)
+  saltRevenue?: number // Doanh thu dưa muối (1000 VND)
+  cabbageCost?: number // Chi phí rau cải (1000 VND)
+  byProductRevenue?: number // Doanh thu sản phẩm phụ (1000 VND)
+  netProfit?: number // Lãi ròng (1000 VND)
 }
 
 export function SaltProcessing() {
@@ -255,7 +261,7 @@ export function SaltProcessing() {
       
       try {
         console.log(`🔄 Checking salt carry over from ${previousDateStr} to ${dateStr}`)
-        const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
+        const previousStationResponse = await processingStationApi.getDailySaltData(previousDateStr)
         console.log('🔍 Salt Previous API Response:', previousStationResponse)
         
         // Fix nested structure access
@@ -277,7 +283,7 @@ export function SaltProcessing() {
       }
       
       try {
-        const stationResponse = await processingStationApi.getDailyData(dateStr)
+        const stationResponse = await processingStationApi.getDailySaltData(dateStr)
         console.log('🔍 Salt Current day API Response:', stationResponse)
         
         // Fix nested structure access for current day
@@ -378,7 +384,7 @@ export function SaltProcessing() {
       
       // Update dailyUpdateData for editing (get by-products and other costs from API response)
       try {
-        const dailyApiResponse = await processingStationApi.getDailyData(dateStr)
+        const dailyApiResponse = await processingStationApi.getDailySaltData(dateStr)
         const apiData = dailyApiResponse?.data || {}
         
         setDailyUpdateData({
@@ -519,7 +525,12 @@ export function SaltProcessing() {
           totalSaltCollected: monthData.totalSaltCollected,
           totalSaltOutput: monthData.totalSaltOutput,
           totalSaltRemaining: monthData.totalSaltRemaining,
-          processingEfficiency: monthData.processingEfficiency
+          processingEfficiency: monthData.processingEfficiency,
+          otherCosts: monthData.otherCosts,
+          saltRevenue: monthData.saltRevenue,
+          cabbageCost: monthData.cabbageCost,
+          byProductRevenue: monthData.byProductRevenue,
+          netProfit: monthData.netProfit
         }))
         
         setMonthlySaltSummary(monthlySummaries)
@@ -546,7 +557,7 @@ export function SaltProcessing() {
         months.push(date)
       }
       
-      const fallbackSummaries: MonthlySaltSummary[] = months.map(month => {
+              const fallbackSummaries: MonthlySaltSummary[] = months.map(month => {
         const totalCabbageInput = 2000 + Math.floor(Math.random() * 800)
         const totalSaltCollected = 1400 + Math.floor(Math.random() * 560)
         const totalSaltOutput = 1200 + Math.floor(Math.random() * 480)
@@ -558,7 +569,12 @@ export function SaltProcessing() {
           totalSaltCollected,
           totalSaltOutput,
           totalSaltRemaining: totalSaltCollected - totalSaltOutput,
-          processingEfficiency: totalCabbageInput > 0 ? Math.round((totalSaltCollected / totalCabbageInput) * 100) : 0
+          processingEfficiency: totalCabbageInput > 0 ? Math.round((totalSaltCollected / totalCabbageInput) * 100) : 0,
+          otherCosts: 0,
+          saltRevenue: totalSaltCollected * 12,
+          cabbageCost: totalCabbageInput * 8,
+          byProductRevenue: Math.round(totalSaltCollected * 0.1 * 2),
+          netProfit: (totalSaltCollected * 12) + Math.round(totalSaltCollected * 0.1 * 2) - (totalCabbageInput * 8) - 0
         }
       })
       
@@ -579,8 +595,7 @@ export function SaltProcessing() {
     try {
       setIsUpdating(true)
 
-      // Update station data via API (byProductQuantity, byProductPrice, otherCosts get default values since not edited in daily view)
-      await processingStationApi.updateDailyData(dailySaltProcessing.date, {
+      const updatePayload = {
         cabbageInput: dailyUpdateData.cabbageInput,
         saltInput: dailyUpdateData.saltInput,
         note: dailyUpdateData.note,
@@ -590,15 +605,25 @@ export function SaltProcessing() {
         byProductQuantity: 0, // Default: no by-products in daily view
         byProductPrice: 2000, // Default price when by-products are added later
         otherCosts: 0 // Default: no other costs in daily view
+      }
+
+      // Debug: Log the data being sent
+      console.log(`🧂 [FRONTEND SALT DEBUG] Sending salt data for ${dailySaltProcessing.date}:`, {
+        ...updatePayload,
+        expectedRevenue: (updatePayload.saltInput * updatePayload.saltPrice) / 1000
       })
 
-      // Refresh data
+      // Update salt data via dedicated salt API (byProductQuantity, byProductPrice, otherCosts get default values since not edited in daily view)
+      await processingStationApi.updateDailySaltData(dailySaltProcessing.date, updatePayload)
+
+      // Refresh all data to update weekly and monthly views
       await fetchDailySaltProcessing(new Date(dailySaltProcessing.date))
       await fetchWeeklyTracking()
+      await fetchMonthlySaltSummary()
 
       toast({
-        title: "Thành công",
-        description: "Đã cập nhật dữ liệu chế biến dưa muối (bao gồm sản phẩm phụ và chi phí khác)",
+        title: "✅ Thành công",
+        description: "Đã cập nhật dữ liệu chế biến dưa muối và làm mới tất cả tab",
       })
 
       setEditingDailyData(false)
@@ -699,8 +724,25 @@ export function SaltProcessing() {
         </Badge>
       </div>
 
-      {/* Daily Salt Processing */}
-      <Card className="mb-6">
+      <Tabs defaultValue="daily" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="daily" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Theo ngày
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tuần
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tháng
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily">
+          {/* Daily Salt Processing */}
+          <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             CHẾ BIẾN DƯA MUỐI
@@ -1036,9 +1078,11 @@ export function SaltProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Weekly Tracking Table */}
-      <Card className="mb-6">
+        <TabsContent value="weekly">
+          {/* Weekly Tracking Table */}
+          <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             BẢNG THEO DÕI CHẾ BIẾN DƯA MUỐI THEO TUẦN
@@ -1317,9 +1361,11 @@ export function SaltProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Monthly Summary */}
-      <Card>
+        <TabsContent value="monthly">
+          {/* Monthly Summary */}
+          <Card>
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             LÀM DƯA MUỐI - TỔNG HỢP THEO THÁNG
@@ -1443,33 +1489,34 @@ export function SaltProcessing() {
                           {month.totalSaltCollected.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {(month.totalSaltCollected * 12).toLocaleString()}
+                          {(month.saltRevenue || month.totalSaltCollected * 12).toLocaleString()}
                         </td>
                         {/* THU - Sản phẩm phụ */}
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {Math.round(month.totalSaltCollected * 0.1 * 2).toLocaleString()}
+                          {(month.byProductRevenue || Math.round(month.totalSaltCollected * 0.1 * 2)).toLocaleString()}
                         </td>
                         {/* CHI - Rau cải */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
                           {month.totalCabbageInput.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {(month.totalCabbageInput * 8).toLocaleString()}
+                          {(month.cabbageCost || month.totalCabbageInput * 8).toLocaleString()}
                         </td>
                         {/* CHI - Chi khác */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {Math.round(month.totalCabbageInput * 0.02 * 1000).toLocaleString()}
+                          {(month.otherCosts || 0).toLocaleString()}
                         </td>
                         {/* THU-CHI (LÃI) */}
                         <td className="border border-black p-1 text-center bg-blue-50">
                           <span className={`font-bold ${
-                            ((month.totalSaltCollected * 12) + Math.round(month.totalSaltCollected * 0.1 * 2) - 
-                             (month.totalCabbageInput * 8) - Math.round(month.totalCabbageInput * 0.02 * 1000)) >= 0 
+                            (month.netProfit !== undefined ? month.netProfit : 
+                            ((month.saltRevenue || month.totalSaltCollected * 12) + (month.byProductRevenue || Math.round(month.totalSaltCollected * 0.1 * 2)) - 
+                             (month.cabbageCost || month.totalCabbageInput * 8) - (month.otherCosts || 0))) >= 0 
                             ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {(
-                              (month.totalSaltCollected * 12) + Math.round(month.totalSaltCollected * 0.1 * 2) - 
-                              (month.totalCabbageInput * 8) - Math.round(month.totalCabbageInput * 0.02 * 1000)
+                            {(month.netProfit !== undefined ? month.netProfit :
+                              ((month.saltRevenue || month.totalSaltCollected * 12) + (month.byProductRevenue || Math.round(month.totalSaltCollected * 0.1 * 2)) - 
+                               (month.cabbageCost || month.totalCabbageInput * 8) - (month.otherCosts || 0))
                             ).toLocaleString()}
                           </span>
                         </td>
@@ -1482,6 +1529,8 @@ export function SaltProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Detection Test Results */}
       {detectionResult && (

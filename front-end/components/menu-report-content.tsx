@@ -845,7 +845,7 @@ export function MenuReportContent() {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="w-full max-w-full">
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold mb-6 text-center text-[#b45f06]">BÁO CÁO THỰC ĐƠN TUẦN</h2>
 

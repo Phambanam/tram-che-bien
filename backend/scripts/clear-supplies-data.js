@@ -4,7 +4,7 @@ require('dotenv').config();
 async function clearSuppliesData() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/military-logistics', {
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://admin:password@localhost:27017/military-logistics?authSource=admin', {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });

@@ -68,24 +68,21 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
       // Calculate for specific date
       targetDate = date as string
       
-      // Find menu containing this date
-      const selectedDate = new Date(targetDate)
-      const menu = await db.collection("menus").findOne({
-        startDate: { $lte: selectedDate },
-        endDate: { $gte: selectedDate }
+      // Find daily menu for this date directly using dateStr
+      const dailyMenu = await db.collection("dailyMenus").findOne({
+        dateStr: targetDate
       })
 
-      if (!menu) {
+      if (!dailyMenu) {
         return res.status(404).json({
           success: false,
           message: "Không tìm thấy thực đơn cho ngày này"
         })
       }
 
-      // Get daily menu for this date
-      const dailyMenu = await db.collection("dailyMenus").findOne({
-        menuId: menu._id,
-        date: selectedDate
+      // Get the menu for this daily menu
+      const menu = await db.collection("menus").findOne({
+        _id: dailyMenu.menuId
       })
 
       if (dailyMenu) {
@@ -138,7 +135,11 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
         .find({ _id: { $in: validUnitIds.map(id => new ObjectId(id as string)) } })
         .toArray()
     } else {
+      // Try to get active units first, fallback to all units if none found
       units = await db.collection("units").find({ status: "active" }).toArray()
+      if (units.length === 0) {
+        units = await db.collection("units").find({}).toArray()
+      }
     }
 
     // Get personnel data for target date
@@ -187,36 +188,63 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
       for (const meal of meals) {
         if (meal.dishDetails && Array.isArray(meal.dishDetails)) {
           for (const dish of meal.dishDetails) {
-            if (dish.ingredients && Array.isArray(dish.ingredients)) {
-              const tofuIngredients = dish.ingredients.filter((ing: any) => 
-                ing.lttpName.toLowerCase().includes('đậu phụ') || 
-                ing.lttpName.toLowerCase().includes('tofu')
+            let hasTofu = false
+            
+            // Check ingredients (handle both string and array format)
+            if (typeof dish.ingredients === 'string') {
+              // String format (from seed data)
+              hasTofu = dish.ingredients.toLowerCase().includes('đậu phụ') || 
+                       dish.ingredients.toLowerCase().includes('tofu')
+            } else if (Array.isArray(dish.ingredients)) {
+              // Array format (structured data)
+              hasTofu = dish.ingredients.some((ing: any) => 
+                ing.lttpName && (
+                  ing.lttpName.toLowerCase().includes('đậu phụ') || 
+                  ing.lttpName.toLowerCase().includes('tofu')
+                )
               )
+            }
 
-              if (tofuIngredients.length > 0) {
-                tofuDishes.add(dish.name)
-                
-                const dishInfo = {
-                  dishName: dish.name,
-                  mealType: meal.type,
-                  tofuIngredients: tofuIngredients.map((ing: any) => ({
-                    lttpId: ing.lttpId,
-                    lttpName: ing.lttpName,
-                    quantityPerServing: ing.quantity / (dish.servings || 1),
-                    unit: ing.unit,
+            if (hasTofu) {
+              tofuDishes.add(dish.name)
+              
+              // For string ingredients, create a simple requirement
+              const tofuIngredients = typeof dish.ingredients === 'string' 
+                ? [{
+                    lttpId: 'tofu-generic',
+                    lttpName: 'Đậu phụ',
+                    quantityPerServing: dish.quantityPer100People || 15, // Default 15kg per 100 people
+                    unit: 'kg',
                     dishName: dish.name,
                     mealType: meal.type
-                  }))
-                }
+                  }]
+                : dish.ingredients
+                    .filter((ing: any) => 
+                      ing.lttpName.toLowerCase().includes('đậu phụ') || 
+                      ing.lttpName.toLowerCase().includes('tofu')
+                    )
+                    .map((ing: any) => ({
+                      lttpId: ing.lttpId,
+                      lttpName: ing.lttpName,
+                      quantityPerServing: ing.quantity / (dish.servings || 1),
+                      unit: ing.unit,
+                      dishName: dish.name,
+                      mealType: meal.type
+                    }))
 
-                // Check if this dish is already in the result
-                const existingDish = result.dishesUsingTofu.find(d => 
-                  d.dishName === dish.name && d.mealType === meal.type
-                )
-                
-                if (!existingDish) {
-                  result.dishesUsingTofu.push(dishInfo)
-                }
+              const dishInfo = {
+                dishName: dish.name,
+                mealType: meal.type,
+                tofuIngredients
+              }
+
+              // Check if this dish is already in the result
+              const existingDish = result.dishesUsingTofu.find(d => 
+                d.dishName === dish.name && d.mealType === meal.type
+              )
+              
+              if (!existingDish) {
+                result.dishesUsingTofu.push(dishInfo)
               }
             }
           }
@@ -226,7 +254,7 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
 
     // Calculate tofu requirements for each unit
     for (const unit of units) {
-      const unitPersonnel = personnelMap.get(unit._id.toString()) || unit.personnel || 0
+      const unitPersonnel = personnelMap.get(unit._id.toString()) || unit.personnel || unit.personnelCount || 0
       
       const unitCalculation: UnitTofuCalculation = {
         unitId: unit._id.toString(),
@@ -245,21 +273,22 @@ export const calculateTofuRequirements = async (req: Request, res: Response) => 
         }
       }
 
-      // Calculate requirements for each meal and dish
-      for (const dishInfo of result.dishesUsingTofu) {
-        for (const tofuIngredient of dishInfo.tofuIngredients) {
-          const totalRequired = tofuIngredient.quantityPerServing * unitPersonnel
-          
-          const requirement: TofuRequirement = {
-            ...tofuIngredient,
-            quantityPerServing: totalRequired
-          }
-
-          unitCalculation.requirementsByMeal[dishInfo.mealType as keyof typeof unitCalculation.requirementsByMeal].push(requirement)
-          unitCalculation.totalByMeal[dishInfo.mealType as keyof typeof unitCalculation.totalByMeal] += totalRequired
-          unitCalculation.totalTofuRequired += totalRequired
+          // Calculate requirements for each meal and dish
+    for (const dishInfo of result.dishesUsingTofu) {
+      for (const tofuIngredient of dishInfo.tofuIngredients) {
+        // Calculate total required: (personnel / 100) * quantity per 100 people
+        const totalRequired = (unitPersonnel / 100) * tofuIngredient.quantityPerServing
+        
+        const requirement: TofuRequirement = {
+          ...tofuIngredient,
+          quantityPerServing: totalRequired
         }
+
+        unitCalculation.requirementsByMeal[dishInfo.mealType as keyof typeof unitCalculation.requirementsByMeal].push(requirement)
+        unitCalculation.totalByMeal[dishInfo.mealType as keyof typeof unitCalculation.totalByMeal] += totalRequired
+        unitCalculation.totalTofuRequired += totalRequired
       }
+    }
 
       result.units.push(unitCalculation)
       result.totalTofuRequired += unitCalculation.totalTofuRequired
@@ -399,25 +428,22 @@ export const calculateWeeklyTofuRequirements = async (req: Request, res: Respons
 
 // Helper function to calculate tofu for a specific date
 async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: any): Promise<TofuCalculationResult> {
-  // Find menu containing this date
-  const selectedDate = new Date(targetDate)
-  const menu = await db.collection("menus").findOne({
-    startDate: { $lte: selectedDate },
-    endDate: { $gte: selectedDate }
-  })
-
-  if (!menu) {
-    throw new Error("Không tìm thấy thực đơn cho ngày này")
-  }
-
-  // Get daily menu for this date
+  // Find daily menu for this date directly using dateStr
   const dailyMenu = await db.collection("dailyMenus").findOne({
-    menuId: menu._id,
-    date: selectedDate
+    dateStr: targetDate
   })
 
   if (!dailyMenu) {
-    throw new Error("Không có thực đơn cho ngày này")
+    throw new Error("Không tìm thấy thực đơn cho ngày này")
+  }
+
+  // Get the menu for this daily menu
+  const menu = await db.collection("menus").findOne({
+    _id: dailyMenu.menuId
+  })
+
+  if (!menu) {
+    throw new Error("Không tìm thấy thông tin thực đơn")
   }
 
   // Get all units
@@ -429,7 +455,11 @@ async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: 
       .find({ _id: { $in: validUnitIds.map(id => new ObjectId(id as string)) } })
       .toArray()
   } else {
+    // Try to get active units first, fallback to all units if none found
     units = await db.collection("units").find({ status: "active" }).toArray()
+    if (units.length === 0) {
+      units = await db.collection("units").find({}).toArray()
+    }
   }
 
   // Get personnel data for target date
@@ -476,35 +506,62 @@ async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: 
   for (const meal of meals) {
     if (meal.dishDetails && Array.isArray(meal.dishDetails)) {
       for (const dish of meal.dishDetails) {
-        if (dish.ingredients && Array.isArray(dish.ingredients)) {
-          const tofuIngredients = dish.ingredients.filter((ing: any) => 
-            ing.lttpName.toLowerCase().includes('đậu phụ') || 
-            ing.lttpName.toLowerCase().includes('tofu')
+        let hasTofu = false
+        
+        // Check ingredients (handle both string and array format)
+        if (typeof dish.ingredients === 'string') {
+          // String format (from seed data)
+          hasTofu = dish.ingredients.toLowerCase().includes('đậu phụ') || 
+                   dish.ingredients.toLowerCase().includes('tofu')
+        } else if (Array.isArray(dish.ingredients)) {
+          // Array format (structured data)
+          hasTofu = dish.ingredients.some((ing: any) => 
+            ing.lttpName && (
+              ing.lttpName.toLowerCase().includes('đậu phụ') || 
+              ing.lttpName.toLowerCase().includes('tofu')
+            )
           )
+        }
 
-          if (tofuIngredients.length > 0) {
-            tofuDishes.add(dish.name)
-            
-            const dishInfo = {
-              dishName: dish.name,
-              mealType: meal.type,
-              tofuIngredients: tofuIngredients.map((ing: any) => ({
-                lttpId: ing.lttpId,
-                lttpName: ing.lttpName,
-                quantityPerServing: ing.quantity / (dish.servings || 1),
-                unit: ing.unit,
+        if (hasTofu) {
+          tofuDishes.add(dish.name)
+          
+          // For string ingredients, create a simple requirement
+          const tofuIngredients = typeof dish.ingredients === 'string' 
+            ? [{
+                lttpId: 'tofu-generic',
+                lttpName: 'Đậu phụ',
+                quantityPerServing: dish.quantityPer100People || 15, // Default 15kg per 100 people
+                unit: 'kg',
                 dishName: dish.name,
                 mealType: meal.type
-              }))
-            }
+              }]
+            : dish.ingredients
+                .filter((ing: any) => 
+                  ing.lttpName.toLowerCase().includes('đậu phụ') || 
+                  ing.lttpName.toLowerCase().includes('tofu')
+                )
+                .map((ing: any) => ({
+                  lttpId: ing.lttpId,
+                  lttpName: ing.lttpName,
+                  quantityPerServing: ing.quantity / (dish.servings || 1),
+                  unit: ing.unit,
+                  dishName: dish.name,
+                  mealType: meal.type
+                }))
 
-            const existingDish = result.dishesUsingTofu.find(d => 
-              d.dishName === dish.name && d.mealType === meal.type
-            )
-            
-            if (!existingDish) {
-              result.dishesUsingTofu.push(dishInfo)
-            }
+          const dishInfo = {
+            dishName: dish.name,
+            mealType: meal.type,
+            tofuIngredients
+          }
+
+          const existingDish = result.dishesUsingTofu.find(d => 
+            d.dishName === dish.name && d.mealType === meal.type
+          )
+          
+          if (!existingDish) {
+            result.dishesUsingTofu.push(dishInfo)
           }
         }
       }
@@ -513,7 +570,7 @@ async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: 
 
   // Calculate tofu requirements for each unit
   for (const unit of units) {
-    const unitPersonnel = personnelMap.get(unit._id.toString()) || unit.personnel || 0
+    const unitPersonnel = personnelMap.get(unit._id.toString()) || unit.personnel || unit.personnelCount || 0
     
     const unitCalculation: UnitTofuCalculation = {
       unitId: unit._id.toString(),
@@ -535,7 +592,8 @@ async function calculateDailyTofuForDate(db: any, targetDate: string, unitIds?: 
     // Calculate requirements for each meal and dish
     for (const dishInfo of result.dishesUsingTofu) {
       for (const tofuIngredient of dishInfo.tofuIngredients) {
-        const totalRequired = tofuIngredient.quantityPerServing * unitPersonnel
+        // Calculate total required: (personnel / 100) * quantity per 100 people
+        const totalRequired = (unitPersonnel / 100) * tofuIngredient.quantityPerServing
         
         const requirement: TofuRequirement = {
           ...tofuIngredient,
@@ -766,6 +824,11 @@ export const getMonthlyTofuSummary = async (req: Request, res: Response) => {
         // Get monthly data
         const monthlyData = await getMonthlyProcessingData(db, targetYear, targetMonth)
         
+        // Use actual average prices from the month's data
+        const avgTofuPrice = monthlyData.avgTofuPrice || 15000 // Default 15k VND/kg
+        const avgSoybeanPrice = monthlyData.avgSoybeanPrice || 12000 // Default 12k VND/kg
+        const avgByProductPrice = monthlyData.avgByProductPrice || 5000 // Default 5k VND/kg
+        
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
@@ -775,16 +838,33 @@ export const getMonthlyTofuSummary = async (req: Request, res: Response) => {
           totalTofuOutput: monthlyData.totalTofuOutput,
           totalTofuRemaining: monthlyData.totalTofuRemaining,
           processingEfficiency: monthlyData.processingEfficiency,
-          // Financial calculations (in thousands VND)
-          tofuRevenue: Math.round(monthlyData.totalTofuCollected * 15), // 15k VND per kg
-          soybeanCost: Math.round(monthlyData.totalSoybeanInput * 12),  // 12k VND per kg
-          otherCosts: Math.round(monthlyData.totalSoybeanInput * 0.02), // 2% other costs in thousands
-          byProductRevenue: Math.round(monthlyData.totalTofuCollected * 0.1 * 5), // By-products
-          netProfit: 0 // Will calculate below
+          // Financial calculations using ACTUAL prices (converted to thousands VND)
+          tofuRevenue: Math.round((monthlyData.totalTofuCollected * avgTofuPrice) / 1000),
+          soybeanCost: Math.round((monthlyData.totalSoybeanInput * avgSoybeanPrice) / 1000),
+          otherCosts: Math.round(monthlyData.totalOtherCosts / 1000), // Use actual other costs
+          byProductRevenue: Math.round((monthlyData.totalByProductQuantity * avgByProductPrice) / 1000),
+          netProfit: 0, // Will calculate below
+          // Keep track of actual prices used
+          avgTofuPrice: avgTofuPrice,
+          avgSoybeanPrice: avgSoybeanPrice,
+          avgByProductPrice: avgByProductPrice
         }
         
         // Calculate net profit
         summary.netProfit = (summary.tofuRevenue + summary.byProductRevenue) - (summary.soybeanCost + summary.otherCosts)
+        
+        console.log(`🔍 Monthly calculation for ${targetMonth}/${targetYear}:`, {
+          totalTofuCollected: monthlyData.totalTofuCollected,
+          totalSoybeanInput: monthlyData.totalSoybeanInput,
+          avgTofuPrice: avgTofuPrice,
+          avgSoybeanPrice: avgSoybeanPrice,
+          tofuRevenue: summary.tofuRevenue,
+          soybeanCost: summary.soybeanCost,
+          otherCosts: summary.otherCosts,
+          byProductRevenue: summary.byProductRevenue,
+          netProfit: summary.netProfit,
+          dataSource: 'actual_prices'
+        })
         
         monthlySummaries.push(summary)
       } catch (error) {
@@ -792,6 +872,13 @@ export const getMonthlyTofuSummary = async (req: Request, res: Response) => {
         const estimatedSoybeanInput = 2500 + Math.floor(Math.random() * 1000)
         const estimatedTofuCollected = Math.round(estimatedSoybeanInput * 0.8)
         const estimatedTofuOutput = Math.round(estimatedTofuCollected * 0.9)
+        
+        // Fallback uses current market prices with some variation
+        const fallbackTofuPrice = 15000 + Math.floor(Math.random() * 10000) // 15k-25k VND/kg
+        const fallbackSoybeanPrice = 12000 + Math.floor(Math.random() * 8000) // 12k-20k VND/kg
+        const fallbackByProductPrice = 5000 + Math.floor(Math.random() * 3000) // 5k-8k VND/kg
+        const estimatedByProductQuantity = Math.round(estimatedTofuCollected * 0.1) // 10% by-products
+        const estimatedOtherCosts = Math.round(estimatedSoybeanInput * fallbackSoybeanPrice * 0.02) // 2% of soybean cost
         
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
@@ -802,14 +889,33 @@ export const getMonthlyTofuSummary = async (req: Request, res: Response) => {
           totalTofuOutput: estimatedTofuOutput,
           totalTofuRemaining: estimatedTofuCollected - estimatedTofuOutput,
           processingEfficiency: Math.round((estimatedTofuCollected / estimatedSoybeanInput) * 100),
-          tofuRevenue: Math.round(estimatedTofuCollected * 15),
-          soybeanCost: Math.round(estimatedSoybeanInput * 12),
-          otherCosts: Math.round(estimatedSoybeanInput * 0.02),
-          byProductRevenue: Math.round(estimatedTofuCollected * 0.1 * 5),
-          netProfit: 0
+          // Financial calculations using realistic fallback prices (converted to thousands VND)
+          tofuRevenue: Math.round((estimatedTofuCollected * fallbackTofuPrice) / 1000),
+          soybeanCost: Math.round((estimatedSoybeanInput * fallbackSoybeanPrice) / 1000),
+          otherCosts: Math.round(estimatedOtherCosts / 1000),
+          byProductRevenue: Math.round((estimatedByProductQuantity * fallbackByProductPrice) / 1000),
+          netProfit: 0,
+          // Keep track of fallback prices used
+          avgTofuPrice: fallbackTofuPrice,
+          avgSoybeanPrice: fallbackSoybeanPrice,
+          avgByProductPrice: fallbackByProductPrice
         }
         
         summary.netProfit = (summary.tofuRevenue + summary.byProductRevenue) - (summary.soybeanCost + summary.otherCosts)
+        
+        console.log(`🔍 Fallback calculation for ${targetMonth}/${targetYear}:`, {
+          estimated: true,
+          totalTofuCollected: estimatedTofuCollected,
+          totalSoybeanInput: estimatedSoybeanInput,
+          fallbackTofuPrice: fallbackTofuPrice,
+          fallbackSoybeanPrice: fallbackSoybeanPrice,
+          tofuRevenue: summary.tofuRevenue,
+          soybeanCost: summary.soybeanCost,
+          otherCosts: summary.otherCosts,
+          byProductRevenue: summary.byProductRevenue,
+          netProfit: summary.netProfit,
+          dataSource: 'estimated_prices'
+        })
         monthlySummaries.push(summary)
       }
     }
@@ -921,7 +1027,7 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
     const endDate = new Date(year, month, 0).toISOString().split('T')[0]
     
-    // Aggregate data from daily processing records
+    // Aggregate data from daily processing records with average prices
     const monthlyData = await db.collection("dailyTofuProcessing")
       .aggregate([
         {
@@ -935,6 +1041,13 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
             totalSoybeanInput: { $sum: "$soybeanInput" },
             totalTofuCollected: { $sum: "$tofuInput" },
             totalTofuOutput: { $sum: "$tofuOutput" },
+            // Calculate average prices from actual data
+            avgSoybeanPrice: { $avg: "$soybeanPrice" },
+            avgTofuPrice: { $avg: "$tofuPrice" },
+            avgByProductPrice: { $avg: "$byProductPrice" },
+            // Sum by-products and other costs
+            totalByProductQuantity: { $sum: "$byProductQuantity" },
+            totalOtherCosts: { $sum: "$otherCosts" },
             count: { $sum: 1 }
           }
         }
@@ -950,7 +1063,13 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
         totalTofuRemaining: (data.totalTofuCollected || 0) - (data.totalTofuOutput || 0),
         processingEfficiency: data.totalSoybeanInput > 0 
           ? Math.round(((data.totalTofuCollected || 0) / data.totalSoybeanInput) * 100) 
-          : 80
+          : 80,
+        // Average prices (use defaults if no data)
+        avgSoybeanPrice: data.avgSoybeanPrice || 12000, // Default 12k VND/kg
+        avgTofuPrice: data.avgTofuPrice || 15000, // Default 15k VND/kg
+        avgByProductPrice: data.avgByProductPrice || 5000, // Default 5k VND/kg
+        totalByProductQuantity: data.totalByProductQuantity || 0,
+        totalOtherCosts: data.totalOtherCosts || 0
       }
     }
     
@@ -958,25 +1077,52 @@ async function getMonthlyProcessingData(db: any, year: number, month: number) {
     const baseSoybean = 2500 + Math.floor(Math.random() * 1000)
     const baseTofuCollected = Math.round(baseSoybean * (0.75 + Math.random() * 0.15)) // 75-90% efficiency
     const baseTofuOutput = Math.round(baseTofuCollected * (0.85 + Math.random() * 0.1)) // 85-95% output rate
+    const estimatedByProductQuantity = Math.round(baseTofuCollected * 0.1) // 10% by-products
+    
+    // Use current market price ranges for fallback
+    const fallbackSoybeanPrice = 12000 + Math.floor(Math.random() * 8000) // 12k-20k VND/kg
+    const fallbackTofuPrice = 15000 + Math.floor(Math.random() * 10000) // 15k-25k VND/kg
+    const fallbackByProductPrice = 5000 + Math.floor(Math.random() * 3000) // 5k-8k VND/kg
+    const estimatedOtherCosts = Math.round(baseSoybean * fallbackSoybeanPrice * 0.02) // 2% of soybean cost
     
     return {
       totalSoybeanInput: baseSoybean,
       totalTofuCollected: baseTofuCollected,
       totalTofuOutput: baseTofuOutput,
       totalTofuRemaining: baseTofuCollected - baseTofuOutput,
-      processingEfficiency: Math.round((baseTofuCollected / baseSoybean) * 100)
+      processingEfficiency: Math.round((baseTofuCollected / baseSoybean) * 100),
+      // Estimated prices for fallback
+      avgSoybeanPrice: fallbackSoybeanPrice,
+      avgTofuPrice: fallbackTofuPrice,
+      avgByProductPrice: fallbackByProductPrice,
+      totalByProductQuantity: estimatedByProductQuantity,
+      totalOtherCosts: estimatedOtherCosts
     }
   } catch (error) {
     console.error(`Error getting monthly data for ${year}-${month}:`, error)
-    // Return default estimated data
+    // Return default estimated data with realistic prices
     const baseSoybean = 2800
     const baseTofuCollected = Math.round(baseSoybean * 0.8)
+    const estimatedByProductQuantity = Math.round(baseTofuCollected * 0.1)
+    
+    // Default market prices for error fallback
+    const defaultSoybeanPrice = 15000 // 15k VND/kg
+    const defaultTofuPrice = 20000 // 20k VND/kg
+    const defaultByProductPrice = 6000 // 6k VND/kg
+    const defaultOtherCosts = Math.round(baseSoybean * defaultSoybeanPrice * 0.02)
+    
     return {
       totalSoybeanInput: baseSoybean,
       totalTofuCollected: baseTofuCollected,
       totalTofuOutput: Math.round(baseTofuCollected * 0.9),
       totalTofuRemaining: Math.round(baseTofuCollected * 0.1),
-      processingEfficiency: 80
+      processingEfficiency: 80,
+      // Default prices for error fallback
+      avgSoybeanPrice: defaultSoybeanPrice,
+      avgTofuPrice: defaultTofuPrice,
+      avgByProductPrice: defaultByProductPrice,
+      totalByProductQuantity: estimatedByProductQuantity,
+      totalOtherCosts: defaultOtherCosts
     }
   }
 }

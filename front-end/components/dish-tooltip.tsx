@@ -20,7 +20,7 @@ interface Dish {
     lttpName: string
     category: string
   }
-  ingredients: Ingredient[]
+  ingredients: Ingredient[] | string
   servings: number
   preparationTime?: number
   difficulty?: string
@@ -64,24 +64,32 @@ export function DishTooltip({ dish, children, disabled = false }: DishTooltipPro
               </div>
             )}
 
-            {dish.ingredients && dish.ingredients.length > 0 && (
+            {dish.ingredients && (
               <div>
                 <p className="text-sm font-medium mb-2">🧄 Nguyên liệu:</p>
-                <ul className="space-y-1">
-                  {dish.ingredients.slice(0, 5).map((ingredient, index) => (
-                    <li key={index} className="text-xs flex justify-between">
-                      <span>{ingredient.lttpName}</span>
-                      <span className="text-gray-500">
-                        {ingredient.quantity} {ingredient.unit}
-                      </span>
-                    </li>
-                  ))}
-                  {dish.ingredients.length > 5 && (
-                    <li className="text-xs text-gray-500 italic">
-                      ... và {dish.ingredients.length - 5} nguyên liệu khác
-                    </li>
-                  )}
-                </ul>
+                <div className="text-xs text-gray-600">
+                  {typeof dish.ingredients === 'string' ? (
+                    // Handle string ingredients (from seed data)
+                    <p>{dish.ingredients}</p>
+                  ) : Array.isArray(dish.ingredients) && dish.ingredients.length > 0 ? (
+                    // Handle array ingredients (structured data)
+                    <ul className="space-y-1">
+                      {dish.ingredients.slice(0, 5).map((ingredient, index) => (
+                        <li key={index} className="flex justify-between">
+                          <span>{ingredient.lttpName}</span>
+                          <span className="text-gray-500">
+                            {ingredient.quantity} {ingredient.unit}
+                          </span>
+                        </li>
+                      ))}
+                      {dish.ingredients.length > 5 && (
+                        <li className="text-gray-500 italic">
+                          ... và {dish.ingredients.length - 5} nguyên liệu khác
+                        </li>
+                      )}
+                    </ul>
+                  ) : null}
+                </div>
               </div>
             )}
 

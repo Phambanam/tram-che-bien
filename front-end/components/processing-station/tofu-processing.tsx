@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Package } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Package, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
-import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, tofuCalculationApi } from "@/lib/api-client"
+import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, unitPersonnelDailyApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Unit } from "@/types"
@@ -55,6 +56,16 @@ interface MonthlyTofuSummary {
   totalTofuOutput: number
   totalTofuRemaining: number
   processingEfficiency: number // percentage
+  // Financial data from API (in thousands VND)
+  tofuRevenue?: number
+  soybeanCost?: number
+  otherCosts?: number
+  byProductRevenue?: number
+  netProfit?: number
+  // Actual prices used in calculation (VND per kg)
+  avgTofuPrice?: number
+  avgSoybeanPrice?: number
+  avgByProductPrice?: number
 }
 
 export function TofuProcessing() {
@@ -202,9 +213,8 @@ export function TofuProcessing() {
     try {
       console.log("🚀 Using new tofu calculation API for:", dateStr)
       
-      const response = await tofuCalculationApi.getTofuRequirements({
-        date: dateStr
-      })
+      // TODO: Implement proper tofu calculation API
+      const response = { success: false, data: null }
       
       if (!response.success || !response.data) {
         console.log("❌ No tofu calculation data available - API returned unsuccessful response")
@@ -353,31 +363,31 @@ export function TofuProcessing() {
         // Fallback method: If API returns 0, try to get from supply outputs (legacy)
         if (plannedTofuOutput === 0) {
           console.log("🔍 API returned 0, trying fallback to supply outputs...")
-          const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
-            startDate: dateStr,
-            endDate: dateStr
-          })
-          const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+          startDate: dateStr,
+          endDate: dateStr
+        })
+        const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+        
+        // Calculate planned tofu outputs for this date (type: "planned")
+        const filteredOutputs = outputs.filter((output: any) => {
+          const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
+          const dateMatch = outputDate === dateStr
+          const isPlanned = output.type === "planned"
           
-          // Calculate planned tofu outputs for this date (type: "planned")
-          const filteredOutputs = outputs.filter((output: any) => {
-            const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
-            const dateMatch = outputDate === dateStr
-            const isPlanned = output.type === "planned"
-            
-            // Check both product name and sourceIngredient name
-            const productName = (output.product?.name || "").toLowerCase()
-            const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
-            const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu") ||
-                             ingredientName.includes("đậu phụ") || ingredientName.includes("tofu")
-            
-            return dateMatch && isPlanned && nameMatch
-          })
+          // Check both product name and sourceIngredient name
+          const productName = (output.product?.name || "").toLowerCase()
+          const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
+          const nameMatch = productName.includes("đậu phụ") || productName.includes("tofu") ||
+                           ingredientName.includes("đậu phụ") || ingredientName.includes("tofu")
           
-          plannedTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
-          
+          return dateMatch && isPlanned && nameMatch
+        })
+        
+        plannedTofuOutput = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
+        
           console.log("🔄 Fallback result:", {
-            filteredCount: filteredOutputs.length,
+          filteredCount: filteredOutputs.length,
             fallbackTofuOutput: plannedTofuOutput
           })
         }
@@ -422,13 +432,13 @@ export function TofuProcessing() {
         const dailyApiResponse = await processingStationApi.getDailyData(dateStr)
         const apiData = dailyApiResponse?.data || {}
         
-        setDailyUpdateData({
-          soybeanInput: stationData.soybeanInput,
-          tofuInput: stationData.tofuInput,
-          note: stationData.note,
-          soybeanPrice: finalSoybeanPrice || 0,
-          tofuPrice: finalTofuPrice || 0
-        })
+      setDailyUpdateData({
+        soybeanInput: stationData.soybeanInput,
+        tofuInput: stationData.tofuInput,
+        note: stationData.note,
+        soybeanPrice: finalSoybeanPrice || 0,
+        tofuPrice: finalTofuPrice || 0
+      })
       } catch (error) {
         console.log("Error loading by-products data, using defaults:", error)
         setDailyUpdateData({
@@ -475,10 +485,8 @@ export function TofuProcessing() {
     try {
       console.log(`🚀 Fetching weekly tracking data via API for week ${targetWeek}/${targetYear}`)
       
-      const response = await tofuCalculationApi.getWeeklyTofuTracking({
-        week: targetWeek,
-        year: targetYear
-      })
+      // TODO: Implement proper weekly tracking API
+      const response = { success: false, data: null }
 
       if (response.success && response.data) {
         const apiData = response.data.dailyData
@@ -549,24 +557,59 @@ export function TofuProcessing() {
     try {
       console.log(`🚀 Fetching monthly summary via API for ${targetMonth}/${targetYear}`)
       
-      const response = await tofuCalculationApi.getMonthlyTofuSummary({
-        month: targetMonth,
-        year: targetYear,
-        monthCount
-      })
+      const response = await processingStationApi.getMonthlyData(targetMonth, targetYear)
 
       if (response.success && response.data) {
-        const apiData = response.data.monthlySummaries
+        const apiData = Array.isArray(response.data) ? response.data : [response.data]
         
-        const monthlySummaries: MonthlyTofuSummary[] = apiData.map((monthData: any) => ({
-          month: monthData.month,
-          year: monthData.year,
-          totalSoybeanInput: monthData.totalSoybeanInput,
-          totalTofuCollected: monthData.totalTofuCollected,
-          totalTofuOutput: monthData.totalTofuOutput,
-          totalTofuRemaining: monthData.totalTofuRemaining,
-          processingEfficiency: monthData.processingEfficiency
-        }))
+        console.log("🔍 Monthly API Response:", {
+          targetMonth,
+          targetYear,
+          apiDataLength: apiData.length,
+          firstMonthSample: apiData[0]
+        })
+        
+        // Convert monthly processing data to summary format
+        const monthlySummaries: MonthlyTofuSummary[] = []
+        
+        if (apiData.length > 0) {
+          // Calculate monthly summary from daily data
+          const monthlyData = apiData[0]
+          const monthlySummary: MonthlyTofuSummary = {
+            month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
+            year: targetYear,
+            totalSoybeanInput: monthlyData.soybeanInput || 0,
+            totalTofuCollected: monthlyData.tofuInput || 0,
+            totalTofuOutput: monthlyData.tofuOutput || 0,
+            totalTofuRemaining: (monthlyData.tofuInput || 0) - (monthlyData.tofuOutput || 0),
+            processingEfficiency: monthlyData.soybeanInput > 0 ? 
+              Math.round(((monthlyData.tofuInput || 0) / monthlyData.soybeanInput) * 100) : 0,
+            // Use actual prices from data
+            avgTofuPrice: monthlyData.tofuPrice || 15000,
+            avgSoybeanPrice: monthlyData.soybeanPrice || 12000,
+            avgByProductPrice: 5000
+          }
+          
+          monthlySummaries.push(monthlySummary)
+        } else {
+          // Create empty summary for current month
+          const monthlySummary: MonthlyTofuSummary = {
+            month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
+            year: targetYear,
+            totalSoybeanInput: 0,
+            totalTofuCollected: 0,
+            totalTofuOutput: 0,
+            totalTofuRemaining: 0,
+            processingEfficiency: 0,
+            avgTofuPrice: 15000,
+            avgSoybeanPrice: 12000,
+            avgByProductPrice: 5000
+          }
+          
+          monthlySummaries.push(monthlySummary)
+        }
+        
+        console.log("🔍 Transformed Monthly Data:", monthlySummaries[0])
         
         setMonthlyTofuSummary(monthlySummaries)
         
@@ -597,6 +640,17 @@ export function TofuProcessing() {
         const totalTofuCollected = 2400 + Math.floor(Math.random() * 800)
         const totalTofuOutput = 2200 + Math.floor(Math.random() * 600)
         
+        // Calculate financial data for fallback using realistic market prices
+        const fallbackTofuPrice = 18000 + Math.floor(Math.random() * 7000) // 18k-25k VND/kg
+        const fallbackSoybeanPrice = 14000 + Math.floor(Math.random() * 6000) // 14k-20k VND/kg
+        const fallbackByProductPrice = 5500 + Math.floor(Math.random() * 2500) // 5.5k-8k VND/kg
+        
+        const tofuRevenue = Math.round((totalTofuCollected * fallbackTofuPrice) / 1000) // Convert to thousands
+        const soybeanCost = Math.round((totalSoybeanInput * fallbackSoybeanPrice) / 1000) // Convert to thousands
+        const byProductRevenue = Math.round((totalTofuCollected * 0.1 * fallbackByProductPrice) / 1000) // By-products
+        const otherCosts = Math.round((totalSoybeanInput * fallbackSoybeanPrice * 0.02) / 1000) // 2% of soybean cost
+        const netProfit = (tofuRevenue + byProductRevenue) - (soybeanCost + otherCosts)
+        
         return {
           month: format(month, 'MM/yyyy', { locale: vi }),
           year: month.getFullYear(),
@@ -604,7 +658,17 @@ export function TofuProcessing() {
           totalTofuCollected,
           totalTofuOutput,
           totalTofuRemaining: totalTofuCollected - totalTofuOutput,
-          processingEfficiency: totalSoybeanInput > 0 ? Math.round((totalTofuCollected / totalSoybeanInput) * 100) : 0
+          processingEfficiency: totalSoybeanInput > 0 ? Math.round((totalTofuCollected / totalSoybeanInput) * 100) : 0,
+          // Financial fallback data
+          tofuRevenue,
+          soybeanCost,
+          otherCosts,
+          byProductRevenue,
+          netProfit,
+          // Fallback prices used
+          avgTofuPrice: fallbackTofuPrice,
+          avgSoybeanPrice: fallbackSoybeanPrice,
+          avgByProductPrice: fallbackByProductPrice
         }
       })
       
@@ -643,13 +707,14 @@ export function TofuProcessing() {
         otherCosts: 0 // Default: no other costs in daily view
       })
 
-      // Refresh data
+      // Refresh all data to update weekly and monthly views
       await fetchDailyTofuProcessing(new Date(dailyTofuProcessing.date))
       await fetchWeeklyTracking()
+      await fetchMonthlyTofuSummary()
 
       toast({
-        title: "Thành công",
-        description: "Đã cập nhật dữ liệu chế biến đậu phụ (bao gồm sản phẩm phụ và chi phí khác)",
+        title: "✅ Thành công",
+        description: "Đã cập nhật dữ liệu chế biến đậu phụ và làm mới tất cả tab",
       })
 
       setEditingDailyData(false)
@@ -693,12 +758,8 @@ export function TofuProcessing() {
       
       console.log("📚 Step 1: API Parameters:", { week, year, targetDate })
       
-      // Step 2: Call the API to get ingredient summaries
-      const response = await menuPlanningApi.getDailyIngredientSummaries({
-        week: week,
-        year: year,
-        showAllDays: true // Get all days in the week
-      })
+      // TODO: Implement proper ingredient summaries API
+      const response = { success: false, data: null }
       
       console.log("📚 Step 2: API Response:", {
         success: response.success,
@@ -837,9 +898,8 @@ export function TofuProcessing() {
       // Use new API for testing with proper error handling
       let result: any
       try {
-        const apiResponse = await tofuCalculationApi.getTofuRequirements({
-          date: dateToTest
-        })
+        // TODO: Implement proper tofu requirements API
+        const apiResponse = { success: false, data: null }
         
         if (apiResponse.success && apiResponse.data) {
           result = {
@@ -913,8 +973,25 @@ export function TofuProcessing() {
         </Badge>
       </div>
 
-      {/* Daily Tofu Processing */}
-      <Card className="mb-6">
+      <Tabs defaultValue="daily" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="daily" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Theo ngày
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tuần
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Theo tháng
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="daily">
+          {/* Daily Tofu Processing */}
+          <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             CHẾ BIẾN ĐẬU PHỤ
@@ -1227,14 +1304,14 @@ export function TofuProcessing() {
                       >
                         Chỉnh sửa
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         onClick={() => testTofuDetection()}
                         disabled={isTestingDetection}
                         className="bg-purple-100 text-purple-700 hover:bg-purple-200"
                       >
                         {isTestingDetection ? "🔄 Đang test..." : "🚀 Test Tofu API"}
-                      </Button>
+                      </Button> */}
                     </>
                   )}
                 </div>
@@ -1252,6 +1329,9 @@ export function TofuProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="weekly">
 
       {/* Weekly Tracking Table */}
       <Card className="mb-6">
@@ -1384,7 +1464,7 @@ export function TofuProcessing() {
                           </td>
                           {/* CHI - Đậu nành */}
                           <td className="border border-black p-1 text-center font-semibold text-red-600">
-                            {day.soybeanInput.toLocaleString()}
+                              {day.soybeanInput.toLocaleString()}
                           </td>
                           <td className="border border-black p-1 text-center font-semibold text-red-600">
                             {soybeanCost.toFixed(0)}
@@ -1490,8 +1570,8 @@ export function TofuProcessing() {
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     Đậu nành + Chi khác
-                  </div>
                 </div>
+                  </div>
                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                   <div className="text-xs text-blue-600">LÃI/LỖ (1.000đ)</div>
                   <div className={`text-lg font-bold ${
@@ -1533,9 +1613,11 @@ export function TofuProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
 
-      {/* Monthly Summary */}
-      <Card>
+        <TabsContent value="monthly">
+          {/* Monthly Summary */}
+          <Card>
         <CardHeader>
           <CardTitle className="text-center text-xl font-bold">
             LÀM ĐẬU PHỤ - TỔNG HỢP THEO THÁNG
@@ -1659,33 +1741,34 @@ export function TofuProcessing() {
                           {month.totalTofuCollected.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {(month.totalTofuCollected * 15).toLocaleString()}
+                          {(month.tofuRevenue || Math.round(month.totalTofuCollected * 15)).toLocaleString()}
                         </td>
                         {/* THU - Sản phẩm phụ */}
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {Math.round(month.totalTofuCollected * 0.1 * 5).toLocaleString()}
+                          {(month.byProductRevenue || Math.round(month.totalTofuCollected * 0.1 * 5)).toLocaleString()}
                         </td>
                         {/* CHI - Đậu nành */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
                           {month.totalSoybeanInput.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {(month.totalSoybeanInput * 12).toLocaleString()}
+                          {(month.soybeanCost || Math.round(month.totalSoybeanInput * 12)).toLocaleString()}
                         </td>
                         {/* CHI - Chi khác */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {Math.round(month.totalSoybeanInput * 0.02 * 1000).toLocaleString()}
+                          {(month.otherCosts || Math.round(month.totalSoybeanInput * 0.02)).toLocaleString()}
                         </td>
                         {/* THU-CHI (LÃI) */}
                         <td className="border border-black p-1 text-center bg-blue-50">
                           <span className={`font-bold ${
-                            ((month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
-                             (month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02 * 1000)) >= 0 
+                            (month.netProfit !== undefined ? month.netProfit : 
+                             (Math.round(month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
+                              Math.round(month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02))) >= 0 
                             ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {(
-                              (month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
-                              (month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02 * 1000)
+                            {(month.netProfit !== undefined ? month.netProfit :
+                              (Math.round(month.totalTofuCollected * 15) + Math.round(month.totalTofuCollected * 0.1 * 5) - 
+                               Math.round(month.totalSoybeanInput * 12) - Math.round(month.totalSoybeanInput * 0.02))
                             ).toLocaleString()}
                           </span>
                         </td>
@@ -1698,6 +1781,8 @@ export function TofuProcessing() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Detection Test Results */}
       {detectionResult && (
@@ -1783,20 +1868,20 @@ export function TofuProcessing() {
                               <span className="font-medium">{unit.unitName}</span>
                               <div className="text-xs text-gray-600">
                                 {unit.personnel} người
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-medium">{unit.totalTofuRequired?.toFixed(2)} kg</div>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                          <div className="text-right">
+                              <div className="font-medium">{unit.totalTofuRequired?.toFixed(2)} kg</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  </div>
                   )}
 
                   {/* Summary Statistics */}
                   {detectionResult.summary && (
-                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                       <h4 className="font-medium text-yellow-800 mb-2">📊 Thống kê tổng hợp:</h4>
                       <div className="text-sm text-yellow-700 space-y-1">
                         <div>Tổng món ăn có đậu phụ: <strong>{detectionResult.summary.totalDishesUsingTofu}</strong></div>

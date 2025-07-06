@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calculator, TrendingUp } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
+import { processingStationApi } from "@/lib/api-client"
 
 interface DailyRevenueSummary {
   date: string
@@ -50,68 +51,113 @@ export function RevenuePlanning() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
-  // Generate sample data for the month
-  const generateSampleData = (month: number, year: number): MonthlyRevenuePlan => {
-    const daysInMonth = getDaysInMonth(new Date(year, month - 1))
-    const dailySummaries: DailyRevenueSummary[] = []
-    
-    let totalTofuProfit = 0
-    let totalSausageProfit = 0
-    let totalSproutsProfit = 0
-    let totalSaltProfit = 0
-    let totalLivestockProfit = 0
-    let totalPoultryProfit = 0
-    let grandTotal = 0
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month - 1, day)
-      const dateStr = format(date, "yyyy-MM-dd")
-      
-      // Generate random profit data (sample data)
-      const tofuProfit = Math.floor(Math.random() * 50000) + 10000 // 10k-60k
-      const sausageProfit = Math.floor(Math.random() * 40000) + 8000 // 8k-48k  
-      const sproutsProfit = Math.floor(Math.random() * 30000) + 5000 // 5k-35k
-      const saltProfit = Math.floor(Math.random() * 20000) + 3000 // 3k-23k
-      const livestockProfit = Math.floor(Math.random() * 80000) + 20000 // 20k-100k
-      const poultryProfit = Math.floor(Math.random() * 60000) + 15000 // 15k-75k
-      
-      const totalProfit = tofuProfit + sausageProfit + sproutsProfit + saltProfit + livestockProfit + poultryProfit
-
-      dailySummaries.push({
-        date: dateStr,
-        dayNumber: day,
-        tofuProfit,
-        sausageProfit,
-        sproutsProfit,
-        saltProfit,
-        livestockProfit,
-        poultryProfit,
-        totalProfit
-      })
-
-      // Add to monthly totals
-      totalTofuProfit += tofuProfit
-      totalSausageProfit += sausageProfit
-      totalSproutsProfit += sproutsProfit
-      totalSaltProfit += saltProfit
-      totalLivestockProfit += livestockProfit
-      totalPoultryProfit += poultryProfit
-      grandTotal += totalProfit
-    }
-
-    return {
-      month,
-      year,
-      dailySummaries,
-      monthlyTotals: {
-        totalTofuProfit,
-        totalSausageProfit,
-        totalSproutsProfit,
-        totalSaltProfit,
-        totalLivestockProfit,
-        totalPoultryProfit,
-        grandTotal
+  // Fetch daily profit data for a specific date
+  const fetchDailyProfitData = async (date: string) => {
+    try {
+      const dailySummary: DailyRevenueSummary = {
+        date,
+        dayNumber: new Date(date).getDate(),
+        tofuProfit: 0,
+        sausageProfit: 0,
+        sproutsProfit: 0,
+        saltProfit: 0,
+        livestockProfit: 0,
+        poultryProfit: 0,
+        totalProfit: 0
       }
+
+      // Fetch tofu processing data
+      try {
+        const tofuResponse = await processingStationApi.getDailyData(date)
+        if (tofuResponse.success && tofuResponse.data) {
+          const tofuData = tofuResponse.data.data || tofuResponse.data
+          const tofuRevenue = (tofuData.tofuOutput || 0) * (tofuData.tofuPrice || 15000)
+          const tofuCost = (tofuData.soybeanInput || 0) * (tofuData.soybeanPrice || 12000)
+          dailySummary.tofuProfit = tofuRevenue - tofuCost
+        }
+      } catch (error) {
+        console.log(`No tofu data for ${date}`)
+      }
+
+      // Fetch sausage processing data
+      try {
+        const sausageResponse = await processingStationApi.getDailySausageData(date)
+        if (sausageResponse.success && sausageResponse.data) {
+          const sausageData = sausageResponse.data.data || sausageResponse.data
+          const sausageRevenue = (sausageData.sausageInput || 0) * (sausageData.sausagePrice || 140000)
+          const chaQueRevenue = (sausageData.chaQueInput || 0) * (sausageData.chaQuePrice || 140000)
+          const meatCost = ((sausageData.leanMeatInput || 0) * (sausageData.leanMeatPrice || 120000)) + 
+                          ((sausageData.fatMeatInput || 0) * (sausageData.fatMeatPrice || 80000))
+          dailySummary.sausageProfit = (sausageRevenue + chaQueRevenue) - meatCost
+        }
+      } catch (error) {
+        console.log(`No sausage data for ${date}`)
+      }
+
+      // Fetch salt processing data
+      try {
+        const saltResponse = await processingStationApi.getDailySaltData(date)
+        if (saltResponse.success && saltResponse.data) {
+          const saltData = saltResponse.data.data || saltResponse.data
+          const saltRevenue = (saltData.saltOutput || 0) * (saltData.saltPrice || 8000)
+          const saltCost = (saltData.saltInput || 0) * (saltData.saltPrice || 8000) * 0.3 // 30% cost
+          dailySummary.saltProfit = saltRevenue - saltCost
+        }
+      } catch (error) {
+        console.log(`No salt data for ${date}`)
+      }
+
+      // Fetch bean sprouts processing data
+      try {
+        const sproutsResponse = await processingStationApi.getDailyBeanSproutsData(date)
+        if (sproutsResponse.success && sproutsResponse.data) {
+          const sproutsData = sproutsResponse.data.data || sproutsResponse.data
+          const sproutsRevenue = (sproutsData.beanSproutsOutput || 0) * (sproutsData.beanSproutsPrice || 12000)
+          const sproutsCost = (sproutsData.mungBeanInput || 0) * (sproutsData.mungBeanPrice || 8000)
+          dailySummary.sproutsProfit = sproutsRevenue - sproutsCost
+        }
+      } catch (error) {
+        console.log(`No bean sprouts data for ${date}`)
+      }
+
+      // Fetch livestock processing data
+      try {
+        const livestockResponse = await processingStationApi.getDailyLivestockData(date)
+        if (livestockResponse.success && livestockResponse.data) {
+          const livestockData = livestockResponse.data.data || livestockResponse.data
+          const leanMeatRevenue = (livestockData.leanMeatActualOutput || 0) * (livestockData.leanMeatPrice || 160000)
+          const boneRevenue = (livestockData.boneActualOutput || 0) * (livestockData.bonePrice || 40000)
+          const groundMeatRevenue = (livestockData.groundMeatActualOutput || 0) * (livestockData.groundMeatPrice || 120000)
+          const organsRevenue = (livestockData.organsActualOutput || 0) * (livestockData.organsPrice || 80000)
+          const livestockCost = (livestockData.liveAnimalsInput || 0) * (livestockData.liveAnimalPrice || 70000)
+          dailySummary.livestockProfit = (leanMeatRevenue + boneRevenue + groundMeatRevenue + organsRevenue) - livestockCost
+        }
+      } catch (error) {
+        console.log(`No livestock data for ${date}`)
+      }
+
+      // Fetch poultry processing data
+      try {
+        const poultryResponse = await processingStationApi.getDailyPoultryData(date)
+        if (poultryResponse.success && poultryResponse.data) {
+          const poultryData = poultryResponse.data.data || poultryResponse.data
+          const poultryRevenue = (poultryData.poultryMeatActualOutput || 0) * (poultryData.poultryMeatPrice || 150000)
+          const poultryCost = (poultryData.livePoultryInput || 0) * (poultryData.livePoultryPrice || 60000)
+          dailySummary.poultryProfit = poultryRevenue - poultryCost
+        }
+      } catch (error) {
+        console.log(`No poultry data for ${date}`)
+      }
+
+      // Calculate total profit
+      dailySummary.totalProfit = dailySummary.tofuProfit + dailySummary.sausageProfit + 
+                                dailySummary.sproutsProfit + dailySummary.saltProfit + 
+                                dailySummary.livestockProfit + dailySummary.poultryProfit
+
+      return dailySummary
+    } catch (error) {
+      console.error(`Error fetching daily profit data for ${date}:`, error)
+      return null
     }
   }
 
@@ -120,9 +166,83 @@ export function RevenuePlanning() {
     try {
       setIsLoading(true)
       
-      // Generate sample data - in real app this would be API call
-      const data = generateSampleData(selectedMonth, selectedYear)
-      setMonthlyRevenuePlan(data)
+      const daysInMonth = getDaysInMonth(new Date(selectedYear, selectedMonth - 1))
+      const dailySummaries: DailyRevenueSummary[] = []
+      
+      let totalTofuProfit = 0
+      let totalSausageProfit = 0
+      let totalSproutsProfit = 0
+      let totalSaltProfit = 0
+      let totalLivestockProfit = 0
+      let totalPoultryProfit = 0
+      let grandTotal = 0
+
+      // Fetch data for each day of the month
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(selectedYear, selectedMonth - 1, day)
+        const dateStr = format(date, "yyyy-MM-dd")
+        
+        const dailyData = await fetchDailyProfitData(dateStr)
+        
+        if (dailyData) {
+          dailySummaries.push(dailyData)
+          
+          // Add to monthly totals
+          totalTofuProfit += dailyData.tofuProfit
+          totalSausageProfit += dailyData.sausageProfit
+          totalSproutsProfit += dailyData.sproutsProfit
+          totalSaltProfit += dailyData.saltProfit
+          totalLivestockProfit += dailyData.livestockProfit
+          totalPoultryProfit += dailyData.poultryProfit
+          grandTotal += dailyData.totalProfit
+        } else {
+          // Add empty day if no data
+          dailySummaries.push({
+            date: dateStr,
+            dayNumber: day,
+            tofuProfit: 0,
+            sausageProfit: 0,
+            sproutsProfit: 0,
+            saltProfit: 0,
+            livestockProfit: 0,
+            poultryProfit: 0,
+            totalProfit: 0
+          })
+        }
+      }
+
+      const monthlyPlan: MonthlyRevenuePlan = {
+        month: selectedMonth,
+        year: selectedYear,
+        dailySummaries,
+        monthlyTotals: {
+          totalTofuProfit,
+          totalSausageProfit,
+          totalSproutsProfit,
+          totalSaltProfit,
+          totalLivestockProfit,
+          totalPoultryProfit,
+          grandTotal
+        }
+      }
+
+      setMonthlyRevenuePlan(monthlyPlan)
+      
+      // Show success message
+      const daysWithData = dailySummaries.filter(day => day.totalProfit !== 0).length
+      if (daysWithData > 0) {
+        toast({
+          title: "📊 Dữ liệu hoạch toán",
+          description: `Đã tải dữ liệu từ ${daysWithData}/${daysInMonth} ngày trong tháng`,
+          variant: "default"
+        })
+      } else {
+        toast({
+          title: "📝 Không có dữ liệu",
+          description: "Không có dữ liệu chế biến cho tháng này",
+          variant: "default"
+        })
+      }
       
     } catch (error) {
       console.error("Error fetching revenue planning data:", error)
@@ -157,11 +277,7 @@ export function RevenuePlanning() {
             <CardTitle className="text-center text-lg font-bold">
               TỔNG HỢP KẾT QUẢ THÁNG {selectedMonth.toString().padStart(2, '0')} NĂM {selectedYear}
             </CardTitle>
-            {user && (user.role === "admin" || user.role === "stationManager") && (
-              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
-                Dữ liệu được tự động tính toán
-              </Badge>
-            )}
+            
           </div>
           <div className="flex gap-4 justify-center">
             <div className="flex items-center gap-2">
@@ -374,26 +490,7 @@ export function RevenuePlanning() {
             </div>
           )}
           
-          {/* Info message for different roles */}
-          <div className="pt-4 border-t mt-4">
-            {user && (user.role === "admin" || user.role === "stationManager") ? (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <p className="text-sm text-purple-700 text-center">
-                  📊 Dữ liệu hoạch toán thu chi được tự động tính toán từ các module chế biến. 
-                  Trạm trưởng có thể xem và theo dõi hiệu suất kinh doanh.
-                </p>
-              </div>
-            ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-700 text-center">
-                  ⚠️ Chỉ trạm trưởng mới có thể xem đầy đủ dữ liệu hoạch toán thu chi
-                </p>
-              </div>
-            )}
-            <p className="text-sm text-gray-500 text-center mt-2">
-              Dữ liệu mẫu cho hoạch toán thu chi. Sẽ được tích hợp với dữ liệu thực từ các module.
-            </p>
-          </div>
+
         </CardContent>
       </Card>
     </div>

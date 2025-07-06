@@ -100,61 +100,50 @@ const getSupplies = async (req, res) => {
         if (req.user.role === "admin" || req.user.role === "brigadeAssistant" || req.user.role === "stationManager") {
             console.log("DEBUG - Not filtering by unit for admin/brigadeAssistant/stationManager role");
         }
-        // Unit assistants can only see their own unit's supplies
+        // Unit assistants can only see their own unit's supplies (using createdBy field)
         else if (req.user.role === "unitAssistant") {
             try {
-                // Convert unit to ObjectId if it's a string
+                // Filter by createdBy which references the unit in current data structure
                 if (typeof req.user.unit === "string") {
-                    query.unit = new mongoose_1.default.Types.ObjectId(req.user.unit);
+                    query.createdBy = new mongodb_1.ObjectId(req.user.unit);
                 }
                 else {
-                    // Use as is if already ObjectId
-                    query.unit = req.user.unit;
+                    query.createdBy = req.user.unit;
                 }
-                console.log("DEBUG - Filtering by unit for unitAssistant:", query.unit);
+                console.log("DEBUG - Filtering by createdBy for unitAssistant:", query.createdBy);
             }
             catch (error) {
                 console.error("Error converting unit to ObjectId:", error);
-                query.unit = req.user.unit; // Fallback to using as-is
+                query.createdBy = req.user.unit; // Fallback to using as-is
             }
         }
-        // Filter by unit parameter if specified
-        if (unit && unit !== "all" && mongoose_1.default.isValidObjectId(unit)) {
+        // Filter by unit parameter if specified (using createdBy field)
+        if (unit && unit !== "all" && mongodb_1.ObjectId.isValid(unit)) {
             try {
-                query.unit = new mongoose_1.default.Types.ObjectId(unit);
-                console.log("DEBUG - Filtering by unit from query param:", query.unit);
+                query.createdBy = new mongodb_1.ObjectId(unit);
+                console.log("DEBUG - Filtering by createdBy from query param:", query.createdBy);
             }
             catch (error) {
                 console.error("Error converting unit param to ObjectId:", error);
-                query.unit = unit;
+                query.createdBy = unit;
             }
         }
-        // Filter by category if specified
-        if (category) {
-            query.category = category;
+        // Filter by category if specified  
+        if (category && mongodb_1.ObjectId.isValid(category)) {
+            query.categoryId = new mongodb_1.ObjectId(category);
         }
         // Filter by status if specified
         if (status && status !== 'all') {
             query.status = status;
         }
-        // Filter by harvest date range if specified
+        // Filter by date range if specified
         if (fromDate || toDate) {
-            query.expectedHarvestDate = {};
+            query.date = {};
             if (fromDate) {
-                query.expectedHarvestDate.$gte = new Date(fromDate);
+                query.date.$gte = new Date(fromDate);
             }
             if (toDate) {
-                query.expectedHarvestDate.$lte = new Date(toDate);
-            }
-        }
-        // Filter by station entry date range if specified
-        if (stationEntryFromDate || stationEntryToDate) {
-            query.stationEntryDate = {};
-            if (stationEntryFromDate) {
-                query.stationEntryDate.$gte = new Date(stationEntryFromDate);
-            }
-            if (stationEntryToDate) {
-                query.stationEntryDate.$lte = new Date(stationEntryToDate);
+                query.date.$lte = new Date(toDate);
             }
         }
         // Filter by created date range if specified
@@ -177,51 +166,95 @@ const getSupplies = async (req, res) => {
         if (product && typeof product === 'string' && product.trim() !== '') {
             // Search for products by name using regex
             const searchTerm = product.trim();
-            const allProducts = Object.values(FOOD_PRODUCTS).flat();
-            const matchingProductIds = allProducts
-                .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-                .map(p => p.id);
-            if (matchingProductIds.length > 0) {
-                query.product = { $in: matchingProductIds };
-            }
-            else {
-                // If no products match, return empty result
-                query.product = { $in: [] };
-            }
+            query.productName = { $regex: searchTerm, $options: 'i' };
         }
         console.log("DEBUG - Final query:", JSON.stringify(query, null, 2));
-        // Use Mongoose model to find supplies
-        const supplies = await models_1.Supply.find(query)
-            .populate({
-            path: 'unit',
-            select: 'name'
-        })
-            .lean() // Convert to plain JavaScript objects
-            .exec(); // Execute the query
+        // Use MongoDB driver for more flexible queries
+        const db = await (0, database_1.getDb)();
+        const supplies = await db.collection('supplies')
+            .aggregate([
+            { $match: query },
+            {
+                $lookup: {
+                    from: 'units',
+                    localField: 'createdBy',
+                    foreignField: '_id',
+                    as: 'unitInfo'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'productId',
+                    foreignField: '_id',
+                    as: 'productInfo'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'categories',
+                    localField: 'categoryId',
+                    foreignField: '_id',
+                    as: 'categoryInfo'
+                }
+            },
+            {
+                $sort: { createdAt: -1 }
+            }
+        ])
+            .toArray();
         // Format response for the frontend
         const formattedSupplies = supplies.map(supply => {
-            const { _id, unit, category, product, ...rest } = supply;
+            const unitInfo = supply.unitInfo && supply.unitInfo.length > 0 ? supply.unitInfo[0] : null;
+            const productInfo = supply.productInfo && supply.productInfo.length > 0 ? supply.productInfo[0] : null;
+            const categoryInfo = supply.categoryInfo && supply.categoryInfo.length > 0 ? supply.categoryInfo[0] : null;
             return {
-                id: _id.toString(),
+                id: supply._id.toString(),
                 unit: {
-                    _id: unit && typeof unit === 'object' ? (unit._id ? unit._id.toString() : '') : '',
-                    name: unit && typeof unit === 'object' && 'name' in unit ? unit.name : ''
+                    _id: unitInfo ? unitInfo._id.toString() : '',
+                    name: unitInfo ? unitInfo.name : 'Unknown Unit'
                 },
                 category: {
-                    _id: category,
-                    name: FOOD_CATEGORIES[category] || category
+                    _id: categoryInfo ? categoryInfo._id.toString() : '',
+                    name: categoryInfo ? categoryInfo.name : supply.categoryId || 'Unknown Category'
                 },
                 product: {
-                    _id: product,
-                    name: getProductName(product),
-                    unit: getProductUnit(product)
+                    _id: productInfo ? productInfo._id.toString() : '',
+                    name: supply.productName || (productInfo ? productInfo.name : 'Unknown Product'),
+                    unit: productInfo ? productInfo.unit : supply.unit || 'kg'
                 },
-                ...rest
+                quantity: supply.quantity,
+                unitPrice: supply.unitPrice,
+                totalPrice: supply.totalPrice,
+                supplier: supply.supplier,
+                status: supply.status,
+                invoiceNumber: supply.invoiceNumber,
+                notes: supply.notes,
+                date: supply.date,
+                dateStr: supply.dateStr,
+                approvedBy: supply.approvedBy,
+                approvedAt: supply.approvedAt,
+                createdBy: supply.createdBy,
+                createdAt: supply.createdAt,
+                updatedAt: supply.updatedAt
             };
         });
         console.log(`DEBUG - Found ${formattedSupplies.length} supplies`);
         if (formattedSupplies.length > 0) {
             console.log("DEBUG - First supply:", JSON.stringify(formattedSupplies[0], null, 2));
+            // Debug specific approved supplies
+            const approvedSupplies = formattedSupplies.filter(s => s.status === "approved");
+            if (approvedSupplies.length > 0) {
+                console.log("DEBUG - Approved supply details:", JSON.stringify({
+                    id: approvedSupplies[0].id,
+                    status: approvedSupplies[0].status,
+                    unitPrice: approvedSupplies[0].unitPrice,
+                    requestedQuantity: approvedSupplies[0].requestedQuantity,
+                    actualQuantity: approvedSupplies[0].actualQuantity,
+                    totalPrice: approvedSupplies[0].totalPrice,
+                    stationEntryDate: approvedSupplies[0].stationEntryDate
+                }, null, 2));
+            }
         }
         res.status(200).json(formattedSupplies);
     }

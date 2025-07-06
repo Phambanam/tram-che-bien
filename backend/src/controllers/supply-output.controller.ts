@@ -28,7 +28,19 @@ export const getAllSupplyOutputs = async (req: Request, res: Response) => {
         query.outputDate.$gte = new Date(startDate as string)
       }
       if (endDate) {
-        query.outputDate.$lte = new Date(endDate as string)
+        // If endDate is just a date (YYYY-MM-DD), set it to end of day
+        const endDateStr = endDate as string
+        let endDateObj: Date
+        
+        if (endDateStr.length === 10 && !endDateStr.includes('T')) {
+          // Date format like "2025-06-30", set to end of day
+          endDateObj = new Date(endDateStr + 'T23:59:59.999Z')
+        } else {
+          // Already has time component
+          endDateObj = new Date(endDateStr)
+        }
+        
+        query.outputDate.$lte = endDateObj
       }
     }
 
@@ -95,7 +107,10 @@ export const getAllSupplyOutputs = async (req: Request, res: Response) => {
           },
         },
         {
-          $unwind: "$categoryInfo",
+          $unwind: {
+            path: "$categoryInfo",
+            preserveNullAndEmptyArrays: true,
+          },
         },
         {
           $project: {
@@ -109,7 +124,7 @@ export const getAllSupplyOutputs = async (req: Request, res: Response) => {
               name: "$productInfo.name",
               category: {
                 id: { $toString: "$categoryInfo._id" },
-                name: "$categoryInfo.name",
+                name: { $ifNull: ["$categoryInfo.name", "Không xác định"] },
               },
             },
             quantity: 1,
@@ -220,7 +235,10 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
           },
         },
         {
-          $unwind: "$categoryInfo",
+          $unwind: {
+            path: "$categoryInfo",
+            preserveNullAndEmptyArrays: true,
+          },
         },
         {
           $project: {
@@ -234,7 +252,7 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
               name: "$productInfo.name",
               category: {
                 id: { $toString: "$categoryInfo._id" },
-                name: "$categoryInfo.name",
+                name: { $ifNull: ["$categoryInfo.name", "Không xác định"] },
               },
             },
             quantity: 1,

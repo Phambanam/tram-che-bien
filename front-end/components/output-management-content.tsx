@@ -5,167 +5,118 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, Save, FileDown } from "lucide-react"
+import { Package, Save, FileDown, RefreshCw } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
+import { apiClient } from "@/lib/api-client"
 
-interface LTTPDistributionItem {
+interface SupplyOutput {
   id: string
-  category: string
-  name: string
-  unit: string
-  unitPrice: number
-  suggestedQuantity: number
-  unit1SuggestedQty: number
-  unit1ActualQty: number
-  unit1Amount: number
-  unit2SuggestedQty: number
-  unit2ActualQty: number
-  unit2Amount: number
-  unit3SuggestedQty: number
-  unit3ActualQty: number
-  unit3Amount: number
-  ceremonyUnitSuggestedQty: number
-  ceremonyUnitActualQty: number
-  ceremonyUnitAmount: number
-  totalSuggestedQty: number
-  totalActualQty: number
-  totalAmount: number
+  receivingUnit: {
+    id: string
+    name: string
+  }
+  product: {
+    id: string
+    name: string
+    category: {
+      id: string
+      name: string
+    }
+  }
+  quantity: number
+  outputDate: string
+  receiver: string
+  status: string
+  note: string
+  createdBy?: {
+    id: string
+    name: string
+  }
+  createdAt: string
+  updatedAt: string
 }
 
 export function OutputManagementContent() {
   const { toast } = useToast()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [lttpItems, setLttpItems] = useState<LTTPDistributionItem[]>([])
+  const [supplyOutputs, setSupplyOutputs] = useState<SupplyOutput[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const sampleLttpItems: LTTPDistributionItem[] = [
-    {
-      id: "1",
-      category: "Thực phẩm",
-      name: "Gạo tẻ",
-      unit: "Kg",
-      unitPrice: 20000,
-      suggestedQuantity: 50,
-      unit1SuggestedQty: 15,
-      unit1ActualQty: 15,
-      unit1Amount: 300000,
-      unit2SuggestedQty: 12,
-      unit2ActualQty: 12,
-      unit2Amount: 240000,
-      unit3SuggestedQty: 18,
-      unit3ActualQty: 17,
-      unit3Amount: 340000,
-      ceremonyUnitSuggestedQty: 5,
-      ceremonyUnitActualQty: 6,
-      ceremonyUnitAmount: 120000,
-      totalSuggestedQty: 50,
-      totalActualQty: 50,
-      totalAmount: 1000000
-    },
-    {
-      id: "2",
-      category: "Thực phẩm", 
-      name: "Thịt heo",
-      unit: "Kg",
-      unitPrice: 160000,
-      suggestedQuantity: 30,
-      unit1SuggestedQty: 10,
-      unit1ActualQty: 10,
-      unit1Amount: 1600000,
-      unit2SuggestedQty: 8,
-      unit2ActualQty: 8,
-      unit2Amount: 1280000,
-      unit3SuggestedQty: 9,
-      unit3ActualQty: 9,
-      unit3Amount: 1440000,
-      ceremonyUnitSuggestedQty: 3,
-      ceremonyUnitActualQty: 3,
-      ceremonyUnitAmount: 480000,
-      totalSuggestedQty: 30,
-      totalActualQty: 30,
-      totalAmount: 4800000
+  const fetchSupplyOutputs = async () => {
+    setLoading(true)
+    try {
+      const startDate = format(selectedDate, "yyyy-MM-dd")
+      const endDate = format(selectedDate, "yyyy-MM-dd")
+      
+      const response = await apiClient.supplyOutputs.getAll({
+        startDate,
+        endDate
+      })
+      
+      if (response.success) {
+        setSupplyOutputs(response.data)
+        toast({
+          title: "✅ Thành công",
+          description: `Tải được ${response.data.length} bản ghi xuất kho`,
+        })
+      } else {
+        setSupplyOutputs([])
+        toast({
+          title: "⚠️ Thông báo",
+          description: "Không có dữ liệu xuất kho cho ngày đã chọn",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching supply outputs:', error)
+      setSupplyOutputs([])
+      toast({
+        title: "❌ Lỗi",
+        description: "Không thể tải dữ liệu xuất kho",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
 
   useEffect(() => {
-    setLttpItems(sampleLttpItems)
+    fetchSupplyOutputs()
   }, [selectedDate])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN').format(amount)
+  const formatDate = (dateStr: string) => {
+    return format(new Date(dateStr), "dd/MM/yyyy HH:mm", { locale: vi })
   }
 
-  const handleInputChange = (id: string, field: string, value: number) => {
-    setLttpItems(prev => prev.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value }
-        if (field === 'unit1ActualQty') {
-          updatedItem.unit1Amount = value * item.unitPrice
-        }
-        if (field === 'unit2ActualQty') {
-          updatedItem.unit2Amount = value * item.unitPrice
-        }
-        if (field === 'unit3ActualQty') {
-          updatedItem.unit3Amount = value * item.unitPrice
-        }
-        if (field === 'ceremonyUnitActualQty') {
-          updatedItem.ceremonyUnitAmount = value * item.unitPrice
-        }
-        updatedItem.totalActualQty = updatedItem.unit1ActualQty + updatedItem.unit2ActualQty + 
-                                   updatedItem.unit3ActualQty + updatedItem.ceremonyUnitActualQty
-        updatedItem.totalAmount = updatedItem.unit1Amount + updatedItem.unit2Amount + 
-                                updatedItem.unit3Amount + updatedItem.ceremonyUnitAmount
-        return updatedItem
-      }
-      return item
-    }))
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-100 text-green-800"
+      case "pending":
+        return "bg-yellow-100 text-yellow-800"
+      case "cancelled":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
   }
 
-  const handleSave = () => {
-    toast({
-      title: "✅ Thành công",
-      description: "Đã lưu dữ liệu phân bổ LTTP",
-    })
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "Hoàn thành"
+      case "pending":
+        return "Chờ xử lý"
+      case "cancelled":
+        return "Đã hủy"
+      default:
+        return status
+    }
   }
 
-  const calculateTotals = () => {
-    return lttpItems.reduce((totals, item) => ({
-      totalSuggestedQty: totals.totalSuggestedQty + item.totalSuggestedQty,
-      totalActualQty: totals.totalActualQty + item.totalActualQty,
-      totalAmount: totals.totalAmount + item.totalAmount,
-      unit1SuggestedQty: totals.unit1SuggestedQty + item.unit1SuggestedQty,
-      unit1ActualQty: totals.unit1ActualQty + item.unit1ActualQty,
-      unit1Amount: totals.unit1Amount + item.unit1Amount,
-      unit2SuggestedQty: totals.unit2SuggestedQty + item.unit2SuggestedQty,
-      unit2ActualQty: totals.unit2ActualQty + item.unit2ActualQty,
-      unit2Amount: totals.unit2Amount + item.unit2Amount,
-      unit3SuggestedQty: totals.unit3SuggestedQty + item.unit3SuggestedQty,
-      unit3ActualQty: totals.unit3ActualQty + item.unit3ActualQty,
-      unit3Amount: totals.unit3Amount + item.unit3Amount,
-      ceremonyUnitSuggestedQty: totals.ceremonyUnitSuggestedQty + item.ceremonyUnitSuggestedQty,
-      ceremonyUnitActualQty: totals.ceremonyUnitActualQty + item.ceremonyUnitActualQty,
-      ceremonyUnitAmount: totals.ceremonyUnitAmount + item.ceremonyUnitAmount
-    }), {
-      totalSuggestedQty: 0,
-      totalActualQty: 0,
-      totalAmount: 0,
-      unit1SuggestedQty: 0,
-      unit1ActualQty: 0,
-      unit1Amount: 0,
-      unit2SuggestedQty: 0,
-      unit2ActualQty: 0,
-      unit2Amount: 0,
-      unit3SuggestedQty: 0,
-      unit3ActualQty: 0,
-      unit3Amount: 0,
-      ceremonyUnitSuggestedQty: 0,
-      ceremonyUnitActualQty: 0,
-      ceremonyUnitAmount: 0
-    })
-  }
-
-  const totals = calculateTotals()
+  const totalQuantity = supplyOutputs.reduce((sum, output) => sum + output.quantity, 0)
 
   return (
     <div className="w-full p-6">
@@ -178,7 +129,7 @@ export function OutputManagementContent() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-lg">Bảng phân bổ LTTP - {format(selectedDate, "dd/MM/yyyy", { locale: vi })}</CardTitle>
+              <CardTitle className="text-lg">Danh sách xuất kho - {format(selectedDate, "dd/MM/yyyy", { locale: vi })}</CardTitle>
               <div className="flex gap-2">
                 <input
                   type="date"
@@ -186,9 +137,9 @@ export function OutputManagementContent() {
                   onChange={(e) => setSelectedDate(new Date(e.target.value))}
                   className="px-3 py-2 border border-gray-300 rounded-md"
                 />
-                <Button onClick={handleSave} className="bg-orange-600 hover:bg-orange-700">
-                  <Save className="w-4 h-4 mr-2" />
-                  Lưu
+                <Button onClick={fetchSupplyOutputs} disabled={loading} className="bg-orange-600 hover:bg-orange-700">
+                  <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Làm mới
                 </Button>
                 <Button variant="outline" className="flex items-center gap-2">
                   <FileDown className="h-4 w-4" />
@@ -198,146 +149,83 @@ export function OutputManagementContent() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table className="border text-xs">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-12">STT</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-24">PHÂN LOẠI</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-32">TÊN LTTP</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-16">ĐVT</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-20">Đơn giá</TableHead>
-                    <TableHead rowSpan={2} className="text-center align-middle border-r bg-gray-100 w-20">SL đề nghị</TableHead>
-                    <TableHead colSpan={3} className="text-center border-r bg-blue-50">Tiểu đoàn 1</TableHead>
-                    <TableHead colSpan={3} className="text-center border-r bg-green-50">Tiểu đoàn 2</TableHead>
-                    <TableHead colSpan={3} className="text-center border-r bg-yellow-50">Tiểu đoàn 3</TableHead>
-                    <TableHead colSpan={3} className="text-center border-r bg-purple-50">Lữ đoàn bộ</TableHead>
-                    <TableHead colSpan={3} className="text-center bg-red-50">Tổng</TableHead>
-                  </TableRow>
-                  <TableRow>
-                    <TableHead className="text-center bg-blue-50 text-xs w-16">SL đề nghị</TableHead>
-                    <TableHead className="text-center bg-blue-50 text-xs w-16">Thực xuất</TableHead>
-                    <TableHead className="text-center bg-blue-50 text-xs border-r w-20">Thành tiền</TableHead>
-                    <TableHead className="text-center bg-green-50 text-xs w-16">SL đề nghị</TableHead>
-                    <TableHead className="text-center bg-green-50 text-xs w-16">Thực xuất</TableHead>
-                    <TableHead className="text-center bg-green-50 text-xs border-r w-20">Thành tiền</TableHead>
-                    <TableHead className="text-center bg-yellow-50 text-xs w-16">SL đề nghị</TableHead>
-                    <TableHead className="text-center bg-yellow-50 text-xs w-16">Thực xuất</TableHead>
-                    <TableHead className="text-center bg-yellow-50 text-xs border-r w-20">Thành tiền</TableHead>
-                    <TableHead className="text-center bg-purple-50 text-xs w-16">SL đề nghị</TableHead>
-                    <TableHead className="text-center bg-purple-50 text-xs w-16">Thực xuất</TableHead>
-                    <TableHead className="text-center bg-purple-50 text-xs border-r w-20">Thành tiền</TableHead>
-                    <TableHead className="text-center bg-red-50 text-xs w-16">SL đề nghị</TableHead>
-                    <TableHead className="text-center bg-red-50 text-xs w-16">Thực xuất</TableHead>
-                    <TableHead className="text-center bg-red-50 text-xs w-20">Thành tiền</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lttpItems.map((item, index) => (
-                    <TableRow key={item.id} className="border-b">
-                      <TableCell className="text-center border-r font-medium">{index + 1}</TableCell>
-                      <TableCell className="text-center border-r">{item.category}</TableCell>
-                      <TableCell className="border-r">{item.name}</TableCell>
-                      <TableCell className="text-center border-r">{item.unit}</TableCell>
-                      <TableCell className="text-right border-r">{formatCurrency(item.unitPrice)}</TableCell>
-                      <TableCell className="text-center border-r">{item.suggestedQuantity}</TableCell>
-                      <TableCell className="text-center">{item.unit1SuggestedQty}</TableCell>
-                      <TableCell className="p-1">
-                        <Input
-                          type="number"
-                          value={item.unit1ActualQty}
-                          onChange={(e) => handleInputChange(item.id, 'unit1ActualQty', Number(e.target.value))}
-                          className="w-16 h-8 text-xs text-center"
-                          step="0.1"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right border-r">{formatCurrency(item.unit1Amount)}</TableCell>
-                      <TableCell className="text-center">{item.unit2SuggestedQty}</TableCell>
-                      <TableCell className="p-1">
-                        <Input
-                          type="number"
-                          value={item.unit2ActualQty}
-                          onChange={(e) => handleInputChange(item.id, 'unit2ActualQty', Number(e.target.value))}
-                          className="w-16 h-8 text-xs text-center"
-                          step="0.1"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right border-r">{formatCurrency(item.unit2Amount)}</TableCell>
-                      <TableCell className="text-center">{item.unit3SuggestedQty}</TableCell>
-                      <TableCell className="p-1">
-                        <Input
-                          type="number"
-                          value={item.unit3ActualQty}
-                          onChange={(e) => handleInputChange(item.id, 'unit3ActualQty', Number(e.target.value))}
-                          className="w-16 h-8 text-xs text-center"
-                          step="0.1"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right border-r">{formatCurrency(item.unit3Amount)}</TableCell>
-                      <TableCell className="text-center">{item.ceremonyUnitSuggestedQty}</TableCell>
-                      <TableCell className="p-1">
-                        <Input
-                          type="number"
-                          value={item.ceremonyUnitActualQty}
-                          onChange={(e) => handleInputChange(item.id, 'ceremonyUnitActualQty', Number(e.target.value))}
-                          className="w-16 h-8 text-xs text-center"
-                          step="0.1"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right border-r">{formatCurrency(item.ceremonyUnitAmount)}</TableCell>
-                      <TableCell className="text-center font-semibold">{item.totalSuggestedQty}</TableCell>
-                      <TableCell className="text-center font-semibold">{item.totalActualQty}</TableCell>
-                      <TableCell className="text-right font-semibold">{formatCurrency(item.totalAmount)}</TableCell>
+            {loading ? (
+              <div className="flex justify-center items-center py-8">
+                <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+                <span>Đang tải dữ liệu...</span>
+              </div>
+            ) : supplyOutputs.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>Không có dữ liệu xuất kho cho ngày {format(selectedDate, "dd/MM/yyyy", { locale: vi })}</p>
+                <p className="text-sm mt-2">Thử chọn ngày khác hoặc kiểm tra dữ liệu trong hệ thống</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table className="border">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-center border-r bg-gray-100 w-12">STT</TableHead>
+                      <TableHead className="text-center border-r bg-gray-100">Sản phẩm</TableHead>
+                      <TableHead className="text-center border-r bg-gray-100">Danh mục</TableHead>
+                      <TableHead className="text-center border-r bg-gray-100">Đơn vị nhận</TableHead>
+                      <TableHead className="text-center border-r bg-gray-100">Số lượng</TableHead>
+                      <TableHead className="text-center border-r bg-gray-100">Người nhận</TableHead>
+                      <TableHead className="text-center border-r bg-gray-100">Trạng thái</TableHead>
+                      <TableHead className="text-center border-r bg-gray-100">Ngày xuất</TableHead>
+                      <TableHead className="text-center border-r bg-gray-100">Ghi chú</TableHead>
+                      <TableHead className="text-center bg-gray-100">Người tạo</TableHead>
                     </TableRow>
-                  ))}
-                  <TableRow className="bg-gray-100 font-semibold border-t-2">
-                    <TableCell className="text-center border-r" colSpan={5}>TỔNG CỘNG</TableCell>
-                    <TableCell className="text-center border-r">{totals.totalSuggestedQty}</TableCell>
-                    <TableCell className="text-center">{totals.unit1SuggestedQty}</TableCell>
-                    <TableCell className="text-center">{totals.unit1ActualQty}</TableCell>
-                    <TableCell className="text-right border-r">{formatCurrency(totals.unit1Amount)}</TableCell>
-                    <TableCell className="text-center">{totals.unit2SuggestedQty}</TableCell>
-                    <TableCell className="text-center">{totals.unit2ActualQty}</TableCell>
-                    <TableCell className="text-right border-r">{formatCurrency(totals.unit2Amount)}</TableCell>
-                    <TableCell className="text-center">{totals.unit3SuggestedQty}</TableCell>
-                    <TableCell className="text-center">{totals.unit3ActualQty}</TableCell>
-                    <TableCell className="text-right border-r">{formatCurrency(totals.unit3Amount)}</TableCell>
-                    <TableCell className="text-center">{totals.ceremonyUnitSuggestedQty}</TableCell>
-                    <TableCell className="text-center">{totals.ceremonyUnitActualQty}</TableCell>
-                    <TableCell className="text-right border-r">{formatCurrency(totals.ceremonyUnitAmount)}</TableCell>
-                    <TableCell className="text-center">{totals.totalSuggestedQty}</TableCell>
-                    <TableCell className="text-center">{totals.totalActualQty}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(totals.totalAmount)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {supplyOutputs.map((output, index) => (
+                      <TableRow key={output.id} className="border-b">
+                        <TableCell className="text-center border-r font-medium">{index + 1}</TableCell>
+                        <TableCell className="border-r font-medium">{output.product.name}</TableCell>
+                        <TableCell className="text-center border-r">{output.product.category.name}</TableCell>
+                        <TableCell className="border-r">{output.receivingUnit.name}</TableCell>
+                        <TableCell className="text-center border-r font-semibold">{output.quantity} kg</TableCell>
+                        <TableCell className="border-r">{output.receiver}</TableCell>
+                        <TableCell className="text-center border-r">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(output.status)}`}>
+                            {getStatusText(output.status)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center border-r text-sm">{formatDate(output.outputDate)}</TableCell>
+                        <TableCell className="border-r text-sm">{output.note || '-'}</TableCell>
+                        <TableCell className="text-sm">{output.createdBy?.name || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="text-center">
-              <div className="text-sm font-medium text-blue-700 mb-1">Tổng số mặt hàng</div>
-              <div className="text-2xl font-bold text-blue-800">{lttpItems.length}</div>
+              <div className="text-sm font-medium text-blue-700 mb-1">Tổng phiếu xuất</div>
+              <div className="text-2xl font-bold text-blue-800">{supplyOutputs.length}</div>
             </div>
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="text-center">
-              <div className="text-sm font-medium text-green-700 mb-1">Tổng đề nghị</div>
-              <div className="text-xl font-bold text-green-800">{totals.totalSuggestedQty}</div>
+              <div className="text-sm font-medium text-green-700 mb-1">Tổng khối lượng</div>
+              <div className="text-xl font-bold text-green-800">{totalQuantity.toFixed(1)} kg</div>
             </div>
           </div>
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
             <div className="text-center">
-              <div className="text-sm font-medium text-orange-700 mb-1">Tổng thực xuất</div>
-              <div className="text-xl font-bold text-orange-800">{totals.totalActualQty}</div>
+              <div className="text-sm font-medium text-orange-700 mb-1">Hoàn thành</div>
+              <div className="text-xl font-bold text-orange-800">{supplyOutputs.filter(o => o.status === 'completed').length}</div>
             </div>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="text-center">
-              <div className="text-sm font-medium text-red-700 mb-1">Tổng thành tiền</div>
-              <div className="text-lg font-bold text-red-800">{formatCurrency(totals.totalAmount)} đ</div>
+              <div className="text-sm font-medium text-red-700 mb-1">Chờ xử lý</div>
+              <div className="text-lg font-bold text-red-800">{supplyOutputs.filter(o => o.status === 'pending').length}</div>
             </div>
           </div>
         </div>
@@ -345,10 +233,11 @@ export function OutputManagementContent() {
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <h4 className="font-semibold mb-2">Ghi chú:</h4>
           <ul className="text-sm text-gray-600 space-y-1">
-            <li>• Hiển thị theo mẫu "Hiệu theo đơn LTTP từ thức đơn" của nguồn từ nguồn nhập</li>
-            <li>• Thực xuất trong gì nguồn xuất</li>
-            <li>• Lý tự phận - Thực xuất trong gì nguồn xuất</li>
-            <li>• Số sánh với ngày hiện tại để báo: Chưa hết hạn, Sắp hết hạn (trước 3 ngày), Hết hạn</li>
+            <li>• Hiển thị danh sách các phiếu xuất kho theo ngày được chọn</li>
+            <li>• Dữ liệu được lấy từ hệ thống quản lý kho và cập nhật theo thời gian thực</li>
+            <li>• Trạng thái: Hoàn thành (đã xuất), Chờ xử lý (đang chờ duyệt), Đã hủy</li>
+            <li>• Có thể chọn ngày khác để xem dữ liệu xuất kho tương ứng</li>
+            <li>• Dữ liệu hiện có từ ngày 16/06/2025 đến 29/06/2025</li>
           </ul>
         </div>
       </div>

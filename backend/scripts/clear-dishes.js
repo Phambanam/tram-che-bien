@@ -2,7 +2,7 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
 async function clearDishes() {
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/military-logistics';
+  const uri = process.env.MONGODB_URI || 'mongodb://admin:password@localhost:27017/military-logistics?authSource=admin';
   const client = new MongoClient(uri);
   
   try {

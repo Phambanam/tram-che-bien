@@ -72,6 +72,7 @@ interface MonthlySausageSummary {
   totalSausageRemaining: number
   totalChaQueRemaining: number
   processingEfficiency: number
+  // Pre-calculated financial data from backend (in thousands VND)
   sausageRevenue: number
   chaQueRevenue: number
   totalRevenue: number
@@ -289,15 +290,15 @@ export function SausageProcessing() {
       } else {
         setWeeklySausageTracking([])
       }
-    } catch (error) {
-      console.error("Error fetching weekly sausage tracking:", error)
-      setWeeklySausageTracking([])
-      toast({
-        title: "❌ Lỗi",
-        description: "Không thể tải dữ liệu theo tuần",
-        variant: "destructive"
-      })
-    }
+          } catch (error) {
+        console.error("Error fetching weekly sausage tracking:", error)
+        setWeeklySausageTracking([])
+        toast({
+          title: "❌ Lỗi",
+          description: "Không thể tải dữ liệu theo tuần",
+          variant: "destructive"
+        })
+      }
   }
 
   // Fetch monthly sausage summary data
@@ -314,15 +315,15 @@ export function SausageProcessing() {
       } else {
         setMonthlySausageSummary([])
       }
-    } catch (error) {
-      console.error("Error fetching monthly sausage summary:", error)
-      setMonthlySausageSummary([])
-      toast({
-        title: "❌ Lỗi", 
-        description: "Không thể tải dữ liệu theo tháng",
-        variant: "destructive"
-      })
-    }
+          } catch (error) {
+        console.error("Error fetching monthly sausage summary:", error)
+        setMonthlySausageSummary([])
+        toast({
+          title: "❌ Lỗi", 
+          description: "Không thể tải dữ liệu theo tháng",
+          variant: "destructive"
+        })
+      }
   }
 
   useEffect(() => {
@@ -364,13 +365,14 @@ export function SausageProcessing() {
         chaQuePrice: dailyUpdateData.chaQuePrice
       })
 
-      // Refresh data
+      // Refresh all data to update weekly and monthly views
       await fetchDailySausageProcessing(new Date(dailySausageProcessing.date))
       await fetchWeeklySausageTracking()
+      await fetchMonthlySausageSummary()
 
       toast({
         title: "✅ Thành công",
-        description: "Đã cập nhật dữ liệu chế biến giò chả",
+        description: "Đã cập nhật dữ liệu chế biến giò chả và làm mới tất cả tab",
       })
 
       setEditingDailyData(false)
@@ -917,12 +919,7 @@ export function SausageProcessing() {
               </div>
             )}
 
-            {/* Info message */}
-            <div className="pt-4 border-t">
-              <p className="text-sm text-gray-500 text-center">
-                Dữ liệu thực tế từ API. StationManager có thể chỉnh sửa dữ liệu ngày.
-              </p>
-            </div>
+           
           </div>
           )}
         </CardContent>
@@ -981,11 +978,11 @@ export function SausageProcessing() {
                   <thead>
                     <tr>
                       <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">NGÀY</th>
-                      <th rowSpan={2} className="border border-black p-2 bg-blue-100 font-bold">THU</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-blue-100 font-bold">THU<br/>(1.000đ)</th>
                       <th colSpan={5} className="border border-black p-2 bg-blue-50 font-bold">TRONG ĐÓ</th>
-                      <th rowSpan={2} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-red-100 font-bold">CHI<br/>(1.000đ)</th>
                       <th colSpan={5} className="border border-black p-2 bg-red-50 font-bold">TRONG ĐÓ</th>
-                      <th rowSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)<br/>(1.000đ)</th>
                     </tr>
                     <tr>
                       <th colSpan={2} className="border border-black p-1 bg-blue-50 text-sm">Giò lụa</th>
@@ -1009,16 +1006,14 @@ export function SausageProcessing() {
                                   <tbody>
                     {weeklySausageTracking && weeklySausageTracking.length > 0 ? (
                       weeklySausageTracking.map((day) => {
-                        // Calculate financial values
-                        const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
-                        const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
-                        const totalRevenue = sausageRevenue + chaQueRevenue
-                        const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
-                        const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
-                        const otherCostsInput = (day.leanMeatInput + day.fatMeatInput) * 0.02 // 2% other costs
-                        const otherCosts = otherCostsInput * 1000 / 1000 // Convert to thousands
-                        const totalCost = leanMeatCost + fatMeatCost + otherCosts
-                        const profit = totalRevenue - totalCost
+                        // Use pre-calculated financial values from backend (already in thousands VND)
+                        const sausageRevenue = day.sausageRevenue || 0
+                        const chaQueRevenue = day.chaQueRevenue || 0
+                        const totalRevenue = day.totalRevenue || (sausageRevenue + chaQueRevenue)
+                        const meatCost = day.meatCost || 0
+                        const otherCosts = day.otherCosts || 0
+                        const totalCost = day.totalCost || (meatCost + otherCosts)
+                        const profit = day.profit || (totalRevenue - totalCost)
 
                         return (
                           <tr key={day.date} className="border-b">
@@ -1042,10 +1037,10 @@ export function SausageProcessing() {
                             </td>
                             {/* CHI - Thịt nạc */}
                             <td className="border border-black p-1 text-center">{day.leanMeatInput}</td>
-                            <td className="border border-black p-1 text-center">{leanMeatCost.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center">{((day.leanMeatInput * day.leanMeatPrice) / 1000).toFixed(0)}</td>
                             {/* CHI - Thịt mỡ */}
                             <td className="border border-black p-1 text-center">{day.fatMeatInput}</td>
-                            <td className="border border-black p-1 text-center">{fatMeatCost.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center">{((day.fatMeatInput * day.fatMeatPrice) / 1000).toFixed(0)}</td>
                             {/* CHI - Chi khác */}
                             <td className="border border-black p-1 text-center">{otherCosts.toFixed(0)}</td>
                             {/* THU-CHI (LÃI) */}
@@ -1070,9 +1065,7 @@ export function SausageProcessing() {
                         <td className="border border-black p-1 text-center bg-blue-100">
                           <span className="text-blue-800">
                             {weeklySausageTracking.reduce((sum, day) => {
-                              const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
-                              const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
-                              return sum + sausageRevenue + chaQueRevenue
+                              return sum + (day.totalRevenue || 0)
                             }, 0).toFixed(0)}
                           </span>
                         </td>
@@ -1084,7 +1077,7 @@ export function SausageProcessing() {
                         </td>
                         <td className="border border-black p-1 text-center bg-blue-100">
                           <span className="text-blue-800">
-                            {weeklySausageTracking.reduce((sum, day) => sum + (day.sausageInput * day.sausagePrice / 1000), 0).toFixed(0)}
+                            {weeklySausageTracking.reduce((sum, day) => sum + (day.sausageRevenue || 0), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* THU - Chả quế */}
@@ -1095,7 +1088,7 @@ export function SausageProcessing() {
                         </td>
                         <td className="border border-black p-1 text-center bg-blue-100">
                           <span className="text-blue-800">
-                            {weeklySausageTracking.reduce((sum, day) => sum + (day.chaQueInput * day.chaQuePrice / 1000), 0).toFixed(0)}
+                            {weeklySausageTracking.reduce((sum, day) => sum + (day.chaQueRevenue || 0), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* THU - Chi khác */}
@@ -1106,10 +1099,7 @@ export function SausageProcessing() {
                         <td className="border border-black p-1 text-center bg-red-100">
                           <span className="text-red-800">
                             {weeklySausageTracking.reduce((sum, day) => {
-                              const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
-                              const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
-                              const otherCosts = (day.leanMeatInput + day.fatMeatInput) * 0.02 * 1000 / 1000
-                              return sum + leanMeatCost + fatMeatCost + otherCosts
+                              return sum + (day.totalCost || 0)
                             }, 0).toFixed(0)}
                           </span>
                         </td>
@@ -1121,7 +1111,7 @@ export function SausageProcessing() {
                         </td>
                         <td className="border border-black p-1 text-center bg-red-100">
                           <span className="text-red-800">
-                            {weeklySausageTracking.reduce((sum, day) => sum + (day.leanMeatInput * day.leanMeatPrice / 1000), 0).toFixed(0)}
+                            {weeklySausageTracking.reduce((sum, day) => sum + ((day.leanMeatInput * day.leanMeatPrice) / 1000), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* CHI - Thịt mỡ */}
@@ -1132,38 +1122,24 @@ export function SausageProcessing() {
                         </td>
                         <td className="border border-black p-1 text-center bg-red-100">
                           <span className="text-red-800">
-                            {weeklySausageTracking.reduce((sum, day) => sum + (day.fatMeatInput * day.fatMeatPrice / 1000), 0).toFixed(0)}
+                            {weeklySausageTracking.reduce((sum, day) => sum + ((day.fatMeatInput * day.fatMeatPrice) / 1000), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* CHI - Chi khác */}
                         <td className="border border-black p-1 text-center bg-red-100">
                           <span className="text-red-800">
-                            {weeklySausageTracking.reduce((sum, day) => sum + ((day.leanMeatInput + day.fatMeatInput) * 0.02 * 1000 / 1000), 0).toFixed(0)}
+                            {weeklySausageTracking.reduce((sum, day) => sum + (day.otherCosts || 0), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* THU-CHI (LÃI) */}
                         <td className="border border-black p-1 text-center bg-green-100">
                           <span className={`font-bold ${
                             weeklySausageTracking.reduce((sum, day) => {
-                              const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
-                              const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
-                              const totalRevenue = sausageRevenue + chaQueRevenue
-                              const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
-                              const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
-                              const otherCosts = (day.leanMeatInput + day.fatMeatInput) * 0.02 * 1000 / 1000
-                              const totalCost = leanMeatCost + fatMeatCost + otherCosts
-                              return sum + (totalRevenue - totalCost)
+                              return sum + (day.profit || 0)
                             }, 0) >= 0 ? 'text-green-800' : 'text-red-800'
                           }`}>
                             {weeklySausageTracking.reduce((sum, day) => {
-                              const sausageRevenue = (day.sausageInput * day.sausagePrice) / 1000
-                              const chaQueRevenue = (day.chaQueInput * day.chaQuePrice) / 1000
-                              const totalRevenue = sausageRevenue + chaQueRevenue
-                              const leanMeatCost = (day.leanMeatInput * day.leanMeatPrice) / 1000
-                              const fatMeatCost = (day.fatMeatInput * day.fatMeatPrice) / 1000
-                              const otherCosts = (day.leanMeatInput + day.fatMeatInput) * 0.02 * 1000 / 1000
-                              const totalCost = leanMeatCost + fatMeatCost + otherCosts
-                              return sum + (totalRevenue - totalCost)
+                              return sum + (day.profit || 0)
                             }, 0).toFixed(0)}
                           </span>
                         </td>
@@ -1228,11 +1204,11 @@ export function SausageProcessing() {
                   <thead>
                     <tr>
                       <th rowSpan={3} className="border border-black p-2 bg-gray-100 font-bold">THÁNG</th>
-                      <th rowSpan={2} className="border border-black p-2 bg-blue-100 font-bold">THU</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-blue-100 font-bold">THU<br/>(1.000đ)</th>
                       <th colSpan={5} className="border border-black p-2 bg-blue-50 font-bold">TRONG ĐÓ</th>
-                      <th rowSpan={2} className="border border-black p-2 bg-red-100 font-bold">CHI</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-red-100 font-bold">CHI<br/>(1.000đ)</th>
                       <th colSpan={5} className="border border-black p-2 bg-red-50 font-bold">TRONG ĐÓ</th>
-                      <th rowSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)</th>
+                      <th rowSpan={3} className="border border-black p-2 bg-green-100 font-bold">THU-CHI<br/>(LÃI)<br/>(1.000đ)</th>
                     </tr>
                     <tr>
                       <th colSpan={2} className="border border-black p-1 bg-blue-50 text-sm">Giò lụa</th>
@@ -1256,21 +1232,14 @@ export function SausageProcessing() {
                                   <tbody>
                     {monthlySausageSummary && monthlySausageSummary.length > 0 ? (
                       monthlySausageSummary.map((month) => {
-                        // Calculate financial values (assuming default prices if not provided)
-                        const sausagePrice = 150000 // Default price per kg
-                        const chaQuePrice = 140000 // Default price per kg
-                        const leanMeatPrice = 120000 // Default price per kg
-                        const fatMeatPrice = 80000 // Default price per kg
-
-                        const sausageRevenue = (month.totalSausageInput * sausagePrice) / 1000
-                        const chaQueRevenue = (month.totalChaQueInput * chaQuePrice) / 1000
-                        const totalRevenue = sausageRevenue + chaQueRevenue
-                        const leanMeatCost = (month.totalLeanMeatInput * leanMeatPrice) / 1000
-                        const fatMeatCost = (month.totalFatMeatInput * fatMeatPrice) / 1000
-                        const otherCostsInput = (month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 // 2% other costs
-                        const otherCosts = otherCostsInput * 1000 / 1000 // Convert to thousands
-                        const totalCost = leanMeatCost + fatMeatCost + otherCosts
-                        const profit = totalRevenue - totalCost
+                        // Use pre-calculated financial values from backend (already in thousands VND)
+                        const sausageRevenue = month.sausageRevenue || 0
+                        const chaQueRevenue = month.chaQueRevenue || 0
+                        const totalRevenue = month.totalRevenue || (sausageRevenue + chaQueRevenue)
+                        const meatCost = month.meatCost || 0
+                        const otherCosts = month.otherCosts || 0
+                        const totalCost = month.totalCost || (meatCost + otherCosts)
+                        const profit = month.netProfit || (totalRevenue - totalCost)
 
                         return (
                           <tr key={month.month} className="border-b">
@@ -1292,10 +1261,10 @@ export function SausageProcessing() {
                             </td>
                             {/* CHI - Thịt nạc */}
                             <td className="border border-black p-1 text-center">{month.totalLeanMeatInput}</td>
-                            <td className="border border-black p-1 text-center">{leanMeatCost.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center">{Math.round(meatCost * 0.75)}</td>
                             {/* CHI - Thịt mỡ */}
                             <td className="border border-black p-1 text-center">{month.totalFatMeatInput}</td>
-                            <td className="border border-black p-1 text-center">{fatMeatCost.toFixed(0)}</td>
+                            <td className="border border-black p-1 text-center">{Math.round(meatCost * 0.25)}</td>
                             {/* CHI - Chi khác */}
                             <td className="border border-black p-1 text-center">{otherCosts.toFixed(0)}</td>
                             {/* THU-CHI (LÃI) */}
@@ -1320,9 +1289,7 @@ export function SausageProcessing() {
                         <td className="border border-black p-1 text-center bg-blue-100">
                           <span className="text-blue-800">
                             {monthlySausageSummary.reduce((sum, month) => {
-                              const sausageRevenue = (month.totalSausageInput * 150000) / 1000
-                              const chaQueRevenue = (month.totalChaQueInput * 140000) / 1000
-                              return sum + sausageRevenue + chaQueRevenue
+                              return sum + (month.totalRevenue || 0)
                             }, 0).toFixed(0)}
                           </span>
                         </td>
@@ -1334,7 +1301,7 @@ export function SausageProcessing() {
                         </td>
                         <td className="border border-black p-1 text-center bg-blue-100">
                           <span className="text-blue-800">
-                            {monthlySausageSummary.reduce((sum, month) => sum + (month.totalSausageInput * 150000 / 1000), 0).toFixed(0)}
+                            {monthlySausageSummary.reduce((sum, month) => sum + (month.sausageRevenue || 0), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* THU - Chả quế */}
@@ -1345,7 +1312,7 @@ export function SausageProcessing() {
                         </td>
                         <td className="border border-black p-1 text-center bg-blue-100">
                           <span className="text-blue-800">
-                            {monthlySausageSummary.reduce((sum, month) => sum + (month.totalChaQueInput * 140000 / 1000), 0).toFixed(0)}
+                            {monthlySausageSummary.reduce((sum, month) => sum + (month.chaQueRevenue || 0), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* THU - Chi khác */}
@@ -1356,10 +1323,7 @@ export function SausageProcessing() {
                         <td className="border border-black p-1 text-center bg-red-100">
                           <span className="text-red-800">
                             {monthlySausageSummary.reduce((sum, month) => {
-                              const leanMeatCost = (month.totalLeanMeatInput * 120000) / 1000
-                              const fatMeatCost = (month.totalFatMeatInput * 80000) / 1000
-                              const otherCosts = (month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 * 1000 / 1000
-                              return sum + leanMeatCost + fatMeatCost + otherCosts
+                              return sum + (month.totalCost || 0)
                             }, 0).toFixed(0)}
                           </span>
                         </td>
@@ -1371,7 +1335,7 @@ export function SausageProcessing() {
                         </td>
                         <td className="border border-black p-1 text-center bg-red-100">
                           <span className="text-red-800">
-                            {monthlySausageSummary.reduce((sum, month) => sum + (month.totalLeanMeatInput * 120000 / 1000), 0).toFixed(0)}
+                            {monthlySausageSummary.reduce((sum, month) => sum + Math.round((month.meatCost || 0) * 0.75), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* CHI - Thịt mỡ */}
@@ -1382,38 +1346,24 @@ export function SausageProcessing() {
                         </td>
                         <td className="border border-black p-1 text-center bg-red-100">
                           <span className="text-red-800">
-                            {monthlySausageSummary.reduce((sum, month) => sum + (month.totalFatMeatInput * 80000 / 1000), 0).toFixed(0)}
+                            {monthlySausageSummary.reduce((sum, month) => sum + Math.round((month.meatCost || 0) * 0.25), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* CHI - Chi khác */}
                         <td className="border border-black p-1 text-center bg-red-100">
                           <span className="text-red-800">
-                            {monthlySausageSummary.reduce((sum, month) => sum + ((month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 * 1000 / 1000), 0).toFixed(0)}
+                            {monthlySausageSummary.reduce((sum, month) => sum + (month.otherCosts || 0), 0).toFixed(0)}
                           </span>
                         </td>
                         {/* THU-CHI (LÃI) */}
                         <td className="border border-black p-1 text-center bg-green-100">
                           <span className={`font-bold ${
                             monthlySausageSummary.reduce((sum, month) => {
-                              const sausageRevenue = (month.totalSausageInput * 150000) / 1000
-                              const chaQueRevenue = (month.totalChaQueInput * 140000) / 1000
-                              const totalRevenue = sausageRevenue + chaQueRevenue
-                              const leanMeatCost = (month.totalLeanMeatInput * 120000) / 1000
-                              const fatMeatCost = (month.totalFatMeatInput * 80000) / 1000
-                              const otherCosts = (month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 * 1000 / 1000
-                              const totalCost = leanMeatCost + fatMeatCost + otherCosts
-                              return sum + (totalRevenue - totalCost)
+                              return sum + (month.netProfit || 0)
                             }, 0) >= 0 ? 'text-green-800' : 'text-red-800'
                           }`}>
                             {monthlySausageSummary.reduce((sum, month) => {
-                              const sausageRevenue = (month.totalSausageInput * 150000) / 1000
-                              const chaQueRevenue = (month.totalChaQueInput * 140000) / 1000
-                              const totalRevenue = sausageRevenue + chaQueRevenue
-                              const leanMeatCost = (month.totalLeanMeatInput * 120000) / 1000
-                              const fatMeatCost = (month.totalFatMeatInput * 80000) / 1000
-                              const otherCosts = (month.totalLeanMeatInput + month.totalFatMeatInput) * 0.02 * 1000 / 1000
-                              const totalCost = leanMeatCost + fatMeatCost + otherCosts
-                              return sum + (totalRevenue - totalCost)
+                              return sum + (month.netProfit || 0)
                             }, 0).toFixed(0)}
                           </span>
                         </td>

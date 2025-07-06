@@ -9,8 +9,10 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "lint": "eslint . --ext .ts",
     "test": "jest",
-    "seed": "node simple-seed.js",
+    "seed": "ts-node-dev --respawn --transpile-only scripts/seed.ts",
     "seed:comprehensive": "node run-seed.js",
+    "seed:fixed": "ts-node scripts/fixed-seed.ts",
+    "seed:simple": "ts-node scripts/simple-fixed-seed.ts",
     "clear-db": "node -e \"require('mongoose').connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/military-logistics').then(() => require('mongoose').connection.db.dropDatabase()).then(() => console.log('Database cleared')).then(() => process.exit(0))\""
   },
   "dependencies": {
@@ -20,7 +22,7 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.6.1",
     "exceljs": "^4.4.0",
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
@@ -30,7 +32,7 @@
     "mongoose": "^8.15.1",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "^2.6.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },

@@ -836,6 +836,42 @@ export const processingStationApi = {
     })
   },
 
+  // New methods for daily poultry processing
+  getDailyPoultryData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/poultry/${date}`)
+  },
+
+  updateDailyPoultryData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/poultry/${date}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
+  // New methods for daily livestock processing
+  getDailyLivestockData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/livestock/${date}`)
+  },
+
+  updateDailyLivestockData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/livestock/${date}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
+  // New methods for daily salt processing
+  getDailySaltData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/salt/${date}`)
+  },
+
+  updateDailySaltData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/salt/${date}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
   // New methods for sausage weekly/monthly tracking
   getWeeklySausageTracking: async (params: {
     week: number
@@ -889,10 +925,71 @@ export const processingStationApi = {
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<{ success: boolean; data: any }>(`/processing-station/livestock/monthly-summary${query}`)
   },
+
+  // New methods for poultry weekly/monthly tracking
+  getWeeklyPoultryTracking: async (params: {
+    week: number
+    year: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("week", params.week.toString())
+    queryParams.append("year", params.year.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/poultry/weekly-tracking${query}`)
+  },
+
+  getMonthlyPoultrySummary: async (params: {
+    month: number
+    year: number
+    monthCount?: number
+  }) => {
+    const queryParams = new URLSearchParams()
+    queryParams.append("month", params.month.toString())
+    queryParams.append("year", params.year.toString())
+    if (params.monthCount) queryParams.append("monthCount", params.monthCount.toString())
+    
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/poultry/monthly-summary${query}`)
+  },
+
+  // Weekly and Monthly data APIs
+  getWeeklyData: async (week: number, year: number) => {
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/station/weekly/${week}/${year}`)
+  },
+
+  getMonthlyData: async (month: number, year: number) => {
+    return apiRequest<{ success: boolean; data: any }>(`/processing-station/station/monthly/${month}/${year}`)
+  },
+
+  // LTTP Management APIs
+  getLttpData: async (date: string) => {
+    return apiRequest<{ success: boolean; data: any[] }>(`/processing-station/lttp/${date}`)
+  },
+
+  updateLttpData: async (date: string, items: any[]) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/lttp/${date}`, {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    })
+  },
 }
 
 // Supply Outputs API
 export const supplyOutputsApi = {
+  getAll: async (filters?: any) => {
+    const queryParams = new URLSearchParams()
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== "all") {
+          queryParams.append(key, value as string)
+        }
+      })
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
+    return apiRequest<any>(`/supply-outputs${query}`)
+  },
+
   getSupplyOutputs: async (filters?: any) => {
     const queryParams = new URLSearchParams()
     if (filters) {
@@ -1301,6 +1398,29 @@ export const beanSproutsCalculationApi = {
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/monthly-summary${query}`)
   },
+
+  // Bean Sprouts Processing API
+  getBeanSproutsProcessingData: (date: string) => {
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/daily-processing?date=${date}`)
+  },
+
+  updateBeanSproutsProcessingData: (data: {
+    date: string
+    soybeansInput?: number
+    beanSproutsInput?: number
+    beanSproutsOutput?: number
+    soybeansPrice?: number
+    beanSproutsPrice?: number
+    byProductQuantity?: number
+    byProductPrice?: number
+    otherCosts?: number
+    note?: string
+  }) => {
+    return apiRequest<{ success: boolean; data: any; message: string }>('/bean-sprouts-calculation/daily-processing', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
 }
 
 // Salt Calculation API
@@ -1409,3 +1529,6 @@ export const api = {
   beanSproutsCalculation: beanSproutsCalculationApi,
   saltCalculation: saltCalculationApi,
 }
+
+// Export as apiClient for backward compatibility
+export const apiClient = api
