@@ -793,22 +793,26 @@ export function PoultryProcessing() {
                           note: ""
                         }
                         
-                        // SỬA: Dùng actualOutput để tính revenue (lượng bán ra thực tế)
+                        // SỬA: Tính lãi dựa trên thu/chi trong ngày (không tính tồn kho)
+                        const meatOutputKg = dayData.poultryMeatOutput || 0 // Lượng sản xuất trong ngày
                         const meatActualKg = dayData.poultryMeatActualOutput || 0 // Lượng thực tế đã bán
-                        // Thành tiền (1.000đ) - chỉ tính lượng đã bán ra
+                        // Thu trong ngày = lượng sản xuất × giá (để tính lãi)
+                        const meatRevenueForProfit = Math.round((meatOutputKg * (dayData.poultryMeatPrice || 150000)) / 1000)
+                        // Hiển thị "Thu" = Thu + Tồn kho (chỉ để hiển thị)
                         const meatMoney = Math.round((meatActualKg * (dayData.poultryMeatPrice || 150000)) / 1000)
                         // Chi phí gia cầm sống
                         const inputKg = dayData.livePoultryInput || 0
                         const inputMoney = Math.round((inputKg * (dayData.livePoultryPrice || 60000)) / 1000)
-                        const profit = meatMoney - inputMoney
+                        // Lãi = Thu trong ngày - Chi trong ngày (không tính tồn kho)
+                        const profit = meatRevenueForProfit - inputMoney
 
                         return (
                           <tr key={dateStr}>
                             <td className="border border-black p-2 text-center font-medium">
                               {format(date, "dd/MM")}
                             </td>
-                            <td className="border border-black p-1 text-center">{meatActualKg.toLocaleString()}</td>
-                            <td className="border border-black p-1 text-center">{meatMoney.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{meatOutputKg.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{meatRevenueForProfit.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{inputKg.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{inputMoney.toLocaleString()}</td>
                             <td className={`border border-black p-1 text-center font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
