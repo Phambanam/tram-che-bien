@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Package, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
-import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI } from "@/lib/date-utils"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, tofuCalculationApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -505,11 +505,11 @@ export function TofuProcessing() {
     } catch (error: any) {
       console.error("❌ Error fetching weekly tracking data via API:", error)
       
-      // Fallback: Generate sample data for current week
-      const weekDates = getCurrentWeekDates()
-      const sampleWeeklyData: WeeklyTofuTracking[] = weekDates.map((date) => ({
+      // Fallback: Generate sample data for selected week
+      const weekDates = getWeekDates(targetWeek, targetYear)
+      const sampleWeeklyData: WeeklyTofuTracking[] = weekDates.map((date, index) => ({
         date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayName(date.getDay()),
+        dayOfWeek: getDayNameForWeekPosition(index),
         soybeanInput: 0,
         tofuInput: 0,
         tofuOutput: 0,
@@ -722,6 +722,16 @@ export function TofuProcessing() {
     
     loadData()
   }, [])
+
+  // Update weekly data when week/year selection changes
+  useEffect(() => {
+    fetchWeeklyTracking(selectedWeek, selectedYear)
+  }, [selectedWeek, selectedYear])
+
+  // Update monthly data when month/year selection changes
+  useEffect(() => {
+    fetchMonthlyTofuSummary(selectedMonth, selectedMonthYear)
+  }, [selectedMonth, selectedMonthYear])
 
   // EXAMPLE: Comprehensive function demonstrating how to use getDailyIngredientSummaries API
   // This shows the complete flow from API call to tofu detection and calculation

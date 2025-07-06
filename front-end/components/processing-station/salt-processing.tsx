@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Droplets, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
-import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI } from "@/lib/date-utils"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, saltCalculationApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -462,11 +462,11 @@ export function SaltProcessing() {
     } catch (error) {
       console.error("❌ Error fetching weekly tracking data via API:", error)
       
-      // Fallback: Generate sample data for current week
-      const weekDates = getCurrentWeekDates()
-      const sampleWeeklyData: WeeklySaltTracking[] = weekDates.map((date) => ({
+      // Fallback: Generate sample data for selected week
+      const weekDates = getWeekDates(targetWeek, targetYear)
+      const sampleWeeklyData: WeeklySaltTracking[] = weekDates.map((date, index) => ({
         date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayName(date.getDay()),
+        dayOfWeek: getDayNameForWeekPosition(index),
         cabbageInput: 0,
         saltInput: 0,
         saltOutput: 0,
@@ -699,6 +699,16 @@ export function SaltProcessing() {
     
     loadData()
   }, [])
+
+  // Update weekly data when week/year selection changes
+  useEffect(() => {
+    fetchWeeklyTracking(selectedWeek, selectedYear)
+  }, [selectedWeek, selectedYear])
+
+  // Update monthly data when month/year selection changes
+  useEffect(() => {
+    fetchMonthlySaltSummary(selectedMonth, selectedMonthYear)
+  }, [selectedMonth, selectedMonthYear])
 
   return (
     <div className="space-y-6">

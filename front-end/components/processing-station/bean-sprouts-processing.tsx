@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sprout, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
-import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI } from "@/lib/date-utils"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -414,11 +414,11 @@ export function BeanSproutsProcessing() {
     try {
       console.log(`🚀 Generating weekly bean sprouts tracking data for week ${targetWeek}/${targetYear}`)
       
-      // Generate sample data for current week since API doesn't exist
-      const weekDates = getCurrentWeekDates()
-      const weeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date) => ({
+      // Generate data for the specific week
+      const weekDates = getWeekDates(targetWeek, targetYear)
+      const weeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date, index) => ({
         date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayName(date.getDay()),
+        dayOfWeek: getDayNameForWeekPosition(index), // Use position-based day name
         soybeansInput: 0,
         beanSproutsInput: 0,
         beanSproutsOutput: 0,
@@ -435,7 +435,8 @@ export function BeanSproutsProcessing() {
       console.log(`✅ Weekly bean sprouts tracking data generated:`, {
         week: targetWeek,
         year: targetYear,
-        totalDays: weeklyData.length
+        totalDays: weeklyData.length,
+        dateRange: `${format(weekDates[0], "dd/MM")} - ${format(weekDates[6], "dd/MM")}`
       })
     } catch (error) {
       console.error("❌ Error fetching weekly bean sprouts tracking data via API:", error)
@@ -638,6 +639,16 @@ export function BeanSproutsProcessing() {
     
     loadData()
   }, [])
+
+  // Update weekly data when week/year selection changes
+  useEffect(() => {
+    fetchWeeklyTracking(selectedWeek, selectedYear)
+  }, [selectedWeek, selectedYear])
+
+  // Update monthly data when month/year selection changes
+  useEffect(() => {
+    fetchMonthlyBeanSproutsSummary(selectedMonth, selectedMonthYear)
+  }, [selectedMonth, selectedMonthYear])
 
   // Test detection with custom date using new API
   const testBeanSproutsDetection = async (targetDate?: string) => {
