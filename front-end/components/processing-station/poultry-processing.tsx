@@ -87,6 +87,9 @@ export function PoultryProcessing() {
     poultryMeatPrice: 150000
   })
 
+  // Lưu carry over amount để tính lãi đúng
+  const [carryOverAmount, setCarryOverAmount] = useState(0)
+
   const [weeklyPoultryTracking, setWeeklyPoultryTracking] = useState<WeeklyPoultryTracking[]>([])
   const [monthlyPoultrySummary, setMonthlyPoultrySummary] = useState<MonthlyPoultrySummary[]>([])
   
@@ -137,6 +140,7 @@ export function PoultryProcessing() {
           
           // Calculate carry over for poultry meat
           carryOverAmount = Math.max(0, previousPoultryMeatOutput - previousPoultryMeatActualOutput)
+          setCarryOverAmount(carryOverAmount) // Lưu vào state
           
           console.log(`🔍 Carry over calculation: Thịt gia cầm: ${previousPoultryMeatOutput} - ${previousPoultryMeatActualOutput} = ${carryOverAmount}kg`)
           
@@ -148,9 +152,11 @@ export function PoultryProcessing() {
           }
         } else {
           console.log('❌ No previous day data found for carry over')
+          setCarryOverAmount(0) // Không có carry over
         }
       } catch (error) {
         console.log("No poultry carry over data from previous day:", error)
+        setCarryOverAmount(0) // Không có carry over
       }
 
       try {
@@ -415,8 +421,9 @@ export function PoultryProcessing() {
                             dailyUpdateData.livePoultryPrice || 0 :
                             dailyPoultryProcessing.livePoultryPrice || 0
                           
-                          // SỬA: Tính lãi dựa trên lượng sản xuất trong ngày (output) không phải actualOutput
-                          const currentPoultryMeatOutput = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          // SỬA: Tính lãi chỉ từ lượng sản xuất thực sự trong ngày (trừ carry over)
+                          const currentPoultryMeatOutputTotal = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          const currentPoultryMeatOutputActual = Math.max(0, currentPoultryMeatOutputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                           const currentLivePoultryInput = editingDailyData ? dailyUpdateData.livePoultryInput : dailyPoultryProcessing.livePoultryInput
                           
                           if (currentPoultryMeatPrice === 0 || currentLivePoultryPrice === 0) {
@@ -427,8 +434,8 @@ export function PoultryProcessing() {
                             )
                           }
                           
-                          // Revenue = Lượng sản xuất trong ngày × Giá (không tính tồn kho)
-                          const revenue = currentPoultryMeatOutput * currentPoultryMeatPrice
+                          // Revenue = Chỉ lượng sản xuất thực sự trong ngày × Giá (không tính carry over)
+                          const revenue = currentPoultryMeatOutputActual * currentPoultryMeatPrice
                           const cost = currentLivePoultryInput * currentLivePoultryPrice
                           const dailyProfit = revenue - cost
                           
@@ -450,12 +457,13 @@ export function PoultryProcessing() {
                             dailyUpdateData.livePoultryPrice || 0 :
                             dailyPoultryProcessing.livePoultryPrice || 0
                           
-                          // SỬA: Tính revenue dựa trên lượng sản xuất trong ngày
-                          const currentPoultryMeatOutput = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          // SỬA: Tính revenue chỉ từ lượng sản xuất thực sự (trừ carry over)
+                          const currentPoultryMeatOutputTotal = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          const currentPoultryMeatOutputActual = Math.max(0, currentPoultryMeatOutputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                           const currentLivePoultryInput = editingDailyData ? dailyUpdateData.livePoultryInput : dailyPoultryProcessing.livePoultryInput
                           
                           if (currentPoultryMeatPrice && currentLivePoultryPrice) {
-                            const revenue = currentPoultryMeatOutput * currentPoultryMeatPrice // Lượng sản xuất trong ngày
+                            const revenue = currentPoultryMeatOutputActual * currentPoultryMeatPrice // Chỉ lượng sản xuất thực sự
                             const cost = currentLivePoultryInput * currentLivePoultryPrice
                             return (
                               <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
