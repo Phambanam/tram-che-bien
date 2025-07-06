@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sprout, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
-import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, beanSproutsCalculationApi } from "@/lib/api-client"
+import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Unit } from "@/types"
@@ -209,36 +209,46 @@ export function BeanSproutsProcessing() {
     })
   }
 
-  // Simplified bean sprouts calculation using new API
+  // Bean sprouts calculation using fallback to supply outputs
   const calculateBeanSproutsOutputFromAPI = async (dateStr: string) => {
     try {
-      console.log("🚀 Using new bean sprouts calculation API for:", dateStr)
+      console.log("🚀 Calculating bean sprouts requirements from supply outputs for:", dateStr)
       
-      const response = await beanSproutsCalculationApi.getBeanSproutsRequirements({
-        date: dateStr
+      // Use supply outputs as the calculation source
+      const outputsResponse = await supplyOutputsApi.getSupplyOutputs({
+        startDate: dateStr,
+        endDate: dateStr
+      })
+      const outputs = Array.isArray(outputsResponse) ? outputsResponse : (outputsResponse as any).data || []
+      
+      // Calculate planned bean sprouts outputs for this date (type: "planned")
+      const filteredOutputs = outputs.filter((output: any) => {
+        const outputDate = output.outputDate ? format(new Date(output.outputDate), "yyyy-MM-dd") : null
+        const dateMatch = outputDate === dateStr
+        const isPlanned = output.type === "planned"
+        
+        // Check both product name and sourceIngredient name
+        const productName = (output.product?.name || "").toLowerCase()
+        const ingredientName = (output.sourceIngredient?.lttpName || "").toLowerCase()
+        const nameMatch = productName.includes("giá đỗ") || productName.includes("bean sprouts") ||
+                         ingredientName.includes("giá đỗ") || ingredientName.includes("bean sprouts")
+        
+        return dateMatch && isPlanned && nameMatch
       })
       
-      if (!response.success || !response.data) {
-        console.log("❌ No bean sprouts calculation data available")
-        return 0
-      }
+      const totalBeanSproutsRequiredKg = filteredOutputs.reduce((sum: number, output: any) => sum + (output.quantity || 0), 0)
       
-      const totalBeanSproutsRequiredGrams = response.data.totalBeanSproutsRequired || 0
-      const totalBeanSproutsRequiredKg = totalBeanSproutsRequiredGrams / 1000 // Convert grams to kg
-      
-      console.log("✅ API bean sprouts calculation result:", {
+      console.log("✅ Bean sprouts calculation result:", {
         date: dateStr,
-        totalBeanSproutsRequiredGrams,
         totalBeanSproutsRequiredKg,
-        totalPersonnel: response.data.totalPersonnel,
-        dishesUsingBeanSprouts: response.data.dishesUsingBeanSprouts?.length || 0,
-        summary: response.data.summary
+        filteredCount: filteredOutputs.length,
+        outputs: filteredOutputs.map((o: any) => ({ name: o.product?.name, quantity: o.quantity }))
       })
       
       return totalBeanSproutsRequiredKg
       
     } catch (error) {
-      console.error("❌ Error calling bean sprouts calculation API:", error)
+      console.error("❌ Error calculating bean sprouts from supply outputs:", error)
       return 0
     }
   }
@@ -266,10 +276,11 @@ export function BeanSproutsProcessing() {
       
       try {
         console.log(`🔄 Checking bean sprouts carry over from ${previousDateStr} to ${dateStr}`)
-        const previousStationResponse = await beanSproutsCalculationApi.getBeanSproutsProcessingData(previousDateStr)
-        if (previousStationResponse && previousStationResponse.success && previousStationResponse.data) {
-          const previousBeanSproutsInput = previousStationResponse.data.beanSproutsInput || 0
-          const previousBeanSproutsOutput = previousStationResponse.data.beanSproutsOutput || 0
+        const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
+        const previousData = previousStationResponse?.data?.data || previousStationResponse?.data || {}
+        if (previousData && Object.keys(previousData).length > 0) {
+          const previousBeanSproutsInput = previousData.beanSproutsInput || 0
+          const previousBeanSproutsOutput = previousData.beanSproutsOutput || 0
           carryOverAmount = Math.max(0, previousBeanSproutsInput - previousBeanSproutsOutput)
           setCarryOverAmount(carryOverAmount) // Lưu vào state
           
