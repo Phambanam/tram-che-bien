@@ -2418,6 +2418,131 @@ async function getMonthlyLivestockProcessingData(db, year, month) {
         };
     }
 }
+// Helper function to get poultry processing data for a specific date
+async function getPoultryProcessingData(db, dateStr) {
+    if (!db) {
+        console.error('Database connection not available');
+        return {
+            livePoultryInput: 0,
+            poultryMeatOutput: 0,
+            poultryMeatActualOutput: 0,
+            poultryMeatRemaining: 0,
+            note: "",
+            livePoultryPrice: 60000,
+            poultryMeatPrice: 150000
+        };
+    }
+    try {
+        const data = await db.collection("dailyPoultryProcessing").findOne({ date: dateStr });
+        if (!data) {
+            // Return zeros if no data exists
+            return {
+                livePoultryInput: 0,
+                poultryMeatOutput: 0,
+                poultryMeatActualOutput: 0,
+                poultryMeatRemaining: 0,
+                note: "",
+                livePoultryPrice: 60000,
+                poultryMeatPrice: 150000
+            };
+        }
+        return {
+            livePoultryInput: data.livePoultryInput || 0,
+            poultryMeatOutput: data.poultryMeatOutput || 0,
+            poultryMeatActualOutput: data.poultryMeatActualOutput || 0,
+            poultryMeatRemaining: Math.max(0, (data.poultryMeatOutput || 0) - (data.poultryMeatActualOutput || 0)),
+            note: data.note || "",
+            livePoultryPrice: data.livePoultryPrice || 60000,
+            poultryMeatPrice: data.poultryMeatPrice || 150000
+        };
+    }
+    catch (error) {
+        console.log(`No poultry processing data for ${dateStr}`);
+        return {
+            livePoultryInput: 0,
+            poultryMeatOutput: 0,
+            poultryMeatActualOutput: 0,
+            poultryMeatRemaining: 0,
+            note: "",
+            livePoultryPrice: 60000,
+            poultryMeatPrice: 150000
+        };
+    }
+}
+// Helper function to get monthly poultry processing data
+async function getMonthlyPoultryProcessingData(db, year, month) {
+    if (!db) {
+        console.error('Database connection not available');
+        return {
+            totalLivePoultryInput: 0,
+            totalPoultryMeatOutput: 0,
+            totalPoultryMeatActualOutput: 0,
+            processingEfficiency: 0,
+            avgLivePoultryPrice: 60000,
+            avgPoultryMeatPrice: 150000
+        };
+    }
+    try {
+        // Get start and end dates for the month
+        const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+        const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+        // Aggregate data from daily poultry processing records
+        const monthlyData = await db.collection("dailyPoultryProcessing")
+            .aggregate([
+            {
+                $match: {
+                    date: { $gte: startDate, $lte: endDate }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalLivePoultryInput: { $sum: "$livePoultryInput" },
+                    totalPoultryMeatOutput: { $sum: "$poultryMeatOutput" },
+                    totalPoultryMeatActualOutput: { $sum: "$poultryMeatActualOutput" },
+                    avgLivePoultryPrice: { $avg: "$livePoultryPrice" },
+                    avgPoultryMeatPrice: { $avg: "$poultryMeatPrice" },
+                    count: { $sum: 1 }
+                }
+            }
+        ])
+            .toArray();
+        if (monthlyData.length > 0) {
+            const data = monthlyData[0];
+            return {
+                totalLivePoultryInput: data.totalLivePoultryInput || 0,
+                totalPoultryMeatOutput: data.totalPoultryMeatOutput || 0,
+                totalPoultryMeatActualOutput: data.totalPoultryMeatActualOutput || 0,
+                processingEfficiency: data.totalLivePoultryInput > 0
+                    ? Math.round((data.totalPoultryMeatOutput / data.totalLivePoultryInput) * 100)
+                    : 0,
+                avgLivePoultryPrice: Math.round(data.avgLivePoultryPrice || 60000),
+                avgPoultryMeatPrice: Math.round(data.avgPoultryMeatPrice || 150000)
+            };
+        }
+        // If no real data, return zeros
+        return {
+            totalLivePoultryInput: 0,
+            totalPoultryMeatOutput: 0,
+            totalPoultryMeatActualOutput: 0,
+            processingEfficiency: 0,
+            avgLivePoultryPrice: 60000,
+            avgPoultryMeatPrice: 150000
+        };
+    }
+    catch (error) {
+        console.error(`Error getting monthly poultry data for ${year}-${month}:`, error);
+        // Return zeros on error
+        return {
+            totalLivePoultryInput: 0,
+            totalPoultryMeatOutput: 0,
+            totalPoultryMeatActualOutput: 0,
+            processingEfficiency: 0,
+            avgLivePoultryPrice: 60000,
+            avgPoultryMeatPrice: 150000
+        };
+    }
+}
 // @desc    Get weekly poultry tracking data
 // @route   GET /api/processing-station/poultry/weekly-tracking
 // @access  Private
@@ -2439,63 +2564,53 @@ const getWeeklyPoultryTracking = async (req, res) => {
             });
         }
         const db = await (0, database_1.getDb)();
-        // Calculate dates for the week
-        const weekDates = getWeekDates(weekNum, yearNum);
-        const weeklyData = [];
         if (!db) {
             return res.status(500).json({ error: 'Database connection not available' });
         }
+        // Calculate dates for the week
+        const weekDates = getWeekDates(weekNum, yearNum);
+        const weeklyData = [];
         // Lấy tồn cuối ngày trước tuần (nếu có)
         const prevDate = new Date(weekDates[0]);
         prevDate.setDate(prevDate.getDate() - 1);
         const prevDateStr = prevDate.toISOString().split('T')[0];
         const prevData = await getPoultryProcessingData(db, prevDateStr);
-        let wholeChickenPrevRemain = 0; // Removed - no longer used
-        let chickenPartsPrevRemain = 0; // Removed - no longer used
-        let lastWholeChickenRemain = wholeChickenPrevRemain;
-        let lastChickenPartsRemain = chickenPartsPrevRemain;
+        let lastPoultryMeatRemain = prevData.poultryMeatRemaining || 0;
         for (const date of weekDates) {
             const dateStr = date.toISOString().split('T')[0];
             // Get poultry processing data
             const processingData = await getPoultryProcessingData(db, dateStr);
             // Tồn đầu ngày = tồn cuối ngày trước
-            const wholeChickenBegin = lastWholeChickenRemain;
-            const chickenPartsBegin = lastChickenPartsRemain;
+            const poultryMeatBegin = lastPoultryMeatRemain;
             // Tồn cuối ngày = tồn đầu + thu - xuất
-            const wholeChickenEnd = wholeChickenBegin + (processingData.wholeChickenOutput || 0) - (processingData.wholeChickenActualOutput || 0);
-            const chickenPartsEnd = chickenPartsBegin + (processingData.chickenPartsOutput || 0) - (processingData.chickenPartsActualOutput || 0);
+            const poultryMeatEnd = poultryMeatBegin + (processingData.poultryMeatOutput || 0) - (processingData.poultryMeatActualOutput || 0);
             // Lưu lại cho ngày sau
-            lastWholeChickenRemain = wholeChickenEnd;
-            lastChickenPartsRemain = chickenPartsEnd;
+            lastPoultryMeatRemain = poultryMeatEnd;
             weeklyData.push({
                 date: dateStr,
                 dayOfWeek: getDayNameVi(date.getDay()),
                 livePoultryInput: processingData.livePoultryInput || 0,
-                wholeChickenOutput: processingData.wholeChickenOutput || 0,
-                wholeChickenActualOutput: processingData.wholeChickenActualOutput || 0,
-                wholeChickenBegin,
-                wholeChickenEnd,
-                chickenPartsOutput: processingData.chickenPartsOutput || 0,
-                chickenPartsActualOutput: processingData.chickenPartsActualOutput || 0,
-                chickenPartsBegin,
-                chickenPartsEnd,
-                // Price fields
+                poultryMeatOutput: processingData.poultryMeatOutput || 0,
+                poultryMeatActualOutput: processingData.poultryMeatActualOutput || 0,
+                poultryMeatBegin,
+                poultryMeatEnd,
+                note: processingData.note || "",
                 livePoultryPrice: processingData.livePoultryPrice || 60000,
-                wholeChickenPrice: processingData.wholeChickenPrice || 100000,
-                chickenPartsPrice: processingData.chickenPartsPrice || 120000
+                poultryMeatPrice: processingData.poultryMeatPrice || 150000
             });
         }
         // Tổng hợp tuần
+        const daysWithData = weeklyData.filter(day => day.livePoultryInput > 0 || day.poultryMeatOutput > 0);
         const weeklyTotals = {
             totalLivePoultryInput: weeklyData.reduce((sum, day) => sum + day.livePoultryInput, 0),
-            totalWholeChickenOutput: weeklyData.reduce((sum, day) => sum + day.wholeChickenOutput, 0),
-            totalWholeChickenActualOutput: weeklyData.reduce((sum, day) => sum + day.wholeChickenActualOutput, 0),
-            totalWholeChickenBegin: weeklyData[0]?.wholeChickenBegin || 0,
-            totalWholeChickenEnd: weeklyData[weeklyData.length - 1]?.wholeChickenEnd || 0,
-            totalChickenPartsOutput: weeklyData.reduce((sum, day) => sum + day.chickenPartsOutput, 0),
-            totalChickenPartsActualOutput: weeklyData.reduce((sum, day) => sum + day.chickenPartsActualOutput, 0),
-            totalChickenPartsBegin: weeklyData[0]?.chickenPartsBegin || 0,
-            totalChickenPartsEnd: weeklyData[weeklyData.length - 1]?.chickenPartsEnd || 0
+            totalPoultryMeatOutput: weeklyData.reduce((sum, day) => sum + day.poultryMeatOutput, 0),
+            totalPoultryMeatActualOutput: weeklyData.reduce((sum, day) => sum + day.poultryMeatActualOutput, 0),
+            totalPoultryMeatBegin: weeklyData[0]?.poultryMeatBegin || 0,
+            totalPoultryMeatEnd: weeklyData[weeklyData.length - 1]?.poultryMeatEnd || 0,
+            avgLivePoultryPrice: daysWithData.length > 0 ?
+                Math.round(daysWithData.reduce((sum, day) => sum + day.livePoultryPrice, 0) / daysWithData.length) : 60000,
+            avgPoultryMeatPrice: daysWithData.length > 0 ?
+                Math.round(daysWithData.reduce((sum, day) => sum + day.poultryMeatPrice, 0) / daysWithData.length) : 150000
         };
         res.json({
             success: true,
@@ -2504,7 +2619,13 @@ const getWeeklyPoultryTracking = async (req, res) => {
                 year: yearNum,
                 weekDates: weekDates.map(d => d.toISOString().split('T')[0]),
                 dailyData: weeklyData,
-                totals: weeklyTotals
+                totals: weeklyTotals,
+                // Add metadata about data availability
+                hasData: daysWithData.length > 0,
+                daysWithData: daysWithData.length,
+                message: daysWithData.length === 0 ?
+                    `Chưa có dữ liệu gia cầm hải sản cho tuần ${weekNum}/${yearNum}. Vui lòng nhập dữ liệu hàng ngày trước.` :
+                    `Có ${daysWithData.length}/7 ngày có dữ liệu trong tuần này.`
             }
         });
     }
@@ -2539,6 +2660,9 @@ const getMonthlyPoultrySummary = async (req, res) => {
             });
         }
         const db = await (0, database_1.getDb)();
+        if (!db) {
+            return res.status(500).json({ error: 'Database connection not available' });
+        }
         const monthlySummaries = [];
         // Generate data for the requested number of months ending with the specified month
         for (let i = monthCountNum - 1; i >= 0; i--) {
@@ -2553,34 +2677,28 @@ const getMonthlyPoultrySummary = async (req, res) => {
                 prevDate.setDate(prevDate.getDate() - 1);
                 const prevDateStr = prevDate.toISOString().split('T')[0];
                 const prevData = await getPoultryProcessingData(db, prevDateStr);
-                const wholeChickenBegin = prevData.wholeChickenRemaining || 0;
-                const chickenPartsBegin = prevData.chickenPartsRemaining || 0;
+                const poultryMeatBegin = prevData.poultryMeatRemaining || 0;
                 // Lấy tồn cuối ngày cuối tháng
                 const endDate = new Date(targetYear, targetMonth, 0);
                 const endDateStr = endDate.toISOString().split('T')[0];
                 const endData = await getPoultryProcessingData(db, endDateStr);
-                const wholeChickenEnd = endData.wholeChickenRemaining || 0;
-                const chickenPartsEnd = endData.chickenPartsRemaining || 0;
+                const poultryMeatEnd = endData.poultryMeatRemaining || 0;
                 const summary = {
                     month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
                     year: targetYear,
                     monthNumber: targetMonth,
                     totalLivePoultryInput: monthlyData.totalLivePoultryInput,
-                    totalWholeChickenOutput: monthlyData.totalWholeChickenOutput,
-                    totalWholeChickenActualOutput: monthlyData.totalWholeChickenActualOutput,
-                    totalChickenPartsOutput: monthlyData.totalChickenPartsOutput,
-                    totalChickenPartsActualOutput: monthlyData.totalChickenPartsActualOutput,
+                    totalPoultryMeatOutput: monthlyData.totalPoultryMeatOutput,
+                    totalPoultryMeatActualOutput: monthlyData.totalPoultryMeatActualOutput,
                     processingEfficiency: monthlyData.processingEfficiency,
-                    wholeChickenBegin,
-                    wholeChickenEnd,
-                    chickenPartsBegin,
-                    chickenPartsEnd,
+                    poultryMeatBegin,
+                    poultryMeatEnd,
+                    avgLivePoultryPrice: monthlyData.avgLivePoultryPrice,
+                    avgPoultryMeatPrice: monthlyData.avgPoultryMeatPrice,
                     // Financial calculations (in thousands VND)
-                    totalRevenue: Math.round((monthlyData.totalWholeChickenActualOutput * 100) + // Gà nguyên con: 100k VND/kg
-                        (monthlyData.totalChickenPartsActualOutput * 120) // Gà cắt khúc: 120k VND/kg
-                    ),
-                    poultryCost: Math.round(monthlyData.totalLivePoultryInput * 60), // 60k VND per kg live poultry
-                    otherCosts: Math.round(monthlyData.totalLivePoultryInput * 0.05), // 5% other costs
+                    totalRevenue: Math.round(monthlyData.totalPoultryMeatActualOutput * monthlyData.avgPoultryMeatPrice / 1000),
+                    poultryCost: Math.round(monthlyData.totalLivePoultryInput * monthlyData.avgLivePoultryPrice / 1000),
+                    otherCosts: Math.round(monthlyData.totalLivePoultryInput * monthlyData.avgLivePoultryPrice * 0.05 / 1000), // 5% other costs
                     netProfit: 0 // Will calculate below
                 };
                 // Calculate net profit
@@ -2588,39 +2706,41 @@ const getMonthlyPoultrySummary = async (req, res) => {
                 monthlySummaries.push(summary);
             }
             catch (error) {
-                // Fallback with estimated data if no real data available
-                const estimatedLivePoultry = 1200 + Math.floor(Math.random() * 600);
-                const estimatedWholeChicken = Math.round(estimatedLivePoultry * 0.6); // 60% as whole chicken
-                const estimatedChickenParts = Math.round(estimatedLivePoultry * 0.35); // 35% as parts
-                const estimatedWholeChickenActual = Math.round(estimatedWholeChicken * 0.95);
-                const estimatedChickenPartsActual = Math.round(estimatedChickenParts * 0.95);
-                const summary = {
+                console.error(`Error getting data for ${targetMonth}/${targetYear}:`, error);
+                // Push zeros when error occurs
+                monthlySummaries.push({
                     month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
                     year: targetYear,
                     monthNumber: targetMonth,
-                    totalLivePoultryInput: estimatedLivePoultry,
-                    totalWholeChickenOutput: estimatedWholeChicken,
-                    totalWholeChickenActualOutput: estimatedWholeChickenActual,
-                    totalChickenPartsOutput: estimatedChickenParts,
-                    totalChickenPartsActualOutput: estimatedChickenPartsActual,
-                    processingEfficiency: Math.round(((estimatedWholeChicken + estimatedChickenParts) / estimatedLivePoultry) * 100),
-                    totalRevenue: Math.round((estimatedWholeChickenActual * 100) +
-                        (estimatedChickenPartsActual * 120)),
-                    poultryCost: Math.round(estimatedLivePoultry * 60),
-                    otherCosts: Math.round(estimatedLivePoultry * 0.05),
+                    totalLivePoultryInput: 0,
+                    totalPoultryMeatOutput: 0,
+                    totalPoultryMeatActualOutput: 0,
+                    poultryMeatBegin: 0,
+                    poultryMeatEnd: 0,
+                    processingEfficiency: 0,
+                    avgLivePoultryPrice: 60000,
+                    avgPoultryMeatPrice: 150000,
+                    totalRevenue: 0,
+                    poultryCost: 0,
+                    otherCosts: 0,
                     netProfit: 0
-                };
-                summary.netProfit = summary.totalRevenue - (summary.poultryCost + summary.otherCosts);
-                monthlySummaries.push(summary);
+                });
             }
         }
+        const monthsWithData = monthlySummaries.filter(m => m.totalLivePoultryInput > 0 || m.totalPoultryMeatOutput > 0);
         res.json({
             success: true,
             data: {
                 targetMonth: monthNum,
                 targetYear: yearNum,
                 monthCount: monthCountNum,
-                monthlySummaries
+                monthlySummaries,
+                // Add metadata about data availability
+                hasData: monthsWithData.length > 0,
+                monthsWithData: monthsWithData.length,
+                message: monthsWithData.length === 0 ?
+                    `Chưa có dữ liệu gia cầm hải sản cho ${monthCountNum} tháng gần đây. Vui lòng nhập dữ liệu hàng ngày trước.` :
+                    `Có ${monthsWithData.length}/${monthCountNum} tháng có dữ liệu.`
             }
         });
     }
@@ -2633,121 +2753,3 @@ const getMonthlyPoultrySummary = async (req, res) => {
     }
 };
 exports.getMonthlyPoultrySummary = getMonthlyPoultrySummary;
-// Helper function to get poultry processing data for a specific date
-async function getPoultryProcessingData(db, dateStr) {
-    try {
-        const data = await db.collection("dailyPoultryProcessing").findOne({ date: dateStr });
-        if (!data) {
-            // Return default/fallback data if no data exists
-            return {
-                livePoultryInput: 0,
-                wholeChickenOutput: 0,
-                wholeChickenActualOutput: 0,
-                wholeChickenRemaining: 0,
-                chickenPartsOutput: 0,
-                chickenPartsActualOutput: 0,
-                chickenPartsRemaining: 0,
-                livePoultryPrice: 60000,
-                wholeChickenPrice: 100000,
-                chickenPartsPrice: 120000
-            };
-        }
-        return {
-            livePoultryInput: data.livePoultryInput || 0,
-            wholeChickenOutput: data.wholeChickenOutput || 0,
-            wholeChickenActualOutput: data.wholeChickenActualOutput || 0,
-            wholeChickenRemaining: Math.max(0, (data.wholeChickenOutput || 0) - (data.wholeChickenActualOutput || 0)),
-            chickenPartsOutput: data.chickenPartsOutput || 0,
-            chickenPartsActualOutput: data.chickenPartsActualOutput || 0,
-            chickenPartsRemaining: Math.max(0, (data.chickenPartsOutput || 0) - (data.chickenPartsActualOutput || 0)),
-            livePoultryPrice: data.livePoultryPrice || 60000,
-            wholeChickenPrice: data.wholeChickenPrice || 100000,
-            chickenPartsPrice: data.chickenPartsPrice || 120000
-        };
-    }
-    catch (error) {
-        console.log(`No poultry processing data for ${dateStr}`);
-        return {
-            livePoultryInput: 0,
-            wholeChickenOutput: 0,
-            wholeChickenActualOutput: 0,
-            wholeChickenRemaining: 0,
-            chickenPartsOutput: 0,
-            chickenPartsActualOutput: 0,
-            chickenPartsRemaining: 0,
-            livePoultryPrice: 60000,
-            wholeChickenPrice: 100000,
-            chickenPartsPrice: 120000
-        };
-    }
-}
-// Helper function to get monthly poultry processing data
-async function getMonthlyPoultryProcessingData(db, year, month) {
-    try {
-        // Get start and end dates for the month
-        const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
-        const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-        // Aggregate data from daily poultry processing records
-        const monthlyData = await db.collection("dailyPoultryProcessing")
-            .aggregate([
-            {
-                $match: {
-                    date: { $gte: startDate, $lte: endDate }
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    totalLivePoultryInput: { $sum: "$livePoultryInput" },
-                    totalWholeChickenOutput: { $sum: "$wholeChickenOutput" },
-                    totalWholeChickenActualOutput: { $sum: "$wholeChickenActualOutput" },
-                    totalChickenPartsOutput: { $sum: "$chickenPartsOutput" },
-                    totalChickenPartsActualOutput: { $sum: "$chickenPartsActualOutput" },
-                    count: { $sum: 1 }
-                }
-            }
-        ])
-            .toArray();
-        if (monthlyData.length > 0) {
-            const data = monthlyData[0];
-            const totalOutput = (data.totalWholeChickenOutput || 0) + (data.totalChickenPartsOutput || 0);
-            return {
-                totalLivePoultryInput: data.totalLivePoultryInput || 0,
-                totalWholeChickenOutput: data.totalWholeChickenOutput || 0,
-                totalWholeChickenActualOutput: data.totalWholeChickenActualOutput || 0,
-                totalChickenPartsOutput: data.totalChickenPartsOutput || 0,
-                totalChickenPartsActualOutput: data.totalChickenPartsActualOutput || 0,
-                processingEfficiency: data.totalLivePoultryInput > 0
-                    ? Math.round((totalOutput / data.totalLivePoultryInput) * 100)
-                    : 95
-            };
-        }
-        // If no real data, return estimated data
-        const baseLivePoultry = 1200 + Math.floor(Math.random() * 600);
-        const baseWholeChicken = Math.round(baseLivePoultry * 0.6); // 60% as whole chicken
-        const baseChickenParts = Math.round(baseLivePoultry * 0.35); // 35% as parts
-        return {
-            totalLivePoultryInput: baseLivePoultry,
-            totalWholeChickenOutput: baseWholeChicken,
-            totalWholeChickenActualOutput: Math.round(baseWholeChicken * 0.95),
-            totalChickenPartsOutput: baseChickenParts,
-            totalChickenPartsActualOutput: Math.round(baseChickenParts * 0.95),
-            processingEfficiency: Math.round(((baseWholeChicken + baseChickenParts) / baseLivePoultry) * 100)
-        };
-    }
-    catch (error) {
-        console.error(`Error getting monthly poultry data for ${year}-${month}:`, error);
-        // Return default estimated data
-        const baseLivePoultry = 1500;
-        const baseWholeChicken = 900; // 60% as whole chicken
-        const baseChickenParts = 525; // 35% as parts
-        return {
-            totalLivePoultryInput: baseLivePoultry,
-            totalWholeChickenOutput: baseWholeChicken,
-            totalWholeChickenActualOutput: Math.round(baseWholeChicken * 0.95),
-            totalChickenPartsOutput: baseChickenParts,
-            totalChickenPartsActualOutput: Math.round(baseChickenParts * 0.95),
-            processingEfficiency: 95
-        };
-    }
-}

@@ -118,6 +118,11 @@ export function SausageProcessing() {
     chaQuePrice: 0
   })
 
+  // Lưu carry over amount để tính lãi đúng
+  const [carryOverAmount, setCarryOverAmount] = useState(0)
+  const [sausageCarryOver, setSausageCarryOver] = useState(0)
+  const [chaQueCarryOver, setChaQueCarryOver] = useState(0)
+
   // Weekly and Monthly tracking states
   const [weeklySausageTracking, setWeeklySausageTracking] = useState<WeeklySausageTracking[]>([])
   const [monthlySausageSummary, setMonthlySausageSummary] = useState<MonthlySausageSummary[]>([])
@@ -174,30 +179,42 @@ export function SausageProcessing() {
           const previousChaQueOutput = previousData.chaQueOutput || 0
           
           // Calculate carry over for both sausage and cha que
-          const sausageCarryOver = Math.max(0, previousSausageInput - previousSausageOutput)
-          const chaQueCarryOver = Math.max(0, previousChaQueInput - previousChaQueOutput)
-          carryOverAmount = sausageCarryOver + chaQueCarryOver
+          const sausageCarryOverValue = Math.max(0, previousSausageInput - previousSausageOutput)
+          const chaQueCarryOverValue = Math.max(0, previousChaQueInput - previousChaQueOutput)
+          carryOverAmount = sausageCarryOverValue + chaQueCarryOverValue
+          setCarryOverAmount(carryOverAmount) // Lưu vào state
+          setSausageCarryOver(sausageCarryOverValue) // Lưu riêng cho giò lụa
+          setChaQueCarryOver(chaQueCarryOverValue) // Lưu riêng cho chả quế
           
-          console.log(`🔍 Carry over calculation: Giò lụa: ${previousSausageInput} - ${previousSausageOutput} = ${sausageCarryOver}kg, Chả quế: ${previousChaQueInput} - ${previousChaQueOutput} = ${chaQueCarryOver}kg`)
+          console.log(`🔍 Carry over calculation: Giò lụa: ${previousSausageInput} - ${previousSausageOutput} = ${sausageCarryOverValue}kg, Chả quế: ${previousChaQueInput} - ${previousChaQueOutput} = ${chaQueCarryOverValue}kg`)
           
           if (carryOverAmount > 0) {
             carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: `
-            if (sausageCarryOver > 0) {
-              carryOverNote += `+${sausageCarryOver}kg giò lụa`
+            if (sausageCarryOverValue > 0) {
+              carryOverNote += `+${sausageCarryOverValue}kg giò lụa`
             }
-            if (chaQueCarryOver > 0) {
-              if (sausageCarryOver > 0) carryOverNote += ", "
-              carryOverNote += `+${chaQueCarryOver}kg chả quế`
+            if (chaQueCarryOverValue > 0) {
+              if (sausageCarryOverValue > 0) carryOverNote += ", "
+              carryOverNote += `+${chaQueCarryOverValue}kg chả quế`
             }
             console.log(`✅ Sausage carry over found: ${carryOverAmount}kg total from ${previousDateStr}`)
           } else {
             console.log(`❌ No carry over: ${carryOverAmount}kg (≤ 0)`)
+            setCarryOverAmount(0) // Không có carry over
+            setSausageCarryOver(0)
+            setChaQueCarryOver(0)
           }
         } else {
           console.log('❌ No previous day data found for carry over')
+          setCarryOverAmount(0) // Không có dữ liệu trước đó
+          setSausageCarryOver(0)
+          setChaQueCarryOver(0)
         }
       } catch (error) {
         console.log("No sausage carry over data from previous day:", error)
+        setCarryOverAmount(0) // Không có carry over
+        setSausageCarryOver(0)
+        setChaQueCarryOver(0)
       }
 
       try {
@@ -461,8 +478,10 @@ export function SausageProcessing() {
                         dailyUpdateData.fatMeatPrice || 0 :
                         dailySausageProcessing.fatMeatPrice || 0
                       
-                      const currentSausageInput = editingDailyData ? dailyUpdateData.sausageInput : dailySausageProcessing.sausageInput
-                      const currentChaQueInput = editingDailyData ? dailyUpdateData.chaQueInput : dailySausageProcessing.chaQueInput
+                      const currentSausageInputTotal = editingDailyData ? dailyUpdateData.sausageInput : dailySausageProcessing.sausageInput
+                      const currentSausageInputActual = Math.max(0, currentSausageInputTotal - sausageCarryOver) // Chỉ lượng sản xuất thực sự
+                      const currentChaQueInputTotal = editingDailyData ? dailyUpdateData.chaQueInput : dailySausageProcessing.chaQueInput
+                      const currentChaQueInputActual = Math.max(0, currentChaQueInputTotal - chaQueCarryOver) // Chỉ lượng sản xuất thực sự
                       const currentLeanMeatInput = editingDailyData ? dailyUpdateData.leanMeatInput : dailySausageProcessing.leanMeatInput
                       const currentFatMeatInput = editingDailyData ? dailyUpdateData.fatMeatInput : dailySausageProcessing.fatMeatInput
                       
@@ -474,8 +493,9 @@ export function SausageProcessing() {
                         )
                       }
                       
-                      const sausageRevenue = currentSausageInput * currentSausagePrice
-                      const chaQueRevenue = currentChaQueInput * currentChaQuePrice
+                      // Tính lãi chỉ từ lượng sản xuất thực sự (trừ carry over)
+                      const sausageRevenue = currentSausageInputActual * currentSausagePrice
+                      const chaQueRevenue = currentChaQueInputActual * currentChaQuePrice
                       const totalRevenue = sausageRevenue + chaQueRevenue
                       const meatCost = (currentLeanMeatInput * currentLeanMeatPrice) + (currentFatMeatInput * currentFatMeatPrice)
                       const dailyProfit = totalRevenue - meatCost
@@ -506,14 +526,16 @@ export function SausageProcessing() {
                         dailyUpdateData.fatMeatPrice || 0 :
                         dailySausageProcessing.fatMeatPrice || 0
                       
-                      const currentSausageInput = editingDailyData ? dailyUpdateData.sausageInput : dailySausageProcessing.sausageInput
-                      const currentChaQueInput = editingDailyData ? dailyUpdateData.chaQueInput : dailySausageProcessing.chaQueInput
+                      const currentSausageInputTotal = editingDailyData ? dailyUpdateData.sausageInput : dailySausageProcessing.sausageInput
+                      const currentSausageInputActual = Math.max(0, currentSausageInputTotal - sausageCarryOver) // Chỉ lượng sản xuất thực sự
+                      const currentChaQueInputTotal = editingDailyData ? dailyUpdateData.chaQueInput : dailySausageProcessing.chaQueInput
+                      const currentChaQueInputActual = Math.max(0, currentChaQueInputTotal - chaQueCarryOver) // Chỉ lượng sản xuất thực sự
                       const currentLeanMeatInput = editingDailyData ? dailyUpdateData.leanMeatInput : dailySausageProcessing.leanMeatInput
                       const currentFatMeatInput = editingDailyData ? dailyUpdateData.fatMeatInput : dailySausageProcessing.fatMeatInput
                       
                       if ((currentSausagePrice || currentChaQuePrice) && (currentLeanMeatPrice || currentFatMeatPrice)) {
-                        const sausageRevenue = currentSausageInput * currentSausagePrice
-                        const chaQueRevenue = currentChaQueInput * currentChaQuePrice
+                        const sausageRevenue = currentSausageInputActual * currentSausagePrice // Chỉ lượng sản xuất thực sự
+                        const chaQueRevenue = currentChaQueInputActual * currentChaQuePrice // Chỉ lượng sản xuất thực sự
                         const totalRevenue = sausageRevenue + chaQueRevenue
                         const cost = (currentLeanMeatInput * currentLeanMeatPrice) + (currentFatMeatInput * currentFatMeatPrice)
                         return (

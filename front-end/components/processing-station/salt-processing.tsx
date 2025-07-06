@@ -87,6 +87,9 @@ export function SaltProcessing() {
     cabbagePrice: 0,
     saltPrice: 0
   })
+
+  // Lưu carry over amount để tính lãi đúng
+  const [carryOverAmount, setCarryOverAmount] = useState(0)
   
   // API test states (previously detection test)
   const [detectionResult, setDetectionResult] = useState<any>(null)
@@ -272,14 +275,20 @@ export function SaltProcessing() {
           const previousSaltInput = previousData.saltInput || 0
           const previousSaltOutput = previousData.saltOutput || 0
           carryOverAmount = Math.max(0, previousSaltInput - previousSaltOutput)
+          setCarryOverAmount(carryOverAmount) // Lưu vào state
           
           if (carryOverAmount > 0) {
             carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: +${carryOverAmount}kg dưa muối`
             console.log(`✅ Carry over found: ${carryOverAmount}kg from ${previousDateStr}`)
+          } else {
+            setCarryOverAmount(0) // Không có carry over
           }
+        } else {
+          setCarryOverAmount(0) // Không có dữ liệu trước đó
         }
       } catch (error) {
         console.log("No carry over data from previous day:", error)
+        setCarryOverAmount(0) // Không có carry over
       }
       
       try {
@@ -778,7 +787,8 @@ export function SaltProcessing() {
                         (dailySaltProcessing.cabbagePriceFromSupply ? dailySaltProcessing.cabbagePrice : dailyUpdateData.cabbagePrice) || 0 :
                         dailySaltProcessing.cabbagePrice || 0
                       
-                      const currentSaltInput = editingDailyData ? dailyUpdateData.saltInput : dailySaltProcessing.saltInput
+                      const currentSaltInputTotal = editingDailyData ? dailyUpdateData.saltInput : dailySaltProcessing.saltInput
+                      const currentSaltInputActual = Math.max(0, currentSaltInputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                       const currentVegetablesInput = editingDailyData ? dailyUpdateData.cabbageInput : dailySaltProcessing.cabbageInput
                       
                       if (currentSaltPrice === 0 || currentVegetablesPrice === 0) {
@@ -789,7 +799,8 @@ export function SaltProcessing() {
                         )
                       }
                       
-                      const saltRevenue = currentSaltInput * currentSaltPrice
+                      // Tính lãi chỉ từ lượng sản xuất thực sự (trừ carry over)
+                      const saltRevenue = currentSaltInputActual * currentSaltPrice
                       const cabbageCost = currentVegetablesInput * currentVegetablesPrice
                       const dailyProfit = saltRevenue - cabbageCost
                       
@@ -812,11 +823,12 @@ export function SaltProcessing() {
                         (dailySaltProcessing.cabbagePriceFromSupply ? dailySaltProcessing.cabbagePrice : dailyUpdateData.cabbagePrice) || 0 :
                         dailySaltProcessing.cabbagePrice || 0
                       
-                      const currentSaltInput = editingDailyData ? dailyUpdateData.saltInput : dailySaltProcessing.saltInput
+                      const currentSaltInputTotal = editingDailyData ? dailyUpdateData.saltInput : dailySaltProcessing.saltInput
+                      const currentSaltInputActual = Math.max(0, currentSaltInputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                       const currentVegetablesInput = editingDailyData ? dailyUpdateData.cabbageInput : dailySaltProcessing.cabbageInput
                       
                       if (currentSaltPrice && currentVegetablesPrice) {
-                        const revenue = currentSaltInput * currentSaltPrice
+                        const revenue = currentSaltInputActual * currentSaltPrice // Chỉ lượng sản xuất thực sự
                         const cost = currentVegetablesInput * currentVegetablesPrice
                         return (
                           <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
