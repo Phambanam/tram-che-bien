@@ -434,19 +434,33 @@ export function SaltProcessing() {
       if (response.success && response.data) {
         const apiData = response.data.dailyData
         
-        const weeklyData: WeeklySaltTracking[] = apiData.map((day: any, index: number) => ({
-          date: day.date,
-          dayOfWeek: getDayNameForWeekPosition(index), // Use position-based day name instead of API value
-          cabbageInput: day.cabbageInput,
-          saltInput: day.saltInput,
-          saltOutput: day.saltOutput,
-          saltRemaining: day.saltRemaining,
-          byProductQuantity: day.byProductQuantity || 0,
-          byProductPrice: day.byProductPrice || 2000,
-          cabbagePrice: day.cabbagePrice || 8000,
-          saltPrice: day.saltPrice || 12000,
-          otherCosts: day.otherCosts || 0
-        }))
+        // Generate correct week dates first (Monday to Sunday)
+        const weekDates = getWeekDates(targetWeek, targetYear)
+        
+        // Create a map of API data by date
+        const apiDataByDate = Object.fromEntries(
+          apiData.map((day: any) => [day.date, day])
+        )
+        
+        // Map to correct positions based on week dates, not API order
+        const weeklyData: WeeklySaltTracking[] = weekDates.map((date, index) => {
+          const dateStr = format(date, "yyyy-MM-dd")
+          const dayData = apiDataByDate[dateStr] || {}
+          
+          return {
+            date: dateStr,
+            dayOfWeek: getDayNameForWeekPosition(index), // Now using correct position!
+            cabbageInput: dayData.cabbageInput || 0,
+            saltInput: dayData.saltInput || 0,
+            saltOutput: dayData.saltOutput || 0,
+            saltRemaining: dayData.saltRemaining || 0,
+            byProductQuantity: dayData.byProductQuantity || 0,
+            byProductPrice: dayData.byProductPrice || 2000,
+            cabbagePrice: dayData.cabbagePrice || 8000,
+            saltPrice: dayData.saltPrice || 12000,
+            otherCosts: dayData.otherCosts || 0
+          }
+        })
 
         setWeeklyTracking(weeklyData)
         
