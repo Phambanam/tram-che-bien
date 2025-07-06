@@ -415,7 +415,8 @@ export function PoultryProcessing() {
                             dailyUpdateData.livePoultryPrice || 0 :
                             dailyPoultryProcessing.livePoultryPrice || 0
                           
-                          const currentPoultryMeatOutput = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          // SỬA: Dùng actualOutput (lượng bán ra thực tế) thay vì output (lượng sản xuất) để tính lãi
+                          const currentPoultryMeatActualOutput = dailyPoultryProcessing.poultryMeatActualOutput || 0 // Lượng thực tế đã bán ra
                           const currentLivePoultryInput = editingDailyData ? dailyUpdateData.livePoultryInput : dailyPoultryProcessing.livePoultryInput
                           
                           if (currentPoultryMeatPrice === 0 || currentLivePoultryPrice === 0) {
@@ -426,7 +427,8 @@ export function PoultryProcessing() {
                             )
                           }
                           
-                          const revenue = currentPoultryMeatOutput * currentPoultryMeatPrice
+                          // Revenue = Lượng bán ra thực tế × Giá (không tính tồn kho)
+                          const revenue = currentPoultryMeatActualOutput * currentPoultryMeatPrice
                           const cost = currentLivePoultryInput * currentLivePoultryPrice
                           const dailyProfit = revenue - cost
                           
@@ -448,11 +450,12 @@ export function PoultryProcessing() {
                             dailyUpdateData.livePoultryPrice || 0 :
                             dailyPoultryProcessing.livePoultryPrice || 0
                           
-                          const currentPoultryMeatOutput = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
+                          // SỬA: Dùng actualOutput để tính revenue thực tế
+                          const currentPoultryMeatActualOutput = dailyPoultryProcessing.poultryMeatActualOutput || 0
                           const currentLivePoultryInput = editingDailyData ? dailyUpdateData.livePoultryInput : dailyPoultryProcessing.livePoultryInput
                           
                           if (currentPoultryMeatPrice && currentLivePoultryPrice) {
-                            const revenue = currentPoultryMeatOutput * currentPoultryMeatPrice
+                            const revenue = currentPoultryMeatActualOutput * currentPoultryMeatPrice // Lượng bán ra thực tế
                             const cost = currentLivePoultryInput * currentLivePoultryPrice
                             return (
                               <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
@@ -790,10 +793,10 @@ export function PoultryProcessing() {
                           note: ""
                         }
                         
-                        // Thịt gia cầm thu (kg)
-                        const meatKg = dayData.poultryMeatOutput || 0
-                        // Thành tiền (1.000đ)
-                        const meatMoney = Math.round((meatKg * (dayData.poultryMeatPrice || 150000)) / 1000)
+                        // SỬA: Dùng actualOutput để tính revenue (lượng bán ra thực tế)
+                        const meatActualKg = dayData.poultryMeatActualOutput || 0 // Lượng thực tế đã bán
+                        // Thành tiền (1.000đ) - chỉ tính lượng đã bán ra
+                        const meatMoney = Math.round((meatActualKg * (dayData.poultryMeatPrice || 150000)) / 1000)
                         // Chi phí gia cầm sống
                         const inputKg = dayData.livePoultryInput || 0
                         const inputMoney = Math.round((inputKg * (dayData.livePoultryPrice || 60000)) / 1000)
@@ -804,7 +807,7 @@ export function PoultryProcessing() {
                             <td className="border border-black p-2 text-center font-medium">
                               {format(date, "dd/MM")}
                             </td>
-                            <td className="border border-black p-1 text-center">{meatKg.toLocaleString()}</td>
+                            <td className="border border-black p-1 text-center">{meatActualKg.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{meatMoney.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{inputKg.toLocaleString()}</td>
                             <td className="border border-black p-1 text-center">{inputMoney.toLocaleString()}</td>
