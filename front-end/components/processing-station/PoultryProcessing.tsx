@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getDayNameForWeekPosition } from "@/lib/date-utils"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -205,7 +206,7 @@ export function PoultryProcessing() {
             return (
               <TableRow key={index} className={isToday ? 'bg-blue-50' : ''}>
                 <TableCell>{record.date}</TableCell>
-                <TableCell>{record.dayOfWeek}</TableCell>
+                <TableCell>{getDayNameForWeekPosition(index)}</TableCell>
                 <TableCell>{record.livePoultryInput}</TableCell>
                 <TableCell>{record.processedMeatOutput}</TableCell>
                 <TableCell>{record.remainingStock}</TableCell>
