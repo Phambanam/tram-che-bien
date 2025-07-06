@@ -92,6 +92,9 @@ export function TofuProcessing() {
     soybeanPrice: 0,
     tofuPrice: 0
   })
+
+  // Lưu carry over amount để tính lãi đúng
+  const [carryOverAmount, setCarryOverAmount] = useState(0)
   
   // API test states (previously detection test)
   const [detectionResult, setDetectionResult] = useState<any>(null)
@@ -299,6 +302,7 @@ export function TofuProcessing() {
           }
           
           carryOverAmount = Math.max(0, previousTofuInput - calculatedPreviousTofuOutput)
+          setCarryOverAmount(carryOverAmount) // Lưu vào state
           
           console.log(`🔍 Carry over calculation: ${previousTofuInput} - ${calculatedPreviousTofuOutput} = ${carryOverAmount}kg`)
           
@@ -310,9 +314,11 @@ export function TofuProcessing() {
           }
         } else {
           console.log('❌ No previous day data found for carry over')
+          setCarryOverAmount(0) // Không có carry over
         }
       } catch (error) {
         console.log("No tofu carry over data from previous day:", error)
+        setCarryOverAmount(0) // Không có carry over
       }
       
       try {
@@ -1026,7 +1032,8 @@ export function TofuProcessing() {
                         (dailyTofuProcessing.soybeanPriceFromSupply ? dailyTofuProcessing.soybeanPrice : dailyUpdateData.soybeanPrice) || 0 :
                         dailyTofuProcessing.soybeanPrice || 0
                       
-                      const currentTofuInput = editingDailyData ? dailyUpdateData.tofuInput : dailyTofuProcessing.tofuInput
+                      const currentTofuInputTotal = editingDailyData ? dailyUpdateData.tofuInput : dailyTofuProcessing.tofuInput
+                      const currentTofuInputActual = Math.max(0, currentTofuInputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                       const currentSoybeanInput = editingDailyData ? dailyUpdateData.soybeanInput : dailyTofuProcessing.soybeanInput
                       
                       if (currentTofuPrice === 0 || currentSoybeanPrice === 0) {
@@ -1037,7 +1044,8 @@ export function TofuProcessing() {
                         )
                       }
                       
-                      const tofuRevenue = currentTofuInput * currentTofuPrice
+                      // Tính lãi chỉ từ lượng sản xuất thực sự (trừ carry over)
+                      const tofuRevenue = currentTofuInputActual * currentTofuPrice
                       const soybeanCost = currentSoybeanInput * currentSoybeanPrice
                       const dailyProfit = tofuRevenue - soybeanCost
                       
@@ -1060,11 +1068,12 @@ export function TofuProcessing() {
                         (dailyTofuProcessing.soybeanPriceFromSupply ? dailyTofuProcessing.soybeanPrice : dailyUpdateData.soybeanPrice) || 0 :
                         dailyTofuProcessing.soybeanPrice || 0
                       
-                      const currentTofuInput = editingDailyData ? dailyUpdateData.tofuInput : dailyTofuProcessing.tofuInput
+                      const currentTofuInputTotal = editingDailyData ? dailyUpdateData.tofuInput : dailyTofuProcessing.tofuInput
+                      const currentTofuInputActual = Math.max(0, currentTofuInputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                       const currentSoybeanInput = editingDailyData ? dailyUpdateData.soybeanInput : dailyTofuProcessing.soybeanInput
                       
                       if (currentTofuPrice && currentSoybeanPrice) {
-                        const revenue = currentTofuInput * currentTofuPrice
+                        const revenue = currentTofuInputActual * currentTofuPrice // Chỉ lượng sản xuất thực sự
                         const cost = currentSoybeanInput * currentSoybeanPrice
                         return (
                           <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>

@@ -91,6 +91,9 @@ export function BeanSproutsProcessing() {
     soybeansPrice: 0,
     beanSproutsPrice: 0
   })
+
+  // Lưu carry over amount để tính lãi đúng
+  const [carryOverAmount, setCarryOverAmount] = useState(0)
   
   // API test states (previously detection test)
   const [detectionResult, setDetectionResult] = useState<any>(null)
@@ -268,14 +271,20 @@ export function BeanSproutsProcessing() {
           const previousBeanSproutsInput = previousStationResponse.data.beanSproutsInput || 0
           const previousBeanSproutsOutput = previousStationResponse.data.beanSproutsOutput || 0
           carryOverAmount = Math.max(0, previousBeanSproutsInput - previousBeanSproutsOutput)
+          setCarryOverAmount(carryOverAmount) // Lưu vào state
           
           if (carryOverAmount > 0) {
             carryOverNote = `\n📦 Chuyển từ ${format(previousDate, "dd/MM/yyyy")}: +${carryOverAmount}kg giá đỗ`
             console.log(`✅ Bean sprouts carry over found: ${carryOverAmount}kg from ${previousDateStr}`)
+          } else {
+            setCarryOverAmount(0) // Không có carry over
           }
+        } else {
+          setCarryOverAmount(0) // Không có dữ liệu trước đó
         }
       } catch (error) {
         console.log("No bean sprouts carry over data from previous day:", error)
+        setCarryOverAmount(0) // Không có carry over
       }
       
       try {
@@ -747,7 +756,8 @@ export function BeanSproutsProcessing() {
                         (dailyBeanSproutsProcessing.soybeansPriceFromSupply ? dailyBeanSproutsProcessing.soybeansPrice : dailyUpdateData.soybeansPrice) || 0 :
                         dailyBeanSproutsProcessing.soybeansPrice || 0
                       
-                      const currentBeanSproutsInput = editingDailyData ? dailyUpdateData.beanSproutsInput : dailyBeanSproutsProcessing.beanSproutsInput
+                      const currentBeanSproutsInputTotal = editingDailyData ? dailyUpdateData.beanSproutsInput : dailyBeanSproutsProcessing.beanSproutsInput
+                      const currentBeanSproutsInputActual = Math.max(0, currentBeanSproutsInputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                       const currentSoybeansInput = editingDailyData ? dailyUpdateData.soybeansInput : dailyBeanSproutsProcessing.soybeansInput
                       
                       if (currentBeanSproutsPrice === 0 || currentSoybeansPrice === 0) {
@@ -758,7 +768,8 @@ export function BeanSproutsProcessing() {
                         )
                       }
                       
-                      const beanSproutsRevenue = currentBeanSproutsInput * currentBeanSproutsPrice
+                      // Tính lãi chỉ từ lượng sản xuất thực sự (trừ carry over)
+                      const beanSproutsRevenue = currentBeanSproutsInputActual * currentBeanSproutsPrice
                       const soybeansCost = currentSoybeansInput * currentSoybeansPrice
                       const dailyProfit = beanSproutsRevenue - soybeansCost
                       
@@ -781,11 +792,12 @@ export function BeanSproutsProcessing() {
                         (dailyBeanSproutsProcessing.soybeansPriceFromSupply ? dailyBeanSproutsProcessing.soybeansPrice : dailyUpdateData.soybeansPrice) || 0 :
                         dailyBeanSproutsProcessing.soybeansPrice || 0
                       
-                      const currentBeanSproutsInput = editingDailyData ? dailyUpdateData.beanSproutsInput : dailyBeanSproutsProcessing.beanSproutsInput
+                      const currentBeanSproutsInputTotal = editingDailyData ? dailyUpdateData.beanSproutsInput : dailyBeanSproutsProcessing.beanSproutsInput
+                      const currentBeanSproutsInputActual = Math.max(0, currentBeanSproutsInputTotal - carryOverAmount) // Chỉ lượng sản xuất thực sự
                       const currentSoybeansInput = editingDailyData ? dailyUpdateData.soybeansInput : dailyBeanSproutsProcessing.soybeansInput
                       
                       if (currentBeanSproutsPrice && currentSoybeansPrice) {
-                        const revenue = currentBeanSproutsInput * currentBeanSproutsPrice
+                        const revenue = currentBeanSproutsInputActual * currentBeanSproutsPrice // Chỉ lượng sản xuất thực sự
                         const cost = currentSoybeansInput * currentSoybeansPrice
                         return (
                           <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
