@@ -1,9 +1,9 @@
 import { format, getWeek, startOfWeek, addDays, getISOWeek } from 'date-fns'
 import { vi } from 'date-fns/locale'
 
-// Helper function to get current week of year (ISO week)
+// Helper function to get current week of year (Vietnam standard - starts on Sunday)
 export const getCurrentWeekOfYear = (date: Date = new Date()) => {
-  return getWeek(date, { weekStartsOn: 1 }) // ISO week starts on Monday
+  return getWeek(date, { weekStartsOn: 0 }) // Week starts on Sunday (Vietnam standard)
 }
 
 // Helper function to get current ISO week
@@ -11,37 +11,37 @@ export const getCurrentISOWeek = (date: Date = new Date()) => {
   return getISOWeek(date)
 }
 
-// Get all dates in a specific week
+// Get all dates in a specific week (Sunday to Saturday)
 export const getWeekDates = (week: number, year: number) => {
   // Simple approach: calculate approximate date and then find the correct week
   const startOfYear = new Date(year, 0, 1)
   const approximateDate = addDays(startOfYear, (week - 1) * 7)
   
-  // Find the Monday of the week that contains our approximate date
-  const monday = startOfWeek(approximateDate, { weekStartsOn: 1 })
+  // Find the Sunday of the week that contains our approximate date
+  const sunday = startOfWeek(approximateDate, { weekStartsOn: 0 })
   
   // Adjust if we're not in the right week yet
-  let currentMonday = monday
+  let currentSunday = sunday
   let attempts = 0
-  while (getWeek(currentMonday, { weekStartsOn: 1 }) !== week && attempts < 10) {
-    if (getWeek(currentMonday, { weekStartsOn: 1 }) < week) {
-      currentMonday = addDays(currentMonday, 7)
+  while (getWeek(currentSunday, { weekStartsOn: 0 }) !== week && attempts < 10) {
+    if (getWeek(currentSunday, { weekStartsOn: 0 }) < week) {
+      currentSunday = addDays(currentSunday, 7)
     } else {
-      currentMonday = addDays(currentMonday, -7)
+      currentSunday = addDays(currentSunday, -7)
     }
     attempts++
   }
   
-  // Generate all 7 days of the week
+  // Generate all 7 days of the week (Sunday to Saturday)
   const weekDates = []
   for (let i = 0; i < 7; i++) {
-    weekDates.push(addDays(currentMonday, i))
+    weekDates.push(addDays(currentSunday, i))
   }
   
   return weekDates
 }
 
-// Get current week dates (today's week)
+// Get current week dates (today's week) - Sunday to Saturday
 export const getCurrentWeekDates = () => {
   const today = new Date()
   const currentWeek = getCurrentWeekOfYear(today)
