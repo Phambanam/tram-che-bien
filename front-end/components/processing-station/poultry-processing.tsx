@@ -415,8 +415,8 @@ export function PoultryProcessing() {
                             dailyUpdateData.livePoultryPrice || 0 :
                             dailyPoultryProcessing.livePoultryPrice || 0
                           
-                          // SỬA: Dùng actualOutput (lượng bán ra thực tế) thay vì output (lượng sản xuất) để tính lãi
-                          const currentPoultryMeatActualOutput = dailyPoultryProcessing.poultryMeatActualOutput || 0 // Lượng thực tế đã bán ra
+                          // SỬA: Tính lãi dựa trên lượng sản xuất trong ngày (output) không phải actualOutput
+                          const currentPoultryMeatOutput = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
                           const currentLivePoultryInput = editingDailyData ? dailyUpdateData.livePoultryInput : dailyPoultryProcessing.livePoultryInput
                           
                           if (currentPoultryMeatPrice === 0 || currentLivePoultryPrice === 0) {
@@ -427,8 +427,8 @@ export function PoultryProcessing() {
                             )
                           }
                           
-                          // Revenue = Lượng bán ra thực tế × Giá (không tính tồn kho)
-                          const revenue = currentPoultryMeatActualOutput * currentPoultryMeatPrice
+                          // Revenue = Lượng sản xuất trong ngày × Giá (không tính tồn kho)
+                          const revenue = currentPoultryMeatOutput * currentPoultryMeatPrice
                           const cost = currentLivePoultryInput * currentLivePoultryPrice
                           const dailyProfit = revenue - cost
                           
@@ -450,12 +450,12 @@ export function PoultryProcessing() {
                             dailyUpdateData.livePoultryPrice || 0 :
                             dailyPoultryProcessing.livePoultryPrice || 0
                           
-                          // SỬA: Dùng actualOutput để tính revenue thực tế
-                          const currentPoultryMeatActualOutput = dailyPoultryProcessing.poultryMeatActualOutput || 0
+                          // SỬA: Tính revenue dựa trên lượng sản xuất trong ngày
+                          const currentPoultryMeatOutput = editingDailyData ? dailyUpdateData.poultryMeatOutput : dailyPoultryProcessing.poultryMeatOutput
                           const currentLivePoultryInput = editingDailyData ? dailyUpdateData.livePoultryInput : dailyPoultryProcessing.livePoultryInput
                           
                           if (currentPoultryMeatPrice && currentLivePoultryPrice) {
-                            const revenue = currentPoultryMeatActualOutput * currentPoultryMeatPrice // Lượng bán ra thực tế
+                            const revenue = currentPoultryMeatOutput * currentPoultryMeatPrice // Lượng sản xuất trong ngày
                             const cost = currentLivePoultryInput * currentLivePoultryPrice
                             return (
                               <>Thu: {revenue.toLocaleString('vi-VN')}đ - Chi: {cost.toLocaleString('vi-VN')}đ{editingDailyData && " (Real-time)"}</>
