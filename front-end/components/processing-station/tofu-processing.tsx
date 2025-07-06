@@ -1444,7 +1444,7 @@ export function TofuProcessing() {
                             {isToday && <div className="text-xs text-blue-600 mt-1">(Hôm nay)</div>}
                           </td>
                           <td className="border border-black p-2 text-center font-medium">
-                            {day.dayOfWeek}
+                            {getDayNameForWeekPosition(index)}
                           </td>
                           {/* THU - Đậu phụ */}
                           <td className="border border-black p-1 text-center font-semibold text-green-600">
