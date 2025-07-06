@@ -860,6 +860,18 @@ export const processingStationApi = {
     })
   },
 
+  // New methods for daily salt processing
+  getDailySaltData: async (date: string) => {
+    return apiRequest<any>(`/processing-station/salt/${date}`)
+  },
+
+  updateDailySaltData: async (date: string, data: any) => {
+    return apiRequest<{ success: boolean; message: string }>(`/processing-station/salt/${date}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
   // New methods for sausage weekly/monthly tracking
   getWeeklySausageTracking: async (params: {
     week: number
@@ -1385,6 +1397,29 @@ export const beanSproutsCalculationApi = {
     
     const query = queryParams.toString() ? `?${queryParams.toString()}` : ""
     return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/monthly-summary${query}`)
+  },
+
+  // Bean Sprouts Processing API
+  getBeanSproutsProcessingData: (date: string) => {
+    return apiRequest<{ success: boolean; data: any }>(`/bean-sprouts-calculation/daily-processing?date=${date}`)
+  },
+
+  updateBeanSproutsProcessingData: (data: {
+    date: string
+    soybeansInput?: number
+    beanSproutsInput?: number
+    beanSproutsOutput?: number
+    soybeansPrice?: number
+    beanSproutsPrice?: number
+    byProductQuantity?: number
+    byProductPrice?: number
+    otherCosts?: number
+    note?: string
+  }) => {
+    return apiRequest<{ success: boolean; data: any; message: string }>('/bean-sprouts-calculation/daily-processing', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   },
 }
 

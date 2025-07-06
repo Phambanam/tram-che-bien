@@ -1304,14 +1304,14 @@ export function TofuProcessing() {
                       >
                         Chỉnh sửa
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         onClick={() => testTofuDetection()}
                         disabled={isTestingDetection}
                         className="bg-purple-100 text-purple-700 hover:bg-purple-200"
                       >
                         {isTestingDetection ? "🔄 Đang test..." : "🚀 Test Tofu API"}
-                      </Button>
+                      </Button> */}
                     </>
                   )}
                 </div>

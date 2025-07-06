@@ -41,6 +41,7 @@ interface LTTPItem {
   endDayExpiry: string // Hạn sử dụng tồn
   
   status: string // Trạng thái
+  source: string | null // Add source field
 }
 
 export function LttpManagement() {
@@ -72,7 +73,8 @@ export function LttpManagement() {
       todayOutputExpiry: "2025-02-15",
       endDayAmount: 2400000,
       endDayExpiry: "2025-02-15",
-      status: "Bình thường"
+      status: "Bình thường",
+      source: null
     },
     {
       id: "2", 
@@ -90,7 +92,8 @@ export function LttpManagement() {
       todayOutputExpiry: "2025-01-15",
       endDayAmount: 3200000,
       endDayExpiry: "2025-02-01",
-      status: "Sắp hết hạn"
+      status: "Sắp hết hạn",
+      source: null
     },
     {
       id: "3",
@@ -108,7 +111,8 @@ export function LttpManagement() {
       todayOutputExpiry: "2025-12-31",
       endDayAmount: 480000,
       endDayExpiry: "2025-12-31",
-      status: "Tốt"
+      status: "Tốt",
+      source: null
     }
   ]
 
@@ -123,6 +127,13 @@ export function LttpManagement() {
       
       if (response.success && response.data) {
         console.log("✅ API returned data:", response.data.length, "items")
+        
+        // Separate processing items from regular LTTP items
+        const processingItems = response.data.filter((item: any) => item.source && item.source.includes('processing'))
+        const regularItems = response.data.filter((item: any) => !item.source || !item.source.includes('processing'))
+        
+        console.log("📊 Processing items:", processingItems.length, "Regular items:", regularItems.length)
+        
         // Transform API data to frontend format
         const transformedData: LTTPItem[] = response.data.map((item: any, index: number) => ({
           id: item._id || item.id || index.toString(),
@@ -140,11 +151,21 @@ export function LttpManagement() {
           todayOutputExpiry: item.todayOutputExpiry || dateStr,
           endDayAmount: item.endDayAmount || 0,
           endDayExpiry: item.endDayExpiry || dateStr,
-          status: item.status || "Bình thường"
+          status: item.status || "Bình thường",
+          source: item.source || null // Add source field
         }))
         
         console.log("🔄 Setting LTTP items:", transformedData.length, "items")
         setLttpItems(transformedData)
+        
+        // Show info about aggregated data
+        if (processingItems.length > 0) {
+          toast({
+            title: "📊 Dữ liệu tổng hợp",
+            description: `Đã tổng hợp ${processingItems.length} sản phẩm chế biến từ các module khác`,
+            variant: "default"
+          })
+        }
       } else {
         // No data found, use empty array or show sample data for first time
         console.log("❌ No LTTP data found for date:", dateStr)
@@ -261,7 +282,8 @@ export function LttpManagement() {
         todayOutputExpiry: item.todayOutputExpiry,
         endDayAmount: item.endDayAmount,
         endDayExpiry: item.endDayExpiry,
-        status: item.status
+        status: item.status,
+        source: item.source
       }))
       
       const response = await processingStationApi.updateLttpData(dateStr, itemsToSave)
@@ -312,13 +334,14 @@ export function LttpManagement() {
             <div className="flex gap-2">
               <DatePicker 
                 selected={selectedDate}
-                onSelect={(date) => {
+                onSelect={(date: Date | null) => {
                   if (date) {
                     console.log("📅 Date selected:", format(date, "yyyy-MM-dd"))
                     setSelectedDate(date)
                   }
                 }}
                 placeholder="Chọn ngày"
+                className="w-40"
               />
               {user && (user.role === "admin" || user.role === "stationManager") && (
                 <>
@@ -377,6 +400,7 @@ export function LttpManagement() {
                       <TableHead colSpan={3} className="text-center border-r bg-red-50">Xuất</TableHead>
                       <TableHead colSpan={2} className="text-center border-r bg-yellow-50">Tồn cuối ngày</TableHead>
                       <TableHead rowSpan={2} className="text-center align-middle bg-purple-50 min-w-24">Trạng thái</TableHead>
+                      <TableHead rowSpan={2} className="text-center align-middle bg-orange-50 min-w-20">Nguồn</TableHead>
                     </TableRow>
                     <TableRow>
                       {/* Ngày trước chuyển qua */}
@@ -398,90 +422,122 @@ export function LttpManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lttpItems.map((item, index) => (
-                      <TableRow key={item.id} className="border-b">
-                        <TableCell className="text-center border-r font-medium">{index + 1}</TableCell>
-                        <TableCell className="text-center border-r">{item.category}</TableCell>
-                        <TableCell className="border-r">{item.name}</TableCell>
-                        <TableCell className="text-center border-r">{item.unit}</TableCell>
-                        <TableCell className="text-right border-r">{formatCurrency(item.unitPrice)}</TableCell>
-                        <TableCell className="text-center border-r">{item.quantity}</TableCell>
-                        
-                        {/* Ngày trước chuyển qua */}
-                        <TableCell className="text-right">{formatCurrency(item.previousAmount)}</TableCell>
-                        <TableCell className="text-center border-r text-xs">{item.previousExpiry}</TableCell>
-                        
-                        {/* Nhập trong ngày */}
-                        <TableCell className="p-1">
-                          {isEditing && user && (user.role === "admin" || user.role === "stationManager") ? (
-                            <Input
-                              type="number"
-                              value={item.todayInputQuantity}
-                              onChange={(e) => handleInputChange(item.id, 'todayInputQuantity', Number(e.target.value))}
-                              className="w-16 h-8 text-xs text-center"
-                            />
-                          ) : (
-                            <span className="text-center block">{item.todayInputQuantity}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right border-r">{formatCurrency(item.todayInputAmount)}</TableCell>
-                        
-                        {/* Xuất */}
-                        <TableCell className="p-1">
-                          {isEditing && user && (user.role === "admin" || user.role === "stationManager") ? (
-                            <Input
-                              type="number"
-                              value={item.todayOutputQuantity}
-                              onChange={(e) => handleInputChange(item.id, 'todayOutputQuantity', Number(e.target.value))}
-                              className="w-16 h-8 text-xs text-center"
-                            />
-                          ) : (
-                            <span className="text-center block">{item.todayOutputQuantity}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">{formatCurrency(item.todayOutputAmount)}</TableCell>
-                        <TableCell className="p-1 border-r">
-                          {isEditing && user && (user.role === "admin" || user.role === "stationManager") ? (
-                            <Input
-                              type="date"
-                              value={item.todayOutputExpiry}
-                              onChange={(e) => handleInputChange(item.id, 'todayOutputExpiry', e.target.value)}
-                              className="w-24 h-8 text-xs"
-                            />
-                          ) : (
-                            <span className="text-center block text-xs">{item.todayOutputExpiry}</span>
-                          )}
-                        </TableCell>
-                        
-                        {/* Tồn cuối ngày */}
-                        <TableCell className="text-right font-semibold">{formatCurrency(item.endDayAmount)}</TableCell>
-                        <TableCell className="text-center border-r text-xs">{item.endDayExpiry}</TableCell>
-                        
-                        {/* Trạng thái */}
-                        <TableCell className="text-center">
-                          {isEditing && user && (user.role === "admin" || user.role === "stationManager") ? (
-                            <Select
-                              value={item.status}
-                              onValueChange={(value) => handleInputChange(item.id, 'status', value)}
-                            >
-                              <SelectTrigger className={`w-20 h-8 text-xs ${getStatusColor(item.status)}`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Tốt">Tốt</SelectItem>
-                                <SelectItem value="Bình thường">Bình thường</SelectItem>
-                                <SelectItem value="Sắp hết hạn">Sắp hết hạn</SelectItem>
-                                <SelectItem value="Hết hạn">Hết hạn</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className={`text-xs px-2 py-1 rounded ${getStatusColor(item.status)}`}>
-                              {item.status}
-                            </span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {lttpItems.map((item, index) => {
+                      const isProcessingItem = item.source && item.source.includes('processing')
+                      const rowClass = isProcessingItem ? "border-b bg-blue-50" : "border-b"
+                      
+                      return (
+                        <TableRow key={item.id} className={rowClass}>
+                          <TableCell className="text-center border-r font-medium">{index + 1}</TableCell>
+                          <TableCell className="text-center border-r">
+                            <div className="flex items-center gap-1">
+                              {item.category}
+                              {isProcessingItem && (
+                                <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                                  Chế biến
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="border-r font-medium">
+                            {item.name}
+                            {isProcessingItem && (
+                              <div className="text-xs text-blue-600 mt-1">
+                                Từ {item.source?.replace('-processing', '')}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center border-r">{item.unit}</TableCell>
+                          <TableCell className="text-right border-r">{formatCurrency(item.unitPrice)}</TableCell>
+                          <TableCell className="text-center border-r">{item.quantity}</TableCell>
+                          
+                          {/* Ngày trước chuyển qua */}
+                          <TableCell className="text-right">{formatCurrency(item.previousAmount)}</TableCell>
+                          <TableCell className="text-center border-r text-xs">{item.previousExpiry}</TableCell>
+                          
+                          {/* Nhập trong ngày */}
+                          <TableCell className="p-1">
+                            {isEditing && user && (user.role === "admin" || user.role === "stationManager") && !isProcessingItem ? (
+                              <Input
+                                type="number"
+                                value={item.todayInputQuantity}
+                                onChange={(e) => handleInputChange(item.id, 'todayInputQuantity', Number(e.target.value))}
+                                className="w-16 h-8 text-xs text-center"
+                              />
+                            ) : (
+                              <span className="text-center block">{item.todayInputQuantity}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right border-r">{formatCurrency(item.todayInputAmount)}</TableCell>
+                          
+                          {/* Xuất */}
+                          <TableCell className="p-1">
+                            {isEditing && user && (user.role === "admin" || user.role === "stationManager") && !isProcessingItem ? (
+                              <Input
+                                type="number"
+                                value={item.todayOutputQuantity}
+                                onChange={(e) => handleInputChange(item.id, 'todayOutputQuantity', Number(e.target.value))}
+                                className="w-16 h-8 text-xs text-center"
+                              />
+                            ) : (
+                              <span className="text-center block">{item.todayOutputQuantity}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.todayOutputAmount)}</TableCell>
+                          <TableCell className="p-1 border-r">
+                            {isEditing && user && (user.role === "admin" || user.role === "stationManager") && !isProcessingItem ? (
+                              <Input
+                                type="date"
+                                value={item.todayOutputExpiry}
+                                onChange={(e) => handleInputChange(item.id, 'todayOutputExpiry', e.target.value)}
+                                className="w-24 h-8 text-xs"
+                              />
+                            ) : (
+                              <span className="text-center block text-xs">{item.todayOutputExpiry}</span>
+                            )}
+                          </TableCell>
+                          
+                          {/* Tồn cuối ngày */}
+                          <TableCell className="text-right font-semibold">{formatCurrency(item.endDayAmount)}</TableCell>
+                          <TableCell className="text-center border-r text-xs">{item.endDayExpiry}</TableCell>
+                          
+                          {/* Trạng thái */}
+                          <TableCell className="text-center">
+                            {isEditing && user && (user.role === "admin" || user.role === "stationManager") && !isProcessingItem ? (
+                              <Select
+                                value={item.status}
+                                onValueChange={(value) => handleInputChange(item.id, 'status', value)}
+                              >
+                                <SelectTrigger className={`w-20 h-8 text-xs ${getStatusColor(item.status)}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Tốt">Tốt</SelectItem>
+                                  <SelectItem value="Bình thường">Bình thường</SelectItem>
+                                  <SelectItem value="Sắp hết hạn">Sắp hết hạn</SelectItem>
+                                  <SelectItem value="Hết hạn">Hết hạn</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className={`text-xs px-2 py-1 rounded ${getStatusColor(item.status)}`}>
+                                {item.status}
+                              </span>
+                            )}
+                          </TableCell>
+                          
+                          {/* Nguồn */}
+                          <TableCell className="text-center">
+                            {item.source ? (
+                              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-300">
+                                {item.source.replace('-processing', '')}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-gray-500">Thủ công</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                     
                     {/* Dòng tổng */}
                     <TableRow className="bg-gray-100 font-semibold border-t-2">
@@ -507,6 +563,7 @@ export function LttpManagement() {
                         {formatCurrency(lttpItems.reduce((sum, item) => sum + item.endDayAmount, 0))}
                       </TableCell>
                       <TableCell className="border-r"></TableCell>
+                      <TableCell></TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   </TableBody>
@@ -561,7 +618,7 @@ export function LttpManagement() {
                 </div>
               )}
 
-              {/* Notes */}
+              {/* Notes
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-semibold mb-2">Ghi chú:</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
@@ -569,7 +626,7 @@ export function LttpManagement() {
                   <li>• Số sánh với ngày hiện tại để báo: Chưa hết hạn, Sắp hết hạn (trước 3 ngày), Hết hạn</li>
                   <li>• Chỉ trạm trưởng mới có thể chỉnh sửa và lưu dữ liệu</li>
                 </ul>
-              </div>
+              </div> */}
             </>
           )}
         </CardContent>

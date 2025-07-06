@@ -51,11 +51,20 @@ interface WeeklyBeanSproutsTracking {
 interface MonthlyBeanSproutsSummary {
   month: string
   year: number
+  monthNumber: number
   totalSoybeansInput: number
   totalBeanSproutsCollected: number
   totalBeanSproutsOutput: number
   totalBeanSproutsRemaining: number
   processingEfficiency: number // percentage
+  // Financial data (in thousands VND)
+  beanSproutsRevenue?: number
+  byProductRevenue?: number
+  totalRevenue?: number
+  soybeansCost?: number
+  otherCosts?: number
+  totalCost?: number
+  netProfit?: number
 }
 
 export function BeanSproutsProcessing() {
@@ -254,8 +263,8 @@ export function BeanSproutsProcessing() {
       
       try {
         console.log(`🔄 Checking bean sprouts carry over from ${previousDateStr} to ${dateStr}`)
-        const previousStationResponse = await processingStationApi.getDailyData(previousDateStr)
-        if (previousStationResponse && previousStationResponse.data) {
+        const previousStationResponse = await beanSproutsCalculationApi.getBeanSproutsProcessingData(previousDateStr)
+        if (previousStationResponse && previousStationResponse.success && previousStationResponse.data) {
           const previousBeanSproutsInput = previousStationResponse.data.beanSproutsInput || 0
           const previousBeanSproutsOutput = previousStationResponse.data.beanSproutsOutput || 0
           carryOverAmount = Math.max(0, previousBeanSproutsInput - previousBeanSproutsOutput)
@@ -270,15 +279,15 @@ export function BeanSproutsProcessing() {
       }
       
       try {
-        const stationResponse = await processingStationApi.getDailyData(dateStr)
-        if (stationResponse && stationResponse.data) {
-          // Map tofu API field names back to bean sprouts field names
+        const stationResponse = await beanSproutsCalculationApi.getBeanSproutsProcessingData(dateStr)
+        if (stationResponse && stationResponse.success && stationResponse.data) {
+          // Use dedicated bean sprouts processing data
           stationData = {
-            soybeansInput: stationResponse.data.soybeanInput || stationResponse.data.soybeansInput || 0,  // Map back from soybeanInput
-            beanSproutsInput: ((stationResponse.data.tofuInput || stationResponse.data.beanSproutsInput || 0) + carryOverAmount), // Map back from tofuInput
-            note: (stationResponse.data.note || "") + carryOverNote, // Add carry over note
-            soybeansPrice: stationResponse.data.soybeanPrice || stationResponse.data.soybeansPrice || 0,  // Map back from soybeanPrice
-            beanSproutsPrice: stationResponse.data.tofuPrice || stationResponse.data.beanSproutsPrice || 0  // Map back from tofuPrice
+            soybeansInput: stationResponse.data.soybeansInput || 0,
+            beanSproutsInput: (stationResponse.data.beanSproutsInput || 0) + carryOverAmount,
+            note: (stationResponse.data.note || "") + carryOverNote,
+            soybeansPrice: stationResponse.data.soybeansPrice || 0,
+            beanSproutsPrice: stationResponse.data.beanSproutsPrice || 0
           }
         } else if (carryOverAmount > 0) {
           // If no current data but have carry over, apply it to defaults
@@ -286,7 +295,7 @@ export function BeanSproutsProcessing() {
           stationData.note = carryOverNote.trim()
         }
       } catch (error) {
-        console.log("No station data found for date, using defaults:", error)
+        console.log("No bean sprouts processing data found for date, using defaults:", error)
         // Still apply carry over to defaults if available
         if (carryOverAmount > 0) {
           stationData.beanSproutsInput = carryOverAmount
@@ -488,11 +497,19 @@ export function BeanSproutsProcessing() {
         const monthlySummaries: MonthlyBeanSproutsSummary[] = apiData.map((monthData: any) => ({
           month: monthData.month,
           year: monthData.year,
+          monthNumber: monthData.monthNumber,
           totalSoybeansInput: monthData.totalSoybeansInput,
           totalBeanSproutsCollected: monthData.totalBeanSproutsCollected,
           totalBeanSproutsOutput: monthData.totalBeanSproutsOutput,
           totalBeanSproutsRemaining: monthData.totalBeanSproutsRemaining,
-          processingEfficiency: monthData.processingEfficiency
+          processingEfficiency: monthData.processingEfficiency,
+          beanSproutsRevenue: monthData.beanSproutsRevenue,
+          byProductRevenue: monthData.byProductRevenue,
+          totalRevenue: monthData.totalRevenue,
+          soybeansCost: monthData.soybeansCost,
+          otherCosts: monthData.otherCosts,
+          totalCost: monthData.totalCost,
+          netProfit: monthData.netProfit
         }))
         
         setMonthlyBeanSproutsSummary(monthlySummaries)
@@ -527,6 +544,7 @@ export function BeanSproutsProcessing() {
         return {
           month: format(month, 'MM/yyyy', { locale: vi }),
           year: month.getFullYear(),
+          monthNumber: month.getMonth() + 1,
           totalSoybeansInput,
           totalBeanSproutsCollected,
           totalBeanSproutsOutput,
@@ -552,13 +570,15 @@ export function BeanSproutsProcessing() {
     try {
       setIsUpdating(true)
 
-      // Update station data via API - map bean sprouts fields to tofu API format
-      await processingStationApi.updateDailyData(dailyBeanSproutsProcessing.date, {
-        soybeanInput: dailyUpdateData.soybeansInput,  // Map soybeansInput to soybeanInput
-        tofuInput: dailyUpdateData.beanSproutsInput,  // Map beanSproutsInput to tofuInput
+      // Update using dedicated bean sprouts API
+      await beanSproutsCalculationApi.updateBeanSproutsProcessingData({
+        date: dailyBeanSproutsProcessing.date,
+        soybeansInput: dailyUpdateData.soybeansInput,
+        beanSproutsInput: dailyUpdateData.beanSproutsInput,
+        beanSproutsOutput: dailyBeanSproutsProcessing.beanSproutsOutput, // Keep existing output
+        soybeansPrice: dailyUpdateData.soybeansPrice,
+        beanSproutsPrice: dailyUpdateData.beanSproutsPrice,
         note: dailyUpdateData.note,
-        soybeanPrice: dailyUpdateData.soybeansPrice,  // Map soybeansPrice to soybeanPrice
-        tofuPrice: dailyUpdateData.beanSproutsPrice,  // Map beanSproutsPrice to tofuPrice
         // Set default values for fields only editable in weekly/monthly views
         byProductQuantity: 0, // Default: no by-products in daily view
         byProductPrice: 3000, // Default price when by-products are added later
@@ -635,13 +655,13 @@ export function BeanSproutsProcessing() {
       
       setDetectionResult(result)
       
-      toast({
-        title: "🧪 Test API Completed",
-        description: result.found ? 
-          `Tìm thấy ${result.dishesUsingBeanSprouts?.length || 0} món có giá đỗ. Cần xuất: ${result.totalBeanSproutsRequired?.toFixed(2) || 0} kg` :
-          `Không tìm thấy giá đỗ: ${result.reason}`,
-        variant: result.found ? "default" : "destructive"
-      })
+      // toast({
+      //   title: "🧪 Test API Completed",
+      //   description: result.found ? 
+      //     `Tìm thấy ${result.dishesUsingBeanSprouts?.length || 0} món có giá đỗ. Cần xuất: ${result.totalBeanSproutsRequired?.toFixed(2) || 0} kg` :
+      //     `Không tìm thấy giá đỗ: ${result.reason}`,
+      //   variant: result.found ? "default" : "destructive"
+      // })
       
       // If found bean sprouts for today, refresh the daily data
       if (result.found && dateToTest === format(new Date(), "yyyy-MM-dd")) {
@@ -1002,14 +1022,14 @@ export function BeanSproutsProcessing() {
                       >
                         Chỉnh sửa
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         onClick={() => testBeanSproutsDetection()}
                         disabled={isTestingDetection}
                         className="bg-purple-100 text-purple-700 hover:bg-purple-200"
                       >
                         {isTestingDetection ? "🔄 Đang test..." : "🚀 Test Giá Đỗ API"}
-                      </Button>
+                      </Button> */}
                     </>
                   )}
                 </div>
@@ -1438,33 +1458,34 @@ export function BeanSproutsProcessing() {
                           {month.totalBeanSproutsCollected.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {(month.totalBeanSproutsCollected * 8).toLocaleString()}
+                          {(month.beanSproutsRevenue || month.totalBeanSproutsCollected * 8).toLocaleString()}
                         </td>
                         {/* THU - Sản phẩm phụ */}
                         <td className="border border-black p-1 text-center font-semibold text-green-600">
-                          {Math.round(month.totalBeanSproutsCollected * 0.05 * 3).toLocaleString()}
+                          {(month.byProductRevenue || Math.round(month.totalBeanSproutsCollected * 0.05 * 3)).toLocaleString()}
                         </td>
                         {/* CHI - Đậu tương */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
                           {month.totalSoybeansInput.toLocaleString()}
                         </td>
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {(month.totalSoybeansInput * 15).toLocaleString()}
+                          {(month.soybeansCost || month.totalSoybeansInput * 15).toLocaleString()}
                         </td>
                         {/* CHI - Chi khác */}
                         <td className="border border-black p-1 text-center font-semibold text-red-600">
-                          {Math.round(month.totalSoybeansInput * 0.02 * 1000).toLocaleString()}
+                          {(month.otherCosts || Math.round(month.totalSoybeansInput * 0.02 * 1000)).toLocaleString()}
                         </td>
                         {/* THU-CHI (LÃI) */}
                         <td className="border border-black p-1 text-center bg-blue-50">
                           <span className={`font-bold ${
-                            ((month.totalBeanSproutsCollected * 8) + Math.round(month.totalBeanSproutsCollected * 0.05 * 3) - 
-                             (month.totalSoybeansInput * 15) - Math.round(month.totalSoybeansInput * 0.02 * 1000)) >= 0 
+                            (month.netProfit !== undefined ? month.netProfit : 
+                             ((month.totalBeanSproutsCollected * 8) + Math.round(month.totalBeanSproutsCollected * 0.05 * 3) - 
+                              (month.totalSoybeansInput * 15) - Math.round(month.totalSoybeansInput * 0.02 * 1000))) >= 0 
                             ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {(
-                              (month.totalBeanSproutsCollected * 8) + Math.round(month.totalBeanSproutsCollected * 0.05 * 3) - 
-                              (month.totalSoybeansInput * 15) - Math.round(month.totalSoybeansInput * 0.02 * 1000)
+                            {(month.netProfit !== undefined ? month.netProfit : 
+                              ((month.totalBeanSproutsCollected * 8) + Math.round(month.totalBeanSproutsCollected * 0.05 * 3) - 
+                               (month.totalSoybeansInput * 15) - Math.round(month.totalSoybeansInput * 0.02 * 1000))
                             ).toLocaleString()}
                           </span>
                         </td>

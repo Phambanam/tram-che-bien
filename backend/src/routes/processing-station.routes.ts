@@ -9,6 +9,8 @@ import {
   updateExpiryStatus,
   getDailyTofuData,
   updateDailyTofuData,
+  getDailySaltData,
+  updateDailySaltData,
   getDailySausageData,
   updateDailySausageData,
   getDailyPoultryData,
@@ -47,6 +49,7 @@ router.get("/livestock/monthly-summary", getMonthlyLivestockSummary)
 router.get("/poultry/weekly-tracking", getWeeklyPoultryTracking)
 router.get("/poultry/monthly-summary", getMonthlyPoultrySummary)
 // Daily routes with :date param come after specific routes
+router.get("/salt/:date", getDailySaltData)
 router.get("/sausage/:date", getDailySausageData)
 router.get("/poultry/:date", getDailyPoultryData)
 router.get("/livestock/:date", getDailyLivestockData)
@@ -55,6 +58,7 @@ router.get("/:id", getProcessingStationItemById)
 // Routes for admin and station manager
 router.post("/", authorize("admin", "stationManager"), createProcessingStationItem)
 router.patch("/daily/:date", authorize("admin", "stationManager"), updateDailyTofuData)
+router.patch("/salt/:date", authorize("admin", "stationManager"), updateDailySaltData)
 router.patch("/sausage/:date", authorize("admin", "stationManager"), updateDailySausageData)
 router.patch("/poultry/:date", authorize("admin", "stationManager"), updateDailyPoultryData)
 router.patch("/livestock/:date", authorize("admin", "stationManager"), updateDailyLivestockData)

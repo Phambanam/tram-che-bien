@@ -669,6 +669,138 @@ export const updateDailyTofuData = async (req: Request, res: Response) => {
   }
 }
 
+// @desc    Get daily salt processing data
+// @route   GET /api/processing-station/salt/:date
+// @access  Private
+export const getDailySaltData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const db = await getDb()
+
+    // Get daily salt processing data for the specific date
+    const dailyData = await db.collection("dailySaltProcessing").findOne({
+      date: date
+    })
+
+    if (!dailyData) {
+      // Return default data if not found
+      return res.status(200).json({
+        success: true,
+        data: {
+          date: date,
+          cabbageInput: 0,
+          saltInput: 0,
+          note: "",
+          cabbagePrice: 0,
+          saltPrice: 0,
+          byProductQuantity: 0,
+          byProductPrice: 2000,
+          otherCosts: 0
+        }
+      })
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        date: dailyData.date,
+        cabbageInput: dailyData.cabbageInput || 0,
+        saltInput: dailyData.saltInput || 0,
+        note: dailyData.note || "",
+        cabbagePrice: dailyData.cabbagePrice || 0,
+        saltPrice: dailyData.saltPrice || 0,
+        byProductQuantity: dailyData.byProductQuantity || 0,
+        byProductPrice: dailyData.byProductPrice || 2000,
+        otherCosts: dailyData.otherCosts || 0
+      }
+    })
+  } catch (error) {
+    console.error("Error fetching daily salt data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy dữ liệu làm dưa muối hàng ngày"
+    })
+  }
+}
+
+// @desc    Update daily salt processing data
+// @route   PATCH /api/processing-station/salt/:date
+// @access  Private (Admin, StationManager)
+export const updateDailySaltData = async (req: Request, res: Response) => {
+  try {
+    const { date } = req.params
+    const { 
+      cabbageInput, 
+      saltInput, 
+      note, 
+      cabbagePrice, 
+      saltPrice,
+      byProductQuantity,
+      byProductPrice,
+      otherCosts
+    } = req.body
+    const db = await getDb()
+
+    // Debug: Log the received data
+    console.log(`🧂 [SALT DEBUG] Updating salt data for ${date}:`, {
+      cabbageInput: cabbageInput,
+      saltInput: saltInput,
+      cabbagePrice: cabbagePrice,
+      saltPrice: saltPrice,
+      saltPriceNumber: Number(saltPrice),
+      saltInputNumber: Number(saltInput),
+      expectedRevenue: (Number(saltInput) * Number(saltPrice)) / 1000
+    })
+
+    // Update or insert daily data
+    const result = await db.collection("dailySaltProcessing").updateOne(
+      { date: date },
+      {
+        $set: {
+          date: date,
+          cabbageInput: Number(cabbageInput) || 0,
+          saltInput: Number(saltInput) || 0,
+          note: note || "",
+          cabbagePrice: Number(cabbagePrice) || 0,
+          saltPrice: Number(saltPrice) || 0,
+          byProductQuantity: Number(byProductQuantity) || 0,
+          byProductPrice: Number(byProductPrice) || 2000,
+          otherCosts: Number(otherCosts) || 0,
+          updatedAt: new Date(),
+          updatedBy: req.user._id
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+          createdBy: req.user._id
+        }
+      },
+      { upsert: true }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Cập nhật dữ liệu chế biến dưa muối thành công",
+      data: {
+        date: date,
+        cabbageInput: Number(cabbageInput) || 0,
+        saltInput: Number(saltInput) || 0,
+        note: note || "",
+        cabbagePrice: Number(cabbagePrice) || 0,
+        saltPrice: Number(saltPrice) || 0,
+        byProductQuantity: Number(byProductQuantity) || 0,
+        byProductPrice: Number(byProductPrice) || 2000,
+        otherCosts: Number(otherCosts) || 0
+      }
+    })
+  } catch (error) {
+    console.error("Error updating daily salt data:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi cập nhật dữ liệu chế biến dưa muối"
+    })
+  }
+}
+
 // @desc    Get daily sausage processing data
 // @route   GET /api/processing-station/sausage/:date
 // @access  Private
@@ -824,6 +956,20 @@ export const getWeeklySausageTracking = async (req: Request, res: Response) => {
     // Calculate dates for the week
     const weekDates = getWeekDates(weekNum, yearNum)
     const weeklyData = []
+
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' })
+    }
+    // Lấy tồn cuối ngày trước tuần (nếu có)
+    const prevDate = new Date(weekDates[0])
+    prevDate.setDate(prevDate.getDate() - 1)
+    const prevDateStr = prevDate.toISOString().split('T')[0]
+    const prevData = await getSausageProcessingData(db, prevDateStr)
+    let wholeChickenPrevRemain = prevData.wholeChickenRemaining || 0
+    let chickenPartsPrevRemain = prevData.chickenPartsRemaining || 0
+
+    let lastWholeChickenRemain = wholeChickenPrevRemain
+    let lastChickenPartsRemain = chickenPartsPrevRemain
 
     for (const date of weekDates) {
       const dateStr = date.toISOString().split('T')[0]
@@ -1078,6 +1224,20 @@ export const getWeeklyLivestockTracking = async (req: Request, res: Response) =>
     const weekDates = getWeekDates(weekNum, yearNum)
     const weeklyData = []
 
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' })
+    }
+    // Lấy tồn cuối ngày trước tuần (nếu có)
+    const prevDate = new Date(weekDates[0])
+    prevDate.setDate(prevDate.getDate() - 1)
+    const prevDateStr = prevDate.toISOString().split('T')[0]
+    const prevData = await getLivestockProcessingData(db, prevDateStr)
+    let wholeChickenPrevRemain = prevData.wholeChickenRemaining || 0
+    let chickenPartsPrevRemain = prevData.chickenPartsRemaining || 0
+
+    let lastWholeChickenRemain = wholeChickenPrevRemain
+    let lastChickenPartsRemain = chickenPartsPrevRemain
+
     for (const date of weekDates) {
       const dateStr = date.toISOString().split('T')[0]
       
@@ -1184,6 +1344,17 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
         // Get monthly data
         const monthlyData = await getMonthlyLivestockProcessingData(db, targetYear, targetMonth)
         
+        console.log(`🐷 [DEBUG] Monthly livestock data for ${targetMonth}/${targetYear}:`, {
+          totalLeanMeatOutput: monthlyData.totalLeanMeatOutput,
+          totalBoneOutput: monthlyData.totalBoneOutput,
+          totalGroundMeatOutput: monthlyData.totalGroundMeatOutput,
+          totalOrgansOutput: monthlyData.totalOrgansOutput,
+          totalLeanMeatRevenue: monthlyData.totalLeanMeatRevenue,
+          totalBoneRevenue: monthlyData.totalBoneRevenue,
+          totalGroundMeatRevenue: monthlyData.totalGroundMeatRevenue,
+          totalOrgansRevenue: monthlyData.totalOrgansRevenue
+        })
+        
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
@@ -1198,61 +1369,50 @@ export const getMonthlyLivestockSummary = async (req: Request, res: Response) =>
           totalOrgansOutput: monthlyData.totalOrgansOutput,
           totalOrgansActualOutput: monthlyData.totalOrgansActualOutput,
           processingEfficiency: monthlyData.processingEfficiency,
-          // Financial calculations (in thousands VND)
+          totalLeanMeatRevenue: Math.round((monthlyData.totalLeanMeatRevenue || 0) / 1000),
+          totalBoneRevenue: Math.round((monthlyData.totalBoneRevenue || 0) / 1000),
+          totalGroundMeatRevenue: Math.round((monthlyData.totalGroundMeatRevenue || 0) / 1000),
+          totalOrgansRevenue: Math.round((monthlyData.totalOrgansRevenue || 0) / 1000),
           totalRevenue: Math.round(
-            (monthlyData.totalLeanMeatActualOutput * 120) + // Thịt nạc: 120k VND/kg
-            (monthlyData.totalBoneActualOutput * 30) + // Xương xổ: 30k VND/kg
-            (monthlyData.totalGroundMeatActualOutput * 80) + // Thịt xổ lọc: 80k VND/kg
-            (monthlyData.totalOrgansActualOutput * 50) // Lòng: 50k VND/kg
+            (monthlyData.totalLeanMeatRevenue + 
+             monthlyData.totalBoneRevenue + 
+             monthlyData.totalGroundMeatRevenue + 
+             monthlyData.totalOrgansRevenue) / 1000
           ),
-          livestockCost: Math.round(monthlyData.totalLiveAnimalsInput * 70), // 70k VND per animal
-          otherCosts: Math.round(monthlyData.totalLiveAnimalsInput * 0.05), // 5% other costs
+          livestockCost: Math.round(monthlyData.totalLivestockCost / 1000),
+          otherCosts: 0, // always 0 as requested
           netProfit: 0 // Will calculate below
         }
-        
         // Calculate net profit
-        summary.netProfit = summary.totalRevenue - (summary.livestockCost + summary.otherCosts)
+        summary.netProfit = summary.totalRevenue - summary.livestockCost;
         
         monthlySummaries.push(summary)
       } catch (error) {
-        // Fallback with estimated data if no real data available
-        const estimatedLiveAnimals = 800 + Math.floor(Math.random() * 400)
-        const estimatedLeanMeat = Math.round(estimatedLiveAnimals * 40) // 40kg lean meat per animal
-        const estimatedBone = Math.round(estimatedLiveAnimals * 15) // 15kg bone per animal
-        const estimatedGroundMeat = Math.round(estimatedLiveAnimals * 10) // 10kg ground meat per animal
-        const estimatedOrgans = Math.round(estimatedLiveAnimals * 5) // 5kg organs per animal
-        
-        const estimatedLeanMeatActual = Math.round(estimatedLeanMeat * 0.95)
-        const estimatedBoneActual = Math.round(estimatedBone * 0.95)
-        const estimatedGroundMeatActual = Math.round(estimatedGroundMeat * 0.95)
-        const estimatedOrgansActual = Math.round(estimatedOrgans * 0.95)
-        
+        // Fallback with zeros if no real data available (no estimated/fake data)
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
           monthNumber: targetMonth,
-          totalLiveAnimalsInput: estimatedLiveAnimals,
-          totalLeanMeatOutput: estimatedLeanMeat,
-          totalLeanMeatActualOutput: estimatedLeanMeatActual,
-          totalBoneOutput: estimatedBone,
-          totalBoneActualOutput: estimatedBoneActual,
-          totalGroundMeatOutput: estimatedGroundMeat,
-          totalGroundMeatActualOutput: estimatedGroundMeatActual,
-          totalOrgansOutput: estimatedOrgans,
-          totalOrgansActualOutput: estimatedOrgansActual,
-          processingEfficiency: Math.round(((estimatedLeanMeat + estimatedBone + estimatedGroundMeat + estimatedOrgans) / estimatedLiveAnimals) * 100),
-          totalRevenue: Math.round(
-            (estimatedLeanMeatActual * 120) + 
-            (estimatedBoneActual * 30) + 
-            (estimatedGroundMeatActual * 80) + 
-            (estimatedOrgansActual * 50)
-          ),
-          livestockCost: Math.round(estimatedLiveAnimals * 70),
-          otherCosts: Math.round(estimatedLiveAnimals * 0.05),
+          totalLiveAnimalsInput: 0,
+          totalLeanMeatOutput: 0,
+          totalLeanMeatActualOutput: 0,
+          totalBoneOutput: 0,
+          totalBoneActualOutput: 0,
+          totalGroundMeatOutput: 0,
+          totalGroundMeatActualOutput: 0,
+          totalOrgansOutput: 0,
+          totalOrgansActualOutput: 0,
+          processingEfficiency: 0,
+          totalLeanMeatRevenue: 0,
+          totalBoneRevenue: 0,
+          totalGroundMeatRevenue: 0,
+          totalOrgansRevenue: 0,
+          totalRevenue: 0,
+          livestockCost: 0,
+          otherCosts: 0,
           netProfit: 0
         }
         
-        summary.netProfit = summary.totalRevenue - (summary.livestockCost + summary.otherCosts)
         monthlySummaries.push(summary)
       }
     }
@@ -1464,15 +1624,28 @@ export const getLttpData = async (req: Request, res: Response) => {
 
     const db = await getDb()
     
-    // Get LTTP data for date
-    const lttpData = await db.collection("lttpData").find({
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
+    }
+    
+    // Get existing LTTP data for date
+    const existingLttpData = await db.collection("lttpData").find({
       date: date,
       unitId: user.unitId
     }).toArray()
 
+    // Aggregate data from all processing modules
+    const aggregatedData = await aggregateProcessingData(db, date, user.unitId)
+    
+    // Combine existing LTTP data with aggregated processing data
+    const combinedData = [...existingLttpData, ...aggregatedData]
+
     res.status(200).json({
       success: true,
-      data: lttpData
+      data: combinedData
     })
   } catch (error) {
     console.error("Error fetching LTTP data:", error)
@@ -1480,6 +1653,250 @@ export const getLttpData = async (req: Request, res: Response) => {
       success: false,
       message: "Đã xảy ra lỗi khi lấy dữ liệu LTTP"
     })
+  }
+}
+
+// Helper function to aggregate data from all processing modules
+async function aggregateProcessingData(db: any, date: string, unitId: string) {
+  const aggregatedItems = []
+
+  try {
+    // 1. Tofu Processing Data
+    const tofuData = await db.collection("dailyTofuProcessing").findOne({ date: date })
+    if (tofuData) {
+      aggregatedItems.push({
+        id: `tofu-${date}`,
+        category: "Chế biến",
+        name: "Đậu phụ",
+        unit: "Kg",
+        unitPrice: tofuData.tofuPrice || 15000,
+        quantity: tofuData.tofuInput || 0,
+        previousAmount: 0, // Will be calculated from previous day
+        previousExpiry: date,
+        todayInputQuantity: tofuData.tofuInput || 0,
+        todayInputAmount: (tofuData.tofuInput || 0) * (tofuData.tofuPrice || 15000),
+        todayOutputQuantity: tofuData.tofuOutput || 0,
+        todayOutputAmount: (tofuData.tofuOutput || 0) * (tofuData.tofuPrice || 15000),
+        todayOutputExpiry: date,
+        endDayAmount: (tofuData.tofuInput || 0) - (tofuData.tofuOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "tofu-processing"
+      })
+    }
+
+    // 2. Salt Processing Data
+    const saltData = await db.collection("dailySaltProcessing").findOne({ date: date })
+    if (saltData) {
+      aggregatedItems.push({
+        id: `salt-${date}`,
+        category: "Chế biến",
+        name: "Dưa muối",
+        unit: "Kg",
+        unitPrice: saltData.saltPrice || 8000,
+        quantity: saltData.saltInput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: saltData.saltInput || 0,
+        todayInputAmount: (saltData.saltInput || 0) * (saltData.saltPrice || 8000),
+        todayOutputQuantity: saltData.saltOutput || 0,
+        todayOutputAmount: (saltData.saltOutput || 0) * (saltData.saltPrice || 8000),
+        todayOutputExpiry: date,
+        endDayAmount: (saltData.saltInput || 0) - (saltData.saltOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "salt-processing"
+      })
+    }
+
+    // 3. Sausage Processing Data
+    const sausageData = await db.collection("dailySausageProcessing").findOne({ date: date })
+    if (sausageData) {
+      // Giò lụa
+      aggregatedItems.push({
+        id: `sausage-${date}`,
+        category: "Chế biến",
+        name: "Giò lụa",
+        unit: "Kg",
+        unitPrice: sausageData.sausagePrice || 140000,
+        quantity: sausageData.sausageInput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: sausageData.sausageInput || 0,
+        todayInputAmount: (sausageData.sausageInput || 0) * (sausageData.sausagePrice || 140000),
+        todayOutputQuantity: sausageData.sausageOutput || 0,
+        todayOutputAmount: (sausageData.sausageOutput || 0) * (sausageData.sausagePrice || 140000),
+        todayOutputExpiry: date,
+        endDayAmount: (sausageData.sausageInput || 0) - (sausageData.sausageOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "sausage-processing"
+      })
+
+      // Chả quế
+      aggregatedItems.push({
+        id: `chaque-${date}`,
+        category: "Chế biến",
+        name: "Chả quế",
+        unit: "Kg",
+        unitPrice: sausageData.chaQuePrice || 140000,
+        quantity: sausageData.chaQueInput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: sausageData.chaQueInput || 0,
+        todayInputAmount: (sausageData.chaQueInput || 0) * (sausageData.chaQuePrice || 140000),
+        todayOutputQuantity: sausageData.chaQueOutput || 0,
+        todayOutputAmount: (sausageData.chaQueOutput || 0) * (sausageData.chaQuePrice || 140000),
+        todayOutputExpiry: date,
+        endDayAmount: (sausageData.chaQueInput || 0) - (sausageData.chaQueOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "sausage-processing"
+      })
+    }
+
+    // 4. Poultry Processing Data
+    const poultryData = await db.collection("dailyPoultryProcessing").findOne({ date: date })
+    if (poultryData) {
+      aggregatedItems.push({
+        id: `poultry-${date}`,
+        category: "Chế biến",
+        name: "Thịt gia cầm",
+        unit: "Kg",
+        unitPrice: poultryData.poultryMeatPrice || 150000,
+        quantity: poultryData.poultryMeatOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: poultryData.poultryMeatOutput || 0,
+        todayInputAmount: (poultryData.poultryMeatOutput || 0) * (poultryData.poultryMeatPrice || 150000),
+        todayOutputQuantity: poultryData.poultryMeatActualOutput || 0,
+        todayOutputAmount: (poultryData.poultryMeatActualOutput || 0) * (poultryData.poultryMeatPrice || 150000),
+        todayOutputExpiry: date,
+        endDayAmount: (poultryData.poultryMeatOutput || 0) - (poultryData.poultryMeatActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "poultry-processing"
+      })
+    }
+
+    // 5. Livestock Processing Data
+    const livestockData = await db.collection("dailyLivestockProcessing").findOne({ date: date })
+    if (livestockData) {
+      // Thịt nạc
+      aggregatedItems.push({
+        id: `lean-meat-${date}`,
+        category: "Chế biến",
+        name: "Thịt nạc",
+        unit: "Kg",
+        unitPrice: livestockData.leanMeatPrice || 160000,
+        quantity: livestockData.leanMeatOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: livestockData.leanMeatOutput || 0,
+        todayInputAmount: (livestockData.leanMeatOutput || 0) * (livestockData.leanMeatPrice || 160000),
+        todayOutputQuantity: livestockData.leanMeatActualOutput || 0,
+        todayOutputAmount: (livestockData.leanMeatActualOutput || 0) * (livestockData.leanMeatPrice || 160000),
+        todayOutputExpiry: date,
+        endDayAmount: (livestockData.leanMeatOutput || 0) - (livestockData.leanMeatActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "livestock-processing"
+      })
+
+      // Xương xổ
+      aggregatedItems.push({
+        id: `bone-${date}`,
+        category: "Chế biến",
+        name: "Xương xổ",
+        unit: "Kg",
+        unitPrice: livestockData.bonePrice || 40000,
+        quantity: livestockData.boneOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: livestockData.boneOutput || 0,
+        todayInputAmount: (livestockData.boneOutput || 0) * (livestockData.bonePrice || 40000),
+        todayOutputQuantity: livestockData.boneActualOutput || 0,
+        todayOutputAmount: (livestockData.boneActualOutput || 0) * (livestockData.bonePrice || 40000),
+        todayOutputExpiry: date,
+        endDayAmount: (livestockData.boneOutput || 0) - (livestockData.boneActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "livestock-processing"
+      })
+
+      // Thịt xổ lọc
+      aggregatedItems.push({
+        id: `ground-meat-${date}`,
+        category: "Chế biến",
+        name: "Thịt xổ lọc",
+        unit: "Kg",
+        unitPrice: livestockData.groundMeatPrice || 120000,
+        quantity: livestockData.groundMeatOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: livestockData.groundMeatOutput || 0,
+        todayInputAmount: (livestockData.groundMeatOutput || 0) * (livestockData.groundMeatPrice || 120000),
+        todayOutputQuantity: livestockData.groundMeatActualOutput || 0,
+        todayOutputAmount: (livestockData.groundMeatActualOutput || 0) * (livestockData.groundMeatPrice || 120000),
+        todayOutputExpiry: date,
+        endDayAmount: (livestockData.groundMeatOutput || 0) - (livestockData.groundMeatActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "livestock-processing"
+      })
+
+      // Lòng
+      aggregatedItems.push({
+        id: `organs-${date}`,
+        category: "Chế biến",
+        name: "Lòng",
+        unit: "Kg",
+        unitPrice: livestockData.organsPrice || 80000,
+        quantity: livestockData.organsOutput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: livestockData.organsOutput || 0,
+        todayInputAmount: (livestockData.organsOutput || 0) * (livestockData.organsPrice || 80000),
+        todayOutputQuantity: livestockData.organsActualOutput || 0,
+        todayOutputAmount: (livestockData.organsActualOutput || 0) * (livestockData.organsPrice || 80000),
+        todayOutputExpiry: date,
+        endDayAmount: (livestockData.organsOutput || 0) - (livestockData.organsActualOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "livestock-processing"
+      })
+    }
+
+    // 6. Bean Sprouts Processing Data
+    const beanSproutsData = await db.collection("dailyBeanSproutsProcessing").findOne({ date: date })
+    if (beanSproutsData) {
+      aggregatedItems.push({
+        id: `bean-sprouts-${date}`,
+        category: "Chế biến",
+        name: "Giá đỗ",
+        unit: "Kg",
+        unitPrice: beanSproutsData.beanSproutsPrice || 12000,
+        quantity: beanSproutsData.beanSproutsInput || 0,
+        previousAmount: 0,
+        previousExpiry: date,
+        todayInputQuantity: beanSproutsData.beanSproutsInput || 0,
+        todayInputAmount: (beanSproutsData.beanSproutsInput || 0) * (beanSproutsData.beanSproutsPrice || 12000),
+        todayOutputQuantity: beanSproutsData.beanSproutsOutput || 0,
+        todayOutputAmount: (beanSproutsData.beanSproutsOutput || 0) * (beanSproutsData.beanSproutsPrice || 12000),
+        todayOutputExpiry: date,
+        endDayAmount: (beanSproutsData.beanSproutsInput || 0) - (beanSproutsData.beanSproutsOutput || 0),
+        endDayExpiry: date,
+        status: "Bình thường",
+        source: "bean-sprouts-processing"
+      })
+    }
+
+    console.log(`📊 Aggregated ${aggregatedItems.length} items from processing modules for date: ${date}`)
+    return aggregatedItems
+
+  } catch (error) {
+    console.error("Error aggregating processing data:", error)
+    return []
   }
 }
 
@@ -1501,6 +1918,13 @@ export const updateLttpData = async (req: Request, res: Response) => {
     }
 
     const db = await getDb()
+    
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: "Không thể kết nối cơ sở dữ liệu"
+      })
+    }
     
     // Delete existing LTTP data for this date
     await db.collection("lttpData").deleteMany({
@@ -1789,6 +2213,13 @@ export const updateDailyLivestockData = async (req: Request, res: Response) => {
     }
 
     const db = await getDb()
+
+    // Debug: Log the received data
+    console.log(`🐷 [LIVESTOCK DEBUG] Updating livestock data for ${date}:`, {
+      liveAnimalsInput, leanMeatOutput, leanMeatActualOutput, boneOutput, boneActualOutput,
+      groundMeatOutput, groundMeatActualOutput, organsOutput, organsActualOutput,
+      liveAnimalPrice, leanMeatPrice, bonePrice, groundMeatPrice, organsPrice
+    })
 
     // Upsert daily livestock processing data
     const result = await db.collection("dailyLivestockProcessing").findOneAndUpdate(
@@ -2127,12 +2558,22 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
     const endDate = new Date(year, month, 0).toISOString().split('T')[0]
     
-    // Aggregate data from daily livestock processing records
+    // Aggregate data from daily livestock processing records - calculate daily revenues first, then sum
     const monthlyData = await db.collection("dailyLivestockProcessing")
       .aggregate([
         {
           $match: {
             date: { $gte: startDate, $lte: endDate }
+          }
+        },
+        {
+          $addFields: {
+            // Calculate daily revenues for each product
+            dailyLeanMeatRevenue: { $multiply: ["$leanMeatOutput", "$leanMeatPrice"] },
+            dailyBoneRevenue: { $multiply: ["$boneOutput", "$bonePrice"] },
+            dailyGroundMeatRevenue: { $multiply: ["$groundMeatOutput", "$groundMeatPrice"] },
+            dailyOrgansRevenue: { $multiply: ["$organsOutput", "$organsPrice"] },
+            dailyLivestockCost: { $multiply: ["$liveAnimalsInput", "$liveAnimalPrice"] }
           }
         },
         {
@@ -2147,6 +2588,12 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
             totalGroundMeatActualOutput: { $sum: "$groundMeatActualOutput" },
             totalOrgansOutput: { $sum: "$organsOutput" },
             totalOrgansActualOutput: { $sum: "$organsActualOutput" },
+            // Sum daily revenues (correct way)
+            totalLeanMeatRevenue: { $sum: "$dailyLeanMeatRevenue" },
+            totalBoneRevenue: { $sum: "$dailyBoneRevenue" },
+            totalGroundMeatRevenue: { $sum: "$dailyGroundMeatRevenue" },
+            totalOrgansRevenue: { $sum: "$dailyOrgansRevenue" },
+            totalLivestockCost: { $sum: "$dailyLivestockCost" },
             count: { $sum: 1 }
           }
         }
@@ -2170,49 +2617,55 @@ async function getMonthlyLivestockProcessingData(db: any, year: number, month: n
         totalOrgansActualOutput: data.totalOrgansActualOutput || 0,
         processingEfficiency: data.totalLiveAnimalsInput > 0 
           ? Math.round((totalOutput / data.totalLiveAnimalsInput) * 100) 
-          : 70
+          : 70,
+        // Include total revenues calculated from daily data (correct approach)
+        totalLeanMeatRevenue: data.totalLeanMeatRevenue || 0,
+        totalBoneRevenue: data.totalBoneRevenue || 0,
+        totalGroundMeatRevenue: data.totalGroundMeatRevenue || 0,
+        totalOrgansRevenue: data.totalOrgansRevenue || 0,
+        totalLivestockCost: data.totalLivestockCost || 0
       }
     }
     
-    // If no real data, return estimated data
-    const baseLiveAnimals = 800 + Math.floor(Math.random() * 400)
-    const baseLeanMeat = Math.round(baseLiveAnimals * 40) // 40kg lean meat per animal
-    const baseBone = Math.round(baseLiveAnimals * 15) // 15kg bone per animal
-    const baseGroundMeat = Math.round(baseLiveAnimals * 10) // 10kg ground meat per animal
-    const baseOrgans = Math.round(baseLiveAnimals * 5) // 5kg organs per animal
-    
+    // If no real data, return zeros (no estimated/fake data)
     return {
-      totalLiveAnimalsInput: baseLiveAnimals,
-      totalLeanMeatOutput: baseLeanMeat,
-      totalLeanMeatActualOutput: Math.round(baseLeanMeat * 0.95),
-      totalBoneOutput: baseBone,
-      totalBoneActualOutput: Math.round(baseBone * 0.95),
-      totalGroundMeatOutput: baseGroundMeat,
-      totalGroundMeatActualOutput: Math.round(baseGroundMeat * 0.95),
-      totalOrgansOutput: baseOrgans,
-      totalOrgansActualOutput: Math.round(baseOrgans * 0.95),
-      processingEfficiency: Math.round(((baseLeanMeat + baseBone + baseGroundMeat + baseOrgans) / baseLiveAnimals) * 100)
+      totalLiveAnimalsInput: 0,
+      totalLeanMeatOutput: 0,
+      totalLeanMeatActualOutput: 0,
+      totalBoneOutput: 0,
+      totalBoneActualOutput: 0,
+      totalGroundMeatOutput: 0,
+      totalGroundMeatActualOutput: 0,
+      totalOrgansOutput: 0,
+      totalOrgansActualOutput: 0,
+      processingEfficiency: 0,
+      // All revenues and costs are 0 when no data
+      totalLeanMeatRevenue: 0,
+      totalBoneRevenue: 0,
+      totalGroundMeatRevenue: 0,
+      totalOrgansRevenue: 0,
+      totalLivestockCost: 0
     }
   } catch (error) {
     console.error(`Error getting monthly livestock data for ${year}-${month}:`, error)
-    // Return default estimated data
-    const baseLiveAnimals = 1000
-    const baseLeanMeat = 40000 // 40kg per animal
-    const baseBone = 15000 // 15kg per animal
-    const baseGroundMeat = 10000 // 10kg per animal
-    const baseOrgans = 5000 // 5kg per animal
-    
+    // Return zeros when error occurs (no estimated/fake data)
     return {
-      totalLiveAnimalsInput: baseLiveAnimals,
-      totalLeanMeatOutput: baseLeanMeat,
-      totalLeanMeatActualOutput: Math.round(baseLeanMeat * 0.95),
-      totalBoneOutput: baseBone,
-      totalBoneActualOutput: Math.round(baseBone * 0.95),
-      totalGroundMeatOutput: baseGroundMeat,
-      totalGroundMeatActualOutput: Math.round(baseGroundMeat * 0.95),
-      totalOrgansOutput: baseOrgans,
-      totalOrgansActualOutput: Math.round(baseOrgans * 0.95),
-      processingEfficiency: 70
+      totalLiveAnimalsInput: 0,
+      totalLeanMeatOutput: 0,
+      totalLeanMeatActualOutput: 0,
+      totalBoneOutput: 0,
+      totalBoneActualOutput: 0,
+      totalGroundMeatOutput: 0,
+      totalGroundMeatActualOutput: 0,
+      totalOrgansOutput: 0,
+      totalOrgansActualOutput: 0,
+      processingEfficiency: 0,
+      // All revenues and costs are 0 when error
+      totalLeanMeatRevenue: 0,
+      totalBoneRevenue: 0,
+      totalGroundMeatRevenue: 0,
+      totalOrgansRevenue: 0,
+      totalLivestockCost: 0
     }
   }
 }
@@ -2247,22 +2700,45 @@ export const getWeeklyPoultryTracking = async (req: Request, res: Response) => {
     const weekDates = getWeekDates(weekNum, yearNum)
     const weeklyData = []
 
+    if (!db) {
+      return res.status(500).json({ error: 'Database connection not available' })
+    }
+    // Lấy tồn cuối ngày trước tuần (nếu có)
+    const prevDate = new Date(weekDates[0])
+    prevDate.setDate(prevDate.getDate() - 1)
+    const prevDateStr = prevDate.toISOString().split('T')[0]
+    const prevData = await getPoultryProcessingData(db!, prevDateStr)
+    let wholeChickenPrevRemain = 0 // Removed - no longer used
+    let chickenPartsPrevRemain = 0 // Removed - no longer used
+
+    let lastWholeChickenRemain = wholeChickenPrevRemain
+    let lastChickenPartsRemain = chickenPartsPrevRemain
+
     for (const date of weekDates) {
       const dateStr = date.toISOString().split('T')[0]
-      
       // Get poultry processing data
-      const processingData = await getPoultryProcessingData(db, dateStr)
-
+      const processingData = await getPoultryProcessingData(db!, dateStr)
+      // Tồn đầu ngày = tồn cuối ngày trước
+      const wholeChickenBegin = lastWholeChickenRemain
+      const chickenPartsBegin = lastChickenPartsRemain
+      // Tồn cuối ngày = tồn đầu + thu - xuất
+      const wholeChickenEnd = wholeChickenBegin + (processingData.wholeChickenOutput || 0) - (processingData.wholeChickenActualOutput || 0)
+      const chickenPartsEnd = chickenPartsBegin + (processingData.chickenPartsOutput || 0) - (processingData.chickenPartsActualOutput || 0)
+      // Lưu lại cho ngày sau
+      lastWholeChickenRemain = wholeChickenEnd
+      lastChickenPartsRemain = chickenPartsEnd
       weeklyData.push({
         date: dateStr,
         dayOfWeek: getDayNameVi(date.getDay()),
         livePoultryInput: processingData.livePoultryInput || 0,
         wholeChickenOutput: processingData.wholeChickenOutput || 0,
         wholeChickenActualOutput: processingData.wholeChickenActualOutput || 0,
-        wholeChickenRemaining: processingData.wholeChickenRemaining || 0,
+        wholeChickenBegin,
+        wholeChickenEnd,
         chickenPartsOutput: processingData.chickenPartsOutput || 0,
         chickenPartsActualOutput: processingData.chickenPartsActualOutput || 0,
-        chickenPartsRemaining: processingData.chickenPartsRemaining || 0,
+        chickenPartsBegin,
+        chickenPartsEnd,
         // Price fields
         livePoultryPrice: processingData.livePoultryPrice || 60000,
         wholeChickenPrice: processingData.wholeChickenPrice || 100000,
@@ -2270,15 +2746,17 @@ export const getWeeklyPoultryTracking = async (req: Request, res: Response) => {
       })
     }
 
-    // Calculate weekly totals
+    // Tổng hợp tuần
     const weeklyTotals = {
       totalLivePoultryInput: weeklyData.reduce((sum, day) => sum + day.livePoultryInput, 0),
       totalWholeChickenOutput: weeklyData.reduce((sum, day) => sum + day.wholeChickenOutput, 0),
       totalWholeChickenActualOutput: weeklyData.reduce((sum, day) => sum + day.wholeChickenActualOutput, 0),
-      totalWholeChickenRemaining: weeklyData.reduce((sum, day) => sum + day.wholeChickenRemaining, 0),
+      totalWholeChickenBegin: weeklyData[0]?.wholeChickenBegin || 0,
+      totalWholeChickenEnd: weeklyData[weeklyData.length-1]?.wholeChickenEnd || 0,
       totalChickenPartsOutput: weeklyData.reduce((sum, day) => sum + day.chickenPartsOutput, 0),
       totalChickenPartsActualOutput: weeklyData.reduce((sum, day) => sum + day.chickenPartsActualOutput, 0),
-      totalChickenPartsRemaining: weeklyData.reduce((sum, day) => sum + day.chickenPartsRemaining, 0)
+      totalChickenPartsBegin: weeklyData[0]?.chickenPartsBegin || 0,
+      totalChickenPartsEnd: weeklyData[weeklyData.length-1]?.chickenPartsEnd || 0
     }
 
     res.json({
@@ -2338,7 +2816,19 @@ export const getMonthlyPoultrySummary = async (req: Request, res: Response) => {
       try {
         // Get monthly data
         const monthlyData = await getMonthlyPoultryProcessingData(db, targetYear, targetMonth)
-        
+        // Lấy tồn cuối ngày trước tháng
+        const prevDate = new Date(targetYear, targetMonth - 1, 1)
+        prevDate.setDate(prevDate.getDate() - 1)
+        const prevDateStr = prevDate.toISOString().split('T')[0]
+        const prevData = await getPoultryProcessingData(db, prevDateStr)
+        const wholeChickenBegin = prevData.wholeChickenRemaining || 0
+        const chickenPartsBegin = prevData.chickenPartsRemaining || 0
+        // Lấy tồn cuối ngày cuối tháng
+        const endDate = new Date(targetYear, targetMonth, 0)
+        const endDateStr = endDate.toISOString().split('T')[0]
+        const endData = await getPoultryProcessingData(db, endDateStr)
+        const wholeChickenEnd = endData.wholeChickenRemaining || 0
+        const chickenPartsEnd = endData.chickenPartsRemaining || 0
         const summary = {
           month: `${targetMonth.toString().padStart(2, '0')}/${targetYear}`,
           year: targetYear,
@@ -2349,6 +2839,10 @@ export const getMonthlyPoultrySummary = async (req: Request, res: Response) => {
           totalChickenPartsOutput: monthlyData.totalChickenPartsOutput,
           totalChickenPartsActualOutput: monthlyData.totalChickenPartsActualOutput,
           processingEfficiency: monthlyData.processingEfficiency,
+          wholeChickenBegin,
+          wholeChickenEnd,
+          chickenPartsBegin,
+          chickenPartsEnd,
           // Financial calculations (in thousands VND)
           totalRevenue: Math.round(
             (monthlyData.totalWholeChickenActualOutput * 100) + // Gà nguyên con: 100k VND/kg
@@ -2358,10 +2852,8 @@ export const getMonthlyPoultrySummary = async (req: Request, res: Response) => {
           otherCosts: Math.round(monthlyData.totalLivePoultryInput * 0.05), // 5% other costs
           netProfit: 0 // Will calculate below
         }
-        
         // Calculate net profit
         summary.netProfit = summary.totalRevenue - (summary.poultryCost + summary.otherCosts)
-        
         monthlySummaries.push(summary)
       } catch (error) {
         // Fallback with estimated data if no real data available
