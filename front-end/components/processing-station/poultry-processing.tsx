@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
-import { getCurrentWeekOfYear, getWeekDates, formatDateForAPI } from "@/lib/date-utils"
+import { getCurrentWeekOfYear, getWeekDates, formatDateForAPI, getDayNameForWeekPosition } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

@@ -441,11 +441,11 @@ export function BeanSproutsProcessing() {
     } catch (error) {
       console.error("❌ Error fetching weekly bean sprouts tracking data via API:", error)
       
-      // Fallback: Generate sample data for current week
-      const weekDates = getCurrentWeekDates()
-      const sampleWeeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date) => ({
+      // Fallback: Generate sample data for selected week
+      const weekDates = getWeekDates(targetWeek, targetYear)
+      const sampleWeeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date, index) => ({
         date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayName(date.getDay()),
+        dayOfWeek: getDayNameForWeekPosition(index),
         soybeansInput: 0,
         beanSproutsInput: 0,
         beanSproutsOutput: 0,
