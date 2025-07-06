@@ -392,7 +392,46 @@ export function LivestockProcessing() {
       })
 
       if (response.success && response.data && response.data.dailyData) {
-        setWeeklyLivestockTracking(response.data.dailyData)
+        const apiData = response.data.dailyData
+        
+        // Generate correct week dates (Monday to Sunday)
+        const weekDates = getWeekDates(selectedWeek, selectedYear)
+        
+        // Create a map of API data by date
+        const apiDataByDate = Object.fromEntries(
+          apiData.map((day: any) => [day.date, day])
+        )
+        
+        // Map to correct positions based on week dates, not API order
+        const weeklyData = weekDates.map((date, index) => {
+          const dateStr = format(date, "yyyy-MM-dd")
+          const dayData = apiDataByDate[dateStr] || {}
+          
+          return {
+            date: dateStr,
+            dayOfWeek: getDayNameForWeekPosition(index), // Correct day name for position
+            liveAnimalsInput: dayData.liveAnimalsInput || 0,
+            leanMeatOutput: dayData.leanMeatOutput || 0,
+            leanMeatActualOutput: dayData.leanMeatActualOutput || 0,
+            leanMeatRemaining: dayData.leanMeatRemaining || 0,
+            boneOutput: dayData.boneOutput || 0,
+            boneActualOutput: dayData.boneActualOutput || 0,
+            boneRemaining: dayData.boneRemaining || 0,
+            groundMeatOutput: dayData.groundMeatOutput || 0,
+            groundMeatActualOutput: dayData.groundMeatActualOutput || 0,
+            groundMeatRemaining: dayData.groundMeatRemaining || 0,
+            organsOutput: dayData.organsOutput || 0,
+            organsActualOutput: dayData.organsActualOutput || 0,
+            organsRemaining: dayData.organsRemaining || 0,
+            liveAnimalPrice: dayData.liveAnimalPrice || 90000,
+            leanMeatPrice: dayData.leanMeatPrice || 120000,
+            bonePrice: dayData.bonePrice || 30000,
+            groundMeatPrice: dayData.groundMeatPrice || 80000,
+            organsPrice: dayData.organsPrice || 50000
+          }
+        })
+        
+        setWeeklyLivestockTracking(weeklyData)
       } else {
         setWeeklyLivestockTracking([])
       }
