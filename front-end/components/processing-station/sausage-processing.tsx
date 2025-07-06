@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Utensils, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { processingStationApi } from "@/lib/api-client"
@@ -127,10 +128,7 @@ export function SausageProcessing() {
   const [weeklySausageTracking, setWeeklySausageTracking] = useState<WeeklySausageTracking[]>([])
   const [monthlySausageSummary, setMonthlySausageSummary] = useState<MonthlySausageSummary[]>([])
 
-  // Helper function to get current week of year using date-fns
-  const getCurrentWeekOfYear = (date: Date = new Date()) => {
-    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
-  }
+  // Note: using imported getCurrentWeekOfYear from date-utils helper
 
   // Filter states
   const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
@@ -303,19 +301,60 @@ export function SausageProcessing() {
       })
 
       if (response.success && response.data && response.data.dailyData) {
-        setWeeklySausageTracking(response.data.dailyData)
+        const apiData = response.data.dailyData
+        
+        // Generate correct week dates (Monday to Sunday)
+        const weekDates = getWeekDates(selectedWeek, selectedYear)
+        
+        // Create a map of API data by date
+        const apiDataByDate = Object.fromEntries(
+          apiData.map((day: any) => [day.date, day])
+        )
+        
+        // Map to correct positions based on week dates, not API order
+        const weeklyData = weekDates.map((date, index) => {
+          const dateStr = format(date, "yyyy-MM-dd")
+          const dayData = apiDataByDate[dateStr] || {}
+          
+          return {
+            date: dateStr,
+            dayOfWeek: getDayNameForWeekPosition(index), // Correct day name for position
+            leanMeatInput: dayData.leanMeatInput || 0,
+            fatMeatInput: dayData.fatMeatInput || 0,
+            sausageInput: dayData.sausageInput || 0,
+            chaQueInput: dayData.chaQueInput || 0,
+            sausageOutput: dayData.sausageOutput || 0,
+            chaQueOutput: dayData.chaQueOutput || 0,
+            sausageRemaining: dayData.sausageRemaining || 0,
+            chaQueRemaining: dayData.chaQueRemaining || 0,
+            leanMeatPrice: dayData.leanMeatPrice || 120000,
+            fatMeatPrice: dayData.fatMeatPrice || 80000,
+            sausagePrice: dayData.sausagePrice || 150000,
+            chaQuePrice: dayData.chaQuePrice || 140000,
+            // Financial calculations
+            sausageRevenue: dayData.sausageRevenue || 0,
+            chaQueRevenue: dayData.chaQueRevenue || 0,
+            totalRevenue: dayData.totalRevenue || 0,
+            meatCost: dayData.meatCost || 0,
+            otherCosts: dayData.otherCosts || 0,
+            totalCost: dayData.totalCost || 0,
+            profit: dayData.profit || 0
+          }
+        })
+        
+        setWeeklySausageTracking(weeklyData)
       } else {
         setWeeklySausageTracking([])
       }
-          } catch (error) {
-        console.error("Error fetching weekly sausage tracking:", error)
-        setWeeklySausageTracking([])
-        toast({
-          title: "❌ Lỗi",
-          description: "Không thể tải dữ liệu theo tuần",
-          variant: "destructive"
-        })
-      }
+    } catch (error) {
+      console.error("Error fetching weekly sausage tracking:", error)
+      setWeeklySausageTracking([])
+      toast({
+        title: "❌ Lỗi",
+        description: "Không thể tải dữ liệu theo tuần",
+        variant: "destructive"
+      })
+    }
   }
 
   // Fetch monthly sausage summary data

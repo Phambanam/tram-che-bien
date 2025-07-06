@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Droplets, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, saltCalculationApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -96,10 +97,7 @@ export function SaltProcessing() {
   const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isTestingDetection, setIsTestingDetection] = useState(false)
 
-  // Helper function to get current week of year using date-fns
-  const getCurrentWeekOfYear = (date: Date = new Date()) => {
-    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
-  }
+  // Note: using imported getCurrentWeekOfYear from date-utils helper
 
   // Filter states
   const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
@@ -110,28 +108,7 @@ export function SaltProcessing() {
   const { toast } = useToast()
   const { user } = useAuth()
 
-  // Get current week dates
-  const getCurrentWeekDates = () => {
-    const today = new Date()
-    const currentDay = today.getDay()
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1))
-    
-    const weekDates = []
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(monday)
-      date.setDate(monday.getDate() + i)
-      weekDates.push(date)
-    }
-    
-    return weekDates
-  }
-
-  // Get day name in Vietnamese
-  const getDayName = (dayIndex: number) => {
-    const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
-    return days[dayIndex]
-  }
+  // Note: using imported getCurrentWeekDates and getDayName from date-utils helper
 
   // Fetch prices from supply
   const fetchPricesFromSupply = async (date: string) => {
@@ -457,19 +434,33 @@ export function SaltProcessing() {
       if (response.success && response.data) {
         const apiData = response.data.dailyData
         
-        const weeklyData: WeeklySaltTracking[] = apiData.map((day: any) => ({
-          date: day.date,
-          dayOfWeek: day.dayOfWeek,
-          cabbageInput: day.cabbageInput,
-          saltInput: day.saltInput,
-          saltOutput: day.saltOutput,
-          saltRemaining: day.saltRemaining,
-          byProductQuantity: day.byProductQuantity || 0,
-          byProductPrice: day.byProductPrice || 2000,
-          cabbagePrice: day.cabbagePrice || 8000,
-          saltPrice: day.saltPrice || 12000,
-          otherCosts: day.otherCosts || 0
-        }))
+        // Generate correct week dates first (Monday to Sunday)
+        const weekDates = getWeekDates(targetWeek, targetYear)
+        
+        // Create a map of API data by date
+        const apiDataByDate = Object.fromEntries(
+          apiData.map((day: any) => [day.date, day])
+        )
+        
+        // Map to correct positions based on week dates, not API order
+        const weeklyData: WeeklySaltTracking[] = weekDates.map((date, index) => {
+          const dateStr = format(date, "yyyy-MM-dd")
+          const dayData = apiDataByDate[dateStr] || {}
+          
+          return {
+            date: dateStr,
+            dayOfWeek: getDayNameForWeekPosition(index), // Now using correct position!
+            cabbageInput: dayData.cabbageInput || 0,
+            saltInput: dayData.saltInput || 0,
+            saltOutput: dayData.saltOutput || 0,
+            saltRemaining: dayData.saltRemaining || 0,
+            byProductQuantity: dayData.byProductQuantity || 0,
+            byProductPrice: dayData.byProductPrice || 2000,
+            cabbagePrice: dayData.cabbagePrice || 8000,
+            saltPrice: dayData.saltPrice || 12000,
+            otherCosts: dayData.otherCosts || 0
+          }
+        })
 
         setWeeklyTracking(weeklyData)
         
@@ -485,11 +476,11 @@ export function SaltProcessing() {
     } catch (error) {
       console.error("❌ Error fetching weekly tracking data via API:", error)
       
-      // Fallback: Generate sample data for current week
-      const weekDates = getCurrentWeekDates()
-      const sampleWeeklyData: WeeklySaltTracking[] = weekDates.map((date) => ({
+      // Fallback: Generate sample data for selected week
+      const weekDates = getWeekDates(targetWeek, targetYear)
+      const sampleWeeklyData: WeeklySaltTracking[] = weekDates.map((date, index) => ({
         date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayName(date.getDay()),
+        dayOfWeek: getDayNameForWeekPosition(index),
         cabbageInput: 0,
         saltInput: 0,
         saltOutput: 0,
@@ -722,6 +713,16 @@ export function SaltProcessing() {
     
     loadData()
   }, [])
+
+  // Update weekly data when week/year selection changes
+  useEffect(() => {
+    fetchWeeklyTracking(selectedWeek, selectedYear)
+  }, [selectedWeek, selectedYear])
+
+  // Update monthly data when month/year selection changes
+  useEffect(() => {
+    fetchMonthlySaltSummary(selectedMonth, selectedMonthYear)
+  }, [selectedMonth, selectedMonthYear])
 
   return (
     <div className="space-y-6">
@@ -1209,7 +1210,7 @@ export function SaltProcessing() {
                             {isToday && <div className="text-xs text-blue-600 mt-1">(Hôm nay)</div>}
                           </td>
                           <td className="border border-black p-2 text-center font-medium">
-                            {day.dayOfWeek}
+                            {getDayNameForWeekPosition(index)}
                           </td>
                           {/* THU - Dưa muối */}
                           <td className="border border-black p-1 text-center font-semibold text-green-600">

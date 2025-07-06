@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Beef, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { processingStationApi, supplyOutputsApi } from "@/lib/api-client"
@@ -148,10 +149,7 @@ export function LivestockProcessing() {
   const [weeklyLivestockTracking, setWeeklyLivestockTracking] = useState<WeeklyLivestockTracking[]>([])
   const [monthlyLivestockSummary, setMonthlyLivestockSummary] = useState<MonthlyLivestockSummary[]>([])
 
-  // Helper function to get current week of year using date-fns
-  const getCurrentWeekOfYear = (date: Date = new Date()) => {
-    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
-  }
+  // Note: using imported getCurrentWeekOfYear from date-utils helper
 
   // Filter states
   const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
@@ -394,7 +392,46 @@ export function LivestockProcessing() {
       })
 
       if (response.success && response.data && response.data.dailyData) {
-        setWeeklyLivestockTracking(response.data.dailyData)
+        const apiData = response.data.dailyData
+        
+        // Generate correct week dates (Monday to Sunday)
+        const weekDates = getWeekDates(selectedWeek, selectedYear)
+        
+        // Create a map of API data by date
+        const apiDataByDate = Object.fromEntries(
+          apiData.map((day: any) => [day.date, day])
+        )
+        
+        // Map to correct positions based on week dates, not API order
+        const weeklyData = weekDates.map((date, index) => {
+          const dateStr = format(date, "yyyy-MM-dd")
+          const dayData = apiDataByDate[dateStr] || {}
+          
+          return {
+            date: dateStr,
+            dayOfWeek: getDayNameForWeekPosition(index), // Correct day name for position
+            liveAnimalsInput: dayData.liveAnimalsInput || 0,
+            leanMeatOutput: dayData.leanMeatOutput || 0,
+            leanMeatActualOutput: dayData.leanMeatActualOutput || 0,
+            leanMeatRemaining: dayData.leanMeatRemaining || 0,
+            boneOutput: dayData.boneOutput || 0,
+            boneActualOutput: dayData.boneActualOutput || 0,
+            boneRemaining: dayData.boneRemaining || 0,
+            groundMeatOutput: dayData.groundMeatOutput || 0,
+            groundMeatActualOutput: dayData.groundMeatActualOutput || 0,
+            groundMeatRemaining: dayData.groundMeatRemaining || 0,
+            organsOutput: dayData.organsOutput || 0,
+            organsActualOutput: dayData.organsActualOutput || 0,
+            organsRemaining: dayData.organsRemaining || 0,
+            liveAnimalPrice: dayData.liveAnimalPrice || 90000,
+            leanMeatPrice: dayData.leanMeatPrice || 120000,
+            bonePrice: dayData.bonePrice || 30000,
+            groundMeatPrice: dayData.groundMeatPrice || 80000,
+            organsPrice: dayData.organsPrice || 50000
+          }
+        })
+        
+        setWeeklyLivestockTracking(weeklyData)
       } else {
         setWeeklyLivestockTracking([])
       }
