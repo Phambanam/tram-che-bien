@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Beef, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI } from "@/lib/date-utils"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 import { processingStationApi, supplyOutputsApi } from "@/lib/api-client"
@@ -148,10 +149,7 @@ export function LivestockProcessing() {
   const [weeklyLivestockTracking, setWeeklyLivestockTracking] = useState<WeeklyLivestockTracking[]>([])
   const [monthlyLivestockSummary, setMonthlyLivestockSummary] = useState<MonthlyLivestockSummary[]>([])
 
-  // Helper function to get current week of year using date-fns
-  const getCurrentWeekOfYear = (date: Date = new Date()) => {
-    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
-  }
+  // Note: using imported getCurrentWeekOfYear from date-utils helper
 
   // Filter states
   const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())

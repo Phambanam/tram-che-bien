@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sprout, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
+import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI } from "@/lib/date-utils"
 import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
@@ -100,10 +101,7 @@ export function BeanSproutsProcessing() {
   const [testDate, setTestDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [isTestingDetection, setIsTestingDetection] = useState(false)
 
-  // Helper function to get current week of year using date-fns
-  const getCurrentWeekOfYear = (date: Date = new Date()) => {
-    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
-  }
+  // Note: using imported getCurrentWeekOfYear from date-utils helper
 
   // Filter states
   const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
@@ -114,28 +112,7 @@ export function BeanSproutsProcessing() {
   const { toast } = useToast()
   const { user } = useAuth()
 
-  // Get current week dates
-  const getCurrentWeekDates = () => {
-    const today = new Date()
-    const currentDay = today.getDay()
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - (currentDay === 0 ? 6 : currentDay - 1))
-    
-    const weekDates = []
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(monday)
-      date.setDate(monday.getDate() + i)
-      weekDates.push(date)
-    }
-    
-    return weekDates
-  }
-
-  // Get day name in Vietnamese
-  const getDayName = (dayIndex: number) => {
-    const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
-    return days[dayIndex]
-  }
+  // Note: using imported getCurrentWeekDates and getDayName from date-utils helper
 
   // Fetch prices from supply management
   const fetchPricesFromSupply = async (date: string) => {

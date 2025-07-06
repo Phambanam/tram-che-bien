@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
+import { getCurrentWeekOfYear, getWeekDates, formatDateForAPI } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -93,10 +94,7 @@ export function PoultryProcessing() {
   const [weeklyPoultryTracking, setWeeklyPoultryTracking] = useState<WeeklyPoultryTracking[]>([])
   const [monthlyPoultrySummary, setMonthlyPoultrySummary] = useState<MonthlyPoultrySummary[]>([])
   
-  // Helper function to get current week of year using date-fns
-  const getCurrentWeekOfYear = (date: Date = new Date()) => {
-    return getWeek(date, { weekStartsOn: 1 }) // ISO week (starts on Monday)
-  }
+  // Note: using imported getCurrentWeekOfYear from date-utils helper
 
   // Date selections
   const [selectedWeek, setSelectedWeek] = useState(() => getCurrentWeekOfYear())
@@ -770,18 +768,7 @@ export function PoultryProcessing() {
                   <tbody>
                     {/* Generate 7 days for the selected week */}
                     {(() => {
-                      // Helper to get all days in week (Mon-Sun)
-                      const getWeekDates = (week: number, year: number) => {
-                        const simple = new Date(year, 0, 1 + (week - 1) * 7)
-                        const dow = simple.getDay()
-                        const monday = new Date(simple)
-                        monday.setDate(simple.getDate() - ((dow + 6) % 7))
-                        return Array.from({ length: 7 }, (_, i) => {
-                          const d = new Date(monday)
-                          d.setDate(monday.getDate() + i)
-                          return d
-                        })
-                      }
+                      // Use helper function for consistent week calculation
                       const weekDates = getWeekDates(selectedWeek, selectedYear)
                       // Map backend data by date string
                       const dataByDate = Object.fromEntries(
