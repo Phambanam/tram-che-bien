@@ -477,9 +477,9 @@ export function TofuProcessing() {
       if (response.success && response.data) {
         const apiData = response.data.dailyData
         
-        const weeklyData: WeeklyTofuTracking[] = apiData.map((day: any) => ({
+        const weeklyData: WeeklyTofuTracking[] = apiData.map((day: any, index: number) => ({
           date: day.date,
-          dayOfWeek: day.dayOfWeek,
+          dayOfWeek: getDayNameForWeekPosition(index), // Use position-based day name instead of API value
           soybeanInput: day.soybeanInput,
           tofuInput: day.tofuInput,
           tofuOutput: day.tofuOutput,

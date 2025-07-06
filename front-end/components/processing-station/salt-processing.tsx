@@ -434,9 +434,9 @@ export function SaltProcessing() {
       if (response.success && response.data) {
         const apiData = response.data.dailyData
         
-        const weeklyData: WeeklySaltTracking[] = apiData.map((day: any) => ({
+        const weeklyData: WeeklySaltTracking[] = apiData.map((day: any, index: number) => ({
           date: day.date,
-          dayOfWeek: day.dayOfWeek,
+          dayOfWeek: getDayNameForWeekPosition(index), // Use position-based day name instead of API value
           cabbageInput: day.cabbageInput,
           saltInput: day.saltInput,
           saltOutput: day.saltOutput,
