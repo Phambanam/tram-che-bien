@@ -34,6 +34,7 @@ services:
       - PORT=5001
     depends_on:
       - db
+      - init-admin
     networks:
       - military-logistics-network
     volumes:
@@ -115,7 +116,7 @@ services:
       - ./backend:/app
       - /app/node_modules
 
-  # Init Admin Service (only run when needed)
+  # Init Admin Service (runs automatically to create admin user)
   init-admin:
     build:
       context: ./backend
@@ -127,8 +128,7 @@ services:
       - db
     networks:
       - military-logistics-network
-    profiles:
-      - init
+    restart: "no"
     volumes:
       - ./backend:/app
       - /app/node_modules

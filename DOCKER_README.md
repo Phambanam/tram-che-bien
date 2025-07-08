@@ -10,10 +10,15 @@
 
 ## Cách sử dụng
 
-### 1. Build và chạy tất cả services
+### 1. Build và chạy tất cả services (Admin user sẽ được tạo tự động)
 ```bash
 docker-compose up --build
 ```
+
+**Lưu ý**: Admin user sẽ được tạo tự động với thông tin:
+- Username: `admin`
+- Password: `admin123`  
+- Role: `admin`
 
 ### 2. Chạy ở chế độ background
 ```bash
@@ -62,7 +67,7 @@ docker-compose down -v
 # Chạy migration database
 ./run-scripts.sh migrate
 
-# Tạo user admin
+# Tạo user admin (hoặc sẽ được tạo tự động khi chạy docker-compose up)
 ./run-scripts.sh init-admin
 
 # Chạy script tùy chỉnh
@@ -91,12 +96,14 @@ docker-compose --profile migrate up --build migrate
 ```
 
 #### Init Admin User
+Admin user sẽ được tạo tự động khi khởi động hệ thống với:
 ```bash
-# Start database first
-docker-compose up -d db
+docker-compose up --build
+```
 
-# Create admin user
-docker-compose --profile init up --build init-admin
+Hoặc nếu chỉ muốn tạo admin user:
+```bash
+docker-compose up --build init-admin
 ```
 
 #### Chạy script tùy chỉnh
