@@ -180,8 +180,11 @@ export function OutputManagementContent() {
       
       if (Array.isArray(response)) {
         setProducts(response)
-      } else if (response && 'success' in response && response.success && response.data) {
-        setProducts(response.data)
+      } else if (response && typeof response === 'object' && 'success' in response) {
+        const apiResponse = response as { success: boolean; data?: Product[] }
+        if (apiResponse.success && apiResponse.data) {
+          setProducts(apiResponse.data)
+        }
       }
     } catch (error) {
       console.error('Error fetching products:', error)

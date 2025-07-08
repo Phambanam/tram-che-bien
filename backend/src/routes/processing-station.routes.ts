@@ -66,18 +66,16 @@ router.patch("/:id", authorize("admin", "stationManager"), updateProcessingStati
 router.delete("/:id", authorize("admin"), deleteProcessingStationItem) // Only admin can delete
 router.post("/update-expiry", authorize("admin"), updateExpiryStatus) // Only admin can update expiry
 
-// Station manager editing routes
-router.get('/station/daily/:date', authorize("admin", "stationManager"), getDailyData)
+// Station data routes - viewing allowed for all authenticated users
+router.get('/station/daily/:date', getDailyData)
+router.get('/station/weekly/:week/:year', getWeeklyData)
+router.get('/station/monthly/:month/:year', getMonthlyData)
+
+// Station manager editing routes - editing only for admin and stationManager
 router.post('/station/daily/:date', authorize("admin", "stationManager"), updateDailyData)
 
-// Weekly data routes  
-router.get('/station/weekly/:week/:year', authorize("admin", "stationManager"), getWeeklyData)
-
-// Monthly data routes
-router.get('/station/monthly/:month/:year', authorize("admin", "stationManager"), getMonthlyData)
-
-// LTTP management routes
-router.get('/lttp/:date', authorize("admin", "stationManager"), getLttpData)
+// LTTP routes - viewing allowed for all authenticated users, editing only for admin and stationManager
+router.get('/lttp/:date', getLttpData)
 router.post('/lttp/:date', authorize("admin", "stationManager"), updateLttpData)
 
 export default router
