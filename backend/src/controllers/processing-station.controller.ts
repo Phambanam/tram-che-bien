@@ -1595,7 +1595,10 @@ export const getMonthlyData = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      data: monthlyData
+      data: {
+        dailyData: monthlyData,
+        totals: {} // Có thể bổ sung tính tổng nếu cần
+      }
     })
   } catch (error) {
     console.error("Error fetching monthly data:", error)

@@ -11,7 +11,7 @@ import { Sprout, Calendar, TrendingUp } from "lucide-react"
 import { format, getWeek } from "date-fns"
 import { vi } from "date-fns/locale"
 import { getCurrentWeekOfYear, getCurrentWeekDates, getDayName, formatDateForAPI, getWeekDates, getDayNameForWeekPosition } from "@/lib/date-utils"
-import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi } from "@/lib/api-client"
+import { suppliesApi, supplyOutputsApi, unitsApi, processingStationApi, menuPlanningApi, unitPersonnelDailyApi, beanSproutsCalculationApi } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Unit } from "@/types"
@@ -412,32 +412,55 @@ export function BeanSproutsProcessing() {
     const targetYear = year || selectedYear
     
     try {
-      console.log(`🚀 Generating weekly bean sprouts tracking data for week ${targetWeek}/${targetYear}`)
+      console.log(`🚀 Fetching weekly tracking data via API for week ${targetWeek}/${targetYear}`)
       
-      // Generate data for the specific week
-      const weekDates = getWeekDates(targetWeek, targetYear)
-      const weeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date, index) => ({
-        date: format(date, "yyyy-MM-dd"),
-        dayOfWeek: getDayNameForWeekPosition(index), // Use position-based day name
-        soybeansInput: 0,
-        beanSproutsInput: 0,
-        beanSproutsOutput: 0,
-        beanSproutsRemaining: 0,
-        byProductQuantity: 0,
-        byProductPrice: 3000,
-        soybeansPrice: 15000,
-        beanSproutsPrice: 8000,
-        otherCosts: 0
-      }))
-
-      setWeeklyTracking(weeklyData)
-      
-      console.log(`✅ Weekly bean sprouts tracking data generated:`, {
+      const response = await beanSproutsCalculationApi.getWeeklyBeanSproutsTracking({
         week: targetWeek,
-        year: targetYear,
-        totalDays: weeklyData.length,
-        dateRange: `${format(weekDates[0], "dd/MM")} - ${format(weekDates[6], "dd/MM")}`
+        year: targetYear
       })
+
+      if (response.success && response.data) {
+        const apiData = response.data.dailyData
+        
+        // Generate correct week dates first (Monday to Sunday)
+        const weekDates = getWeekDates(targetWeek, targetYear)
+        
+        // Create a map of API data by date
+        const apiDataByDate = Object.fromEntries(
+          apiData.map((day: any) => [day.date, day])
+        )
+        
+        // Map to correct positions based on week dates, not API order
+        const weeklyData: WeeklyBeanSproutsTracking[] = weekDates.map((date, index) => {
+          const dateStr = format(date, "yyyy-MM-dd")
+          const dayData = apiDataByDate[dateStr] || {}
+          
+          return {
+            date: dateStr,
+            dayOfWeek: getDayNameForWeekPosition(index), // Now using correct position!
+            soybeansInput: dayData.soybeansInput || 0,
+            beanSproutsInput: dayData.beanSproutsInput || 0,
+            beanSproutsOutput: dayData.beanSproutsOutput || 0,
+            beanSproutsRemaining: dayData.beanSproutsRemaining || 0,
+            byProductQuantity: dayData.byProductQuantity || 0,
+            byProductPrice: dayData.byProductPrice || 3000,
+            soybeansPrice: dayData.soybeansPrice || 15000,
+            beanSproutsPrice: dayData.beanSproutsPrice || 8000,
+            otherCosts: dayData.otherCosts || 0
+          }
+        })
+
+        setWeeklyTracking(weeklyData)
+        
+        console.log(`✅ Weekly tracking data loaded:`, {
+          week: targetWeek,
+          year: targetYear,
+          totalDays: weeklyData.length,
+          totals: response.data.totals
+        })
+      } else {
+        throw new Error("API response không hợp lệ")
+      }
     } catch (error) {
       console.error("❌ Error fetching weekly bean sprouts tracking data via API:", error)
       

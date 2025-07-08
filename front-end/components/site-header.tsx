@@ -32,10 +32,10 @@ export function SiteHeader() {
             </h1>
           </div>
           
-          {/* Text "PHẦN MỀM QUẢN LÝ TRẠM CHẾ BIẾN" ở góc trái dưới */}
+          {/* Text "PHẦN MỀM QUẢN LÝ TĂNG GIA CHĂN NUÔI CHẾ BIẾN" ở góc trái dưới */}
           <div className="absolute bottom-2 left-6">
             <h2 className="text-white text-sm font-bold uppercase tracking-wide drop-shadow-lg">
-              PHẦN MỀM QUẢN LÝ TRẠM CHẾ BIẾN
+              PHẦN MỀM QUẢN LÝ TĂNG GIA CHĂN NUÔI CHẾ BIẾN
             </h2>
           </div>
           <div className="flex items-center gap-3">
