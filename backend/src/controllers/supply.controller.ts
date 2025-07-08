@@ -231,6 +231,14 @@ export const getSupplies = async (req: Request, res: Response) => {
       const productInfo = supply.productInfo && supply.productInfo.length > 0 ? supply.productInfo[0] : null
       const categoryInfo = supply.categoryInfo && supply.categoryInfo.length > 0 ? supply.categoryInfo[0] : null
       
+      // Debug lookup results
+      console.log("DEBUG - Supply product lookup:", {
+        supplyProduct: supply.product,
+        productInfoLength: supply.productInfo ? supply.productInfo.length : 0,
+        productInfo: productInfo ? { code: productInfo.code, name: productInfo.name } : null,
+        categoryInfo: categoryInfo ? { code: categoryInfo.code, name: categoryInfo.name } : null
+      })
+      
       return {
         id: supply._id.toString(),
         unit: {
