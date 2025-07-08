@@ -1444,11 +1444,11 @@ export const getDailyData = async (req: Request, res: Response) => {
     const { date } = req.params
     const user = (req as any).user
 
-    // Check if user is authorized
-    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
-      return res.status(403).json({
+    // All authenticated users can view data
+    if (!user) {
+      return res.status(401).json({
         success: false,
-        message: "Chỉ trạm trưởng mới có quyền truy cập"
+        message: "Unauthorized"
       })
     }
 
@@ -1531,11 +1531,11 @@ export const getWeeklyData = async (req: Request, res: Response) => {
     const { week, year } = req.params
     const user = (req as any).user
 
-    // Check if user is authorized
-    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
-      return res.status(403).json({
+    // All authenticated users can view data
+    if (!user) {
+      return res.status(401).json({
         success: false,
-        message: "Chỉ trạm trưởng mới có quyền truy cập"
+        message: "Unauthorized"
       })
     }
 
@@ -1573,11 +1573,11 @@ export const getMonthlyData = async (req: Request, res: Response) => {
     const { month, year } = req.params
     const user = (req as any).user
 
-    // Check if user is authorized
-    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
-      return res.status(403).json({
+    // All authenticated users can view data
+    if (!user) {
+      return res.status(401).json({
         success: false,
-        message: "Chỉ trạm trưởng mới có quyền truy cập"
+        message: "Unauthorized"
       })
     }
 
@@ -1617,11 +1617,11 @@ export const getLttpData = async (req: Request, res: Response) => {
     const { date } = req.params
     const user = (req as any).user
 
-    // Check if user is authorized
-    if (!user || (user.role !== 'admin' && user.role !== 'stationManager')) {
-      return res.status(403).json({
+    // All authenticated users can view data
+    if (!user) {
+      return res.status(401).json({
         success: false,
-        message: "Chỉ trạm trưởng mới có quyền truy cập"
+        message: "Unauthorized"
       })
     }
 
