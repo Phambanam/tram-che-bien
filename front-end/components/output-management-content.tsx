@@ -144,12 +144,30 @@ export function OutputManagementContent() {
 
   const fetchInventoryForProducts = async (requests: SupplyOutputRequest[]) => {
     try {
-      // TODO: Implement proper inventory fetching
-      // For now, set dummy data to show UI structure
+      const uniqueProductIds = [...new Set(requests.map(r => r.product.id))]
       const inventoryMap: {[productId: string]: number} = {}
-      requests.forEach(request => {
-        inventoryMap[request.product.id] = Math.floor(Math.random() * 100) // Dummy data
-      })
+      
+      // Fetch inventory for each unique product
+      for (const productId of uniqueProductIds) {
+        try {
+          console.log(`Fetching inventory for product: ${productId}`)
+          const response = await apiClient.supplyOutputs.getInventorySummary(productId)
+          console.log(`Inventory response for ${productId}:`, response)
+          
+          if (response && response.data && response.data.inventory && response.data.inventory.length > 0) {
+            // Find the product in inventory data
+            const inventoryItem = response.data.inventory.find((item: any) => item.productId === productId)
+            inventoryMap[productId] = inventoryItem?.availableForOutput || 0
+          } else {
+            inventoryMap[productId] = 0
+          }
+        } catch (error) {
+          console.error(`Error fetching inventory for product ${productId}:`, error)
+          inventoryMap[productId] = 0
+        }
+      }
+      
+      console.log('Final inventory map:', inventoryMap)
       setInventoryData(inventoryMap)
     } catch (error) {
       console.error('Error fetching inventory data:', error)
