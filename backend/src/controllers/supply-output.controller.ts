@@ -1287,7 +1287,7 @@ export const getSupplyOutputRequests = async (req: Request, res: Response) => {
     if (user.role === "unitAssistant") {
       filter.requestingUnit = new ObjectId(user.unit)
     }
-    // Brigade assistants can see all requests (no additional filter)
+    // Brigade assistants and admins can see all requests (no additional filter)
     
     const requests = await db
       .collection("supplyOutputs")
