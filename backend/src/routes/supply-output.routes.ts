@@ -24,11 +24,13 @@ router.use(protect)
 // Routes for all authenticated users
 router.get("/", getAllSupplyOutputs)
 router.get("/planned-vs-actual", getPlannedVsActual)
-router.get("/:id", getSupplyOutputById)
 
-// Routes for unit assistants (for output requests)
+// Routes for unit assistants (for output requests) - MUST be before /:id route
 router.post("/request", authorize("unitAssistant"), createSupplyOutputRequest)
 router.get("/requests", authorize("unitAssistant", "brigadeAssistant", "admin"), getSupplyOutputRequests)
+
+// Route with parameter - MUST be after specific routes
+router.get("/:id", getSupplyOutputById)
 
 // Routes for brigade assistant (for planned outputs and request management)
 router.get("/inventory-summary", authorize("brigadeAssistant"), getInventorySummary)
