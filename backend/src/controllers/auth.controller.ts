@@ -151,17 +151,20 @@ export const login = async (req: Request, res: Response) => {
     const token = generateToken(user._id.toString())
 
     // Get unit info
-    const unitInfo = await db.collection("units").findOne({ _id: user.unit })
+    let unitInfo = null
+    if (user.unit) {
+      unitInfo = await db.collection("units").findOne({ _id: user.unit })
+    }
 
     const userData = {
       id: user._id.toString(),
       fullName: user.fullName,
       phoneNumber: user.phoneNumber,
       role: user.role,
-      unit: {
+      unit: user.unit ? {
         id: user.unit.toString(),
         name: unitInfo ? unitInfo.name : "Unknown",
-      },
+      } : null,
     }
 
     res.status(200).json({
