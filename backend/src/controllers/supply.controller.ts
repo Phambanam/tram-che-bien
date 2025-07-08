@@ -115,30 +115,30 @@ export const getSupplies = async (req: Request, res: Response) => {
     if (req.user!.role === "admin" || req.user!.role === "brigadeAssistant" || req.user!.role === "stationManager") {
       console.log("DEBUG - Not filtering by unit for admin/brigadeAssistant/stationManager role")
     } 
-    // Unit assistants can only see their own unit's supplies (using createdBy field)
+    // Unit assistants can only see their own unit's supplies (using unit field)
     else if (req.user!.role === "unitAssistant") {
       try {
-        // Filter by createdBy which references the unit in current data structure
+        // Filter by unit field which references the unit
         if (typeof req.user!.unit === "string") {
-          query.createdBy = new ObjectId(req.user!.unit)
+          query.unit = new ObjectId(req.user!.unit)
         } else {
-          query.createdBy = req.user!.unit
+          query.unit = req.user!.unit
         }
-        console.log("DEBUG - Filtering by createdBy for unitAssistant:", query.createdBy)
+        console.log("DEBUG - Filtering by unit for unitAssistant:", query.unit)
       } catch (error) {
         console.error("Error converting unit to ObjectId:", error)
-        query.createdBy = req.user!.unit // Fallback to using as-is
+        query.unit = req.user!.unit // Fallback to using as-is
       }
     }
 
-    // Filter by unit parameter if specified (using createdBy field)
+    // Filter by unit parameter if specified (using unit field)
     if (unit && unit !== "all" && ObjectId.isValid(unit)) {
       try {
-        query.createdBy = new ObjectId(unit as string)
-        console.log("DEBUG - Filtering by createdBy from query param:", query.createdBy)
+        query.unit = new ObjectId(unit as string)
+        console.log("DEBUG - Filtering by unit from query param:", query.unit)
       } catch (error) {
         console.error("Error converting unit param to ObjectId:", error)
-        query.createdBy = unit
+        query.unit = unit
       }
     }
 
@@ -198,7 +198,7 @@ export const getSupplies = async (req: Request, res: Response) => {
         {
           $lookup: {
             from: 'units',
-            localField: 'createdBy',
+            localField: 'unit',
             foreignField: '_id',
             as: 'unitInfo'
           }
@@ -206,16 +206,16 @@ export const getSupplies = async (req: Request, res: Response) => {
         {
           $lookup: {
             from: 'products',
-            localField: 'productId',
-            foreignField: '_id',
+            localField: 'product',
+            foreignField: 'code',
             as: 'productInfo'
           }
         },
         {
           $lookup: {
             from: 'categories',
-            localField: 'categoryId',
-            foreignField: '_id',
+            localField: 'category',
+            foreignField: 'code',
             as: 'categoryInfo'
           }
         },
@@ -238,25 +238,24 @@ export const getSupplies = async (req: Request, res: Response) => {
           name: unitInfo ? unitInfo.name : 'Unknown Unit'
         },
         category: {
-          _id: categoryInfo ? categoryInfo._id.toString() : '',
-          name: categoryInfo ? categoryInfo.name : supply.categoryId || 'Unknown Category'
+          _id: supply.category,
+          name: categoryInfo ? categoryInfo.name : supply.category || 'Unknown Category'
         },
         product: {
-          _id: productInfo ? productInfo._id.toString() : '',
-          name: supply.productName || (productInfo ? productInfo.name : 'Unknown Product'),
-          unit: productInfo ? productInfo.unit : supply.unit || 'kg'
+          _id: supply.product,
+          name: productInfo ? productInfo.name : supply.product || 'Unknown Product',
+          unit: productInfo ? productInfo.unit : 'kg'
         },
-        quantity: supply.quantity,
-        unitPrice: supply.unitPrice,
+        supplyQuantity: supply.supplyQuantity,
+        expectedHarvestDate: supply.expectedHarvestDate,
+        stationEntryDate: supply.stationEntryDate,
+        requiredQuantity: supply.requiredQuantity,
+        actualQuantity: supply.actualQuantity,
+        price: supply.unitPrice,
         totalPrice: supply.totalPrice,
-        supplier: supply.supplier,
+        expiryDate: supply.expiryDate,
         status: supply.status,
-        invoiceNumber: supply.invoiceNumber,
-        notes: supply.notes,
-        date: supply.date,
-        dateStr: supply.dateStr,
-        approvedBy: supply.approvedBy,
-        approvedAt: supply.approvedAt,
+        note: supply.note,
         createdBy: supply.createdBy,
         createdAt: supply.createdAt,
         updatedAt: supply.updatedAt
