@@ -14,7 +14,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { Search, Plus, Edit, Trash2, FileDown, FileUp, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/components/ui/use-toast"
-import { unitsApi, categoriesApi, productsApi, dishesApi, dailyRationsApi, lttpApi } from "@/lib/api-client"
+import { unitsApi, categoriesApi, productsApi, dishesApi, dailyRationsApi, lttpApi, suppliesApi } from "@/lib/api-client"
 import { UsersTable } from "@/components/users/users-table"
 
 interface Unit {
@@ -155,47 +155,104 @@ export function DataLibraryContent() {
 
       // Fetch categories
       try {
-        const categoriesResponse = await categoriesApi.getCategories()
-        const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : (categoriesResponse as any).data || []
-        setCategories(categoriesData)
+        // Try to get food categories from supplies API first (requires auth)
+        const response = await suppliesApi.getFoodCategories()
+        if (response && Array.isArray((response as any).data)) {
+          const suppliesCategories = (response as any).data.map((cat: any) => ({
+            ...cat,
+            slug: cat._id, // Use _id as slug for consistency
+            description: `Phân loại ${cat.name}`,
+            itemCount: 0 // Will be calculated later
+          }))
+          setCategories(suppliesCategories)
+          console.log('Categories from supplies API:', suppliesCategories)
+        } else {
+          throw new Error('No data from supplies API')
+        }
       } catch (error) {
-        console.log("Could not fetch categories, using sample data")
-        setCategories([
-          { _id: "1", name: "Rau củ quả", slug: "rau-cu-qua", description: "Các loại rau xanh, củ quả tươi", itemCount: 25 },
-          { _id: "2", name: "Thịt", slug: "thit", description: "Thịt lợn, bò, gà và các loại thịt khác", itemCount: 15 },
-          { _id: "3", name: "Hải sản", slug: "hai-san", description: "Cá, tôm, cua và các loại hải sản", itemCount: 12 },
-          { _id: "4", name: "Chất đốt", slug: "chat-dot", description: "Gas, than, củi và các chất đốt", itemCount: 8 },
-          { _id: "5", name: "Gia vị", slug: "gia-vi", description: "Muối, đường, nước mắm, các loại gia vị", itemCount: 20 },
-          { _id: "6", name: "Lương thực", slug: "luong-thuc", description: "Gạo, bún, phở và các loại lương thực", itemCount: 10 },
-        ])
+        console.log("Could not fetch categories from supplies API, trying regular API")
+        try {
+          const categoriesResponse = await categoriesApi.getCategories()
+          const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : (categoriesResponse as any).data || []
+          setCategories(categoriesData)
+        } catch (fallbackError) {
+          console.log("Could not fetch categories, using sample data")
+          setCategories([
+            { _id: "1", name: "Rau củ quả", slug: "rau-cu-qua", description: "Các loại rau xanh, củ quả tươi", itemCount: 25 },
+            { _id: "2", name: "Thịt", slug: "thit", description: "Thịt lợn, bò, gà và các loại thịt khác", itemCount: 15 },
+            { _id: "3", name: "Hải sản", slug: "hai-san", description: "Cá, tôm, cua và các loại hải sản", itemCount: 12 },
+            { _id: "4", name: "Chất đốt", slug: "chat-dot", description: "Gas, than, củi và các chất đốt", itemCount: 8 },
+            { _id: "5", name: "Gia vị", slug: "gia-vi", description: "Muối, đường, nước mắm, các loại gia vị", itemCount: 20 },
+            { _id: "6", name: "Lương thực", slug: "luong-thuc", description: "Gạo, bún, phở và các loại lương thực", itemCount: 10 },
+          ])
+        }
       }
 
       // Fetch products (LTTP Items)
       try {
-        console.log('Fetching products...')
-        const productsResponse = await productsApi.getAllProducts()
-        console.log('Products response:', productsResponse)
+        console.log('Fetching products from supplies API...')
         
-        const productsData = Array.isArray(productsResponse) ? productsResponse : (productsResponse as any).data || []
-        console.log('Products data:', productsData)
+        // First get categories again to make sure we have them
+        const categoriesResponse = await suppliesApi.getFoodCategories()
+        const categoriesData = Array.isArray((categoriesResponse as any).data) ? (categoriesResponse as any).data : []
         
-        const mappedLTTPItems = productsData.map((product: any) => ({
-          _id: product._id,
-          name: product.name,
-          categoryId: product.categoryId || product.category?._id,
-          categoryName: product.categoryName || product.category?.name,
-          unit: product.unit,
-          description: product.description,
-          nutritionalValue: product.nutritionalValue,
-          storageCondition: product.storageCondition,
-        }))
+        let allProducts: any[] = []
         
-        console.log('Mapped LTTP items:', mappedLTTPItems)
-        setLTTPItems(mappedLTTPItems)
-        console.log('LTTP items state updated')
+        // Fetch products for each category
+        for (const category of categoriesData) {
+          try {
+            const categoryProductsResponse = await suppliesApi.getFoodProducts(category._id)
+            const categoryProducts = Array.isArray((categoryProductsResponse as any).data) ? (categoryProductsResponse as any).data : []
+            
+            const mappedProducts = categoryProducts.map((product: any) => ({
+              _id: product._id,
+              name: product.name,
+              categoryId: category._id,
+              categoryName: category.name,
+              unit: product.unit,
+              description: product.description,
+              nutritionalValue: product.nutritionalValue,
+              storageCondition: product.storageCondition,
+            }))
+            
+            allProducts = [...allProducts, ...mappedProducts]
+          } catch (categoryError) {
+            console.log(`Error fetching products for category ${category.name}:`, categoryError)
+          }
+        }
+        
+        console.log('All products from supplies API:', allProducts)
+        setLTTPItems(allProducts)
+        console.log('LTTP items state updated with supplies API data')
+        
       } catch (error) {
-        console.log("Could not fetch products, using sample data. Error:", error)
+        console.log("Could not fetch products from supplies API, trying regular API. Error:", error)
         
+        try {
+          const productsResponse = await productsApi.getAllProducts()
+          console.log('Products response:', productsResponse)
+          
+          const productsData = Array.isArray(productsResponse) ? productsResponse : (productsResponse as any).data || []
+          console.log('Products data:', productsData)
+          
+          const mappedLTTPItems = productsData.map((product: any) => ({
+            _id: product._id,
+            name: product.name,
+            categoryId: product.categoryId || product.category?._id,
+            categoryName: product.categoryName || product.category?.name,
+            unit: product.unit,
+            description: product.description,
+            nutritionalValue: product.nutritionalValue,
+            storageCondition: product.storageCondition,
+          }))
+          
+          console.log('Mapped LTTP items:', mappedLTTPItems)
+          setLTTPItems(mappedLTTPItems)
+          console.log('LTTP items state updated')
+        } catch (fallbackError) {
+          console.log("Could not fetch products from any API, using empty array")
+          setLTTPItems([])
+        }
       }
 
       // Fetch dishes
