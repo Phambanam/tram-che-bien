@@ -955,26 +955,26 @@ export function OutputManagementContent() {
 
         {/* Approval Dialog */}
         <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Phê duyệt yêu cầu xuất kho</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg font-semibold">Phê duyệt yêu cầu xuất kho</DialogTitle>
+              <DialogDescription className="text-sm text-gray-600 mt-2">
                 Xác nhận số lượng phê duyệt cho yêu cầu từ {requestToApprove?.requestingUnit?.name}
               </DialogDescription>
             </DialogHeader>
             {requestToApprove && (
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right font-medium">Sản phẩm:</Label>
-                  <div className="col-span-3 font-medium">{requestToApprove.product.name}</div>
+              <div className="space-y-4 py-4">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <Label className="font-medium text-gray-700">Sản phẩm:</Label>
+                  <div className="font-medium text-gray-900">{requestToApprove.product.name}</div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right font-medium">Số lượng yêu cầu:</Label>
-                  <div className="col-span-3">{requestToApprove.quantity} kg</div>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <Label className="font-medium text-gray-700">Số lượng yêu cầu:</Label>
+                  <div className="text-gray-900">{requestToApprove.quantity} kg</div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right font-medium">Tồn kho hiện tại:</Label>
-                  <div className={`col-span-3 font-semibold ${
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <Label className="font-medium text-gray-700">Tồn kho hiện tại:</Label>
+                  <div className={`font-semibold ${
                     (inventoryData[requestToApprove.product.id] || 0) >= requestToApprove.quantity 
                       ? 'text-green-600' 
                       : 'text-red-600'
@@ -982,33 +982,31 @@ export function OutputManagementContent() {
                     {inventoryData[requestToApprove.product.id] || 0} kg
                   </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="approvalQuantity" className="text-right font-medium">
+                <div className="space-y-2">
+                  <Label htmlFor="approvalQuantity" className="font-medium text-gray-700">
                     Số lượng phê duyệt *
                   </Label>
-                  <div className="col-span-3">
-                    <Input
-                      id="approvalQuantity"
-                      type="number"
-                      min="1"
-                      max={inventoryData[requestToApprove.product.id] || 0}
-                      value={approvalQuantity}
-                      onChange={(e) => setApprovalQuantity(parseInt(e.target.value) || 0)}
-                      className="w-full"
-                      placeholder="Nhập số lượng phê duyệt"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Tối đa: {inventoryData[requestToApprove.product.id] || 0} kg
-                    </p>
-                  </div>
+                  <Input
+                    id="approvalQuantity"
+                    type="number"
+                    min="1"
+                    max={inventoryData[requestToApprove.product.id] || 0}
+                    value={approvalQuantity}
+                    onChange={(e) => setApprovalQuantity(parseInt(e.target.value) || 0)}
+                    className="w-full"
+                    placeholder="Nhập số lượng phê duyệt"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Tối đa: {inventoryData[requestToApprove.product.id] || 0} kg
+                  </p>
                 </div>
                 {approvalQuantity > (inventoryData[requestToApprove.product.id] || 0) && (
-                  <div className="col-span-4 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
                     ⚠️ Số lượng phê duyệt vượt quá tồn kho hiện có
                   </div>
                 )}
-                {approvalQuantity < requestToApprove.quantity && (
-                  <div className="col-span-4 bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded text-sm">
+                {approvalQuantity < requestToApprove.quantity && approvalQuantity > 0 && (
+                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded text-sm">
                     ℹ️ Phê duyệt một phần ({approvalQuantity}/{requestToApprove.quantity} kg)
                   </div>
                 )}

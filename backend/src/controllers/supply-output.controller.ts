@@ -105,7 +105,7 @@ export const getAllSupplyOutputs = async (req: Request, res: Response) => {
         },
         {
           $lookup: {
-            from: "productCategories",
+            from: "categories",
             localField: "productInfo.category",
             foreignField: "_id",
             as: "categoryInfo",
@@ -233,7 +233,7 @@ export const getSupplyOutputById = async (req: Request, res: Response) => {
         },
         {
           $lookup: {
-            from: "productCategories",
+            from: "categories",
             localField: "productInfo.category",
             foreignField: "_id",
             as: "categoryInfo",
@@ -1159,6 +1159,8 @@ export const getInventorySummary = async (req: Request, res: Response) => {
       matchFilter.productId = new ObjectId(productId as string)
     }
 
+    console.log("DEBUG - Processing station match filter:", matchFilter)
+
     // Get current inventory from processing station
     const inventorySummary = await db
       .collection("processingStation")
@@ -1223,6 +1225,17 @@ export const getInventorySummary = async (req: Request, res: Response) => {
         },
       ])
       .toArray()
+
+    console.log("DEBUG - Inventory summary result:", {
+      count: inventorySummary.length,
+      data: inventorySummary.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        totalQuantity: item.totalQuantity,
+        nonExpiredQuantity: item.nonExpiredQuantity,
+        availableForOutput: item.availableForOutput
+      }))
+    })
 
     // Get pending requests for context
     const pendingRequests = await db
