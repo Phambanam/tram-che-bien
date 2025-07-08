@@ -29,11 +29,11 @@ router.get("/planned-vs-actual", getPlannedVsActual)
 router.post("/request", authorize("unitAssistant"), createSupplyOutputRequest)
 router.get("/requests", authorize("unitAssistant", "brigadeAssistant", "admin"), getSupplyOutputRequests)
 
+// Routes for brigade assistant (for planned outputs and request management) - MUST be before /:id route
+router.get("/inventory-summary", authorize("brigadeAssistant"), getInventorySummary)
+
 // Route with parameter - MUST be after specific routes
 router.get("/:id", getSupplyOutputById)
-
-// Routes for brigade assistant (for planned outputs and request management)
-router.get("/inventory-summary", authorize("brigadeAssistant"), getInventorySummary)
 router.post("/generate-planned", authorize("brigadeAssistant"), generatePlannedOutputs)
 router.patch("/planned/:id", authorize("brigadeAssistant"), updatePlannedOutput)
 router.patch("/requests/:id/approve", authorize("brigadeAssistant"), approveSupplyOutputRequest)

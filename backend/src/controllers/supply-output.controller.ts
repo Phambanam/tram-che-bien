@@ -1144,6 +1144,12 @@ export const createSupplyOutputRequest = async (req: Request, res: Response) => 
 export const getInventorySummary = async (req: Request, res: Response) => {
   try {
     const { productId } = req.query
+    
+    console.log("DEBUG - getInventorySummary called:", {
+      productId,
+      user: req.user,
+      query: req.query
+    })
 
     const db = await getDb()
 
