@@ -14,6 +14,11 @@ export const getAllSupplyOutputs = async (req: Request, res: Response) => {
 
     let query: any = {}
 
+    // Filter by role - unit assistants can only see their own unit's outputs and requests
+    if (req.user!.role === "unitAssistant") {
+      query.receivingUnit = new ObjectId(req.user!.unit)
+    }
+
     if (receivingUnit && ObjectId.isValid(receivingUnit as string)) {
       query.receivingUnit = new ObjectId(receivingUnit as string)
     }
@@ -1032,6 +1037,422 @@ export const updatePlannedOutput = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Đã xảy ra lỗi khi cập nhật kế hoạch xuất"
+    })
+  }
+}
+
+// @desc    Create supply output request (by unit assistants)
+// @route   POST /api/supply-outputs/request
+// @access  Private (Unit Assistant only)
+export const createSupplyOutputRequest = async (req: Request, res: Response) => {
+  try {
+    const { productId, quantity, requestDate, priority, reason, note } = req.body
+
+    // Validate input
+    if (!productId || !quantity || !requestDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin bắt buộc"
+      })
+    }
+
+    // Validate ObjectIds
+    if (!ObjectId.isValid(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID sản phẩm không hợp lệ"
+      })
+    }
+
+    const db = await getDb()
+
+    // Check if product exists
+    const productExists = await db.collection("products").findOne({ _id: new ObjectId(productId) })
+    if (!productExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Sản phẩm không tồn tại"
+      })
+    }
+
+    // Get user's unit
+    const userUnit = req.user!.unit
+    if (!userUnit) {
+      return res.status(400).json({
+        success: false,
+        message: "Người dùng không thuộc đơn vị nào"
+      })
+    }
+
+    // Create new supply output request
+    const result = await db.collection("supplyOutputs").insertOne({
+      type: "request", // New type for unit requests
+      receivingUnit: new ObjectId(userUnit),
+      productId: new ObjectId(productId),
+      quantity: Number(quantity),
+      requestDate: new Date(requestDate),
+      outputDate: new Date(requestDate), // Same as request date initially
+      priority: priority || "normal", // normal, urgent, critical
+      reason: reason || "",
+      receiver: `${req.user!.unit} - Yêu cầu`,
+      status: "pending", // pending, approved, rejected, completed
+      note: note || "",
+      requestedBy: new ObjectId(req.user!.id),
+      createdBy: new ObjectId(req.user!.id),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    res.status(201).json({
+      success: true,
+      message: "Tạo yêu cầu xuất kho thành công",
+      requestId: result.insertedId.toString(),
+    })
+  } catch (error) {
+    console.error("Error creating supply output request:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi tạo yêu cầu xuất kho"
+    })
+  }
+}
+
+// @desc    Get inventory summary for brigade assistant decision making
+// @route   GET /api/supply-outputs/inventory-summary
+// @access  Private (Brigade Assistant only)
+export const getInventorySummary = async (req: Request, res: Response) => {
+  try {
+    const { productId } = req.query
+
+    const db = await getDb()
+
+    let matchFilter: any = { type: "food" }
+    
+    if (productId && ObjectId.isValid(productId as string)) {
+      matchFilter.productId = new ObjectId(productId as string)
+    }
+
+    // Get current inventory from processing station
+    const inventorySummary = await db
+      .collection("processingStation")
+      .aggregate([
+        {
+          $match: matchFilter,
+        },
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "productInfo",
+          },
+        },
+        {
+          $unwind: "$productInfo",
+        },
+        {
+          $group: {
+            _id: "$productId",
+            productName: { $first: "$productInfo.name" },
+            totalQuantity: { $sum: "$quantity" },
+            nonExpiredQuantity: { $sum: "$nonExpiredQuantity" },
+            expiredQuantity: { $sum: { $subtract: ["$quantity", "$nonExpiredQuantity"] } },
+            avgExpiryDate: { $avg: { $toLong: "$expiryDate" } },
+            entries: { $sum: 1 }
+          },
+        },
+        {
+          $project: {
+            productId: { $toString: "$_id" },
+            productName: 1,
+            totalQuantity: 1,
+            nonExpiredQuantity: 1,
+            expiredQuantity: 1,
+            availableForOutput: "$nonExpiredQuantity", // Available quantity for output
+            avgExpiryDate: {
+              $cond: [
+                { $eq: ["$avgExpiryDate", null] },
+                null,
+                { $toDate: "$avgExpiryDate" }
+              ]
+            },
+            entries: 1,
+            stockStatus: {
+              $cond: [
+                { $gte: ["$nonExpiredQuantity", 100] }, "good",
+                { $cond: [
+                  { $gte: ["$nonExpiredQuantity", 50] }, "medium",
+                  { $cond: [
+                    { $gt: ["$nonExpiredQuantity", 0] }, "low",
+                    "empty"
+                  ]}
+                ]}
+              ]
+            }
+          },
+        },
+        {
+          $sort: { productName: 1 },
+        },
+      ])
+      .toArray()
+
+    // Get pending requests for context
+    const pendingRequests = await db
+      .collection("supplyOutputs")
+      .aggregate([
+        {
+          $match: {
+            type: "request",
+            status: "pending",
+            ...(productId && ObjectId.isValid(productId as string) ? { productId: new ObjectId(productId as string) } : {})
+          },
+        },
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "productInfo",
+          },
+        },
+        {
+          $lookup: {
+            from: "units",
+            localField: "receivingUnit",
+            foreignField: "_id",
+            as: "unitInfo",
+          },
+        },
+        {
+          $unwind: "$productInfo",
+        },
+        {
+          $unwind: "$unitInfo",
+        },
+        {
+          $project: {
+            id: { $toString: "$_id" },
+            productName: "$productInfo.name",
+            unitName: "$unitInfo.name",
+            quantity: 1,
+            requestDate: 1,
+            priority: 1,
+            reason: 1,
+            createdAt: 1,
+          },
+        },
+        {
+          $sort: { 
+            priority: 1, // urgent first
+            createdAt: 1   // older requests first
+          },
+        },
+      ])
+      .toArray()
+
+    res.status(200).json({
+      success: true,
+      data: {
+        inventory: inventorySummary,
+        pendingRequests: pendingRequests,
+        summary: {
+          totalProducts: inventorySummary.length,
+          totalPendingRequests: pendingRequests.length,
+          productsInStock: inventorySummary.filter(p => p.stockStatus !== "empty").length,
+          lowStockProducts: inventorySummary.filter(p => p.stockStatus === "low").length,
+        }
+      }
+    })
+  } catch (error) {
+    console.error("Error fetching inventory summary:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi lấy thông tin tồn kho"
+    })
+  }
+}
+
+// @desc    Approve supply output request (convert to planned output)
+// @route   PATCH /api/supply-outputs/requests/:id/approve
+// @access  Private (Brigade Assistant only)
+export const approveSupplyOutputRequest = async (req: Request, res: Response) => {
+  try {
+    const requestId = req.params.id
+    const { approvedQuantity, plannedOutputDate, note } = req.body
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(requestId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID yêu cầu không hợp lệ"
+      })
+    }
+
+    const db = await getDb()
+
+    // Get the request
+    const request = await db.collection("supplyOutputs").findOne({ 
+      _id: new ObjectId(requestId),
+      type: "request"
+    })
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy yêu cầu xuất kho"
+      })
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Yêu cầu đã được xử lý"
+      })
+    }
+
+    // Check inventory availability
+    const inventory = await db
+      .collection("processingStation")
+      .aggregate([
+        {
+          $match: {
+            type: "food",
+            productId: request.productId,
+            nonExpiredQuantity: { $gt: 0 },
+          },
+        },
+        {
+          $group: {
+            _id: "$productId",
+            totalAvailable: { $sum: "$nonExpiredQuantity" },
+          },
+        },
+      ])
+      .toArray()
+
+    const availableQuantity = inventory.length > 0 ? inventory[0].totalAvailable : 0
+    const quantityToApprove = approvedQuantity || request.quantity
+
+    if (availableQuantity < quantityToApprove) {
+      return res.status(400).json({
+        success: false,
+        message: `Không đủ tồn kho. Hiện có ${availableQuantity}kg, yêu cầu ${quantityToApprove}kg`
+      })
+    }
+
+    // Update request status and create planned output
+    await db.collection("supplyOutputs").updateOne(
+      { _id: new ObjectId(requestId) },
+      {
+        $set: {
+          status: "approved",
+          approvedQuantity: quantityToApprove,
+          approvedBy: new ObjectId(req.user!.id),
+          approvedAt: new Date(),
+          approvalNote: note || "",
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    // Create planned output based on approved request
+    const plannedOutput = {
+      type: "planned",
+      receivingUnit: request.receivingUnit,
+      productId: request.productId,
+      quantity: quantityToApprove,
+      outputDate: plannedOutputDate ? new Date(plannedOutputDate) : new Date(request.requestDate),
+      receiver: `${request.receiver} - Kế hoạch`,
+      status: "planned",
+      note: `Được tạo từ yêu cầu xuất kho. ${note || ''}`,
+      originalRequestId: request._id,
+      createdBy: new ObjectId(req.user!.id),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    const plannedResult = await db.collection("supplyOutputs").insertOne(plannedOutput)
+
+    res.status(200).json({
+      success: true,
+      message: "Phê duyệt yêu cầu xuất kho thành công",
+      data: {
+        requestId: requestId,
+        plannedOutputId: plannedResult.insertedId.toString(),
+        approvedQuantity: quantityToApprove
+      }
+    })
+  } catch (error) {
+    console.error("Error approving supply output request:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi phê duyệt yêu cầu xuất kho"
+    })
+  }
+}
+
+// @desc    Reject supply output request
+// @route   PATCH /api/supply-outputs/requests/:id/reject
+// @access  Private (Brigade Assistant only)
+export const rejectSupplyOutputRequest = async (req: Request, res: Response) => {
+  try {
+    const requestId = req.params.id
+    const { rejectionReason } = req.body
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(requestId)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID yêu cầu không hợp lệ"
+      })
+    }
+
+    const db = await getDb()
+
+    // Get the request
+    const request = await db.collection("supplyOutputs").findOne({ 
+      _id: new ObjectId(requestId),
+      type: "request"
+    })
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy yêu cầu xuất kho"
+      })
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Yêu cầu đã được xử lý"
+      })
+    }
+
+    // Update request status
+    await db.collection("supplyOutputs").updateOne(
+      { _id: new ObjectId(requestId) },
+      {
+        $set: {
+          status: "rejected",
+          rejectedBy: new ObjectId(req.user!.id),
+          rejectedAt: new Date(),
+          rejectionReason: rejectionReason || "",
+          updatedAt: new Date(),
+        },
+      }
+    )
+
+    res.status(200).json({
+      success: true,
+      message: "Từ chối yêu cầu xuất kho thành công"
+    })
+  } catch (error) {
+    console.error("Error rejecting supply output request:", error)
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi từ chối yêu cầu xuất kho"
     })
   }
 }

@@ -1035,6 +1035,54 @@ export const supplyOutputsApi = {
     })
   },
 
+  // New methods for supply output requests (unit assistants)
+  createSupplyOutputRequest: async (data: {
+    productId: string;
+    quantity: number;
+    requestDate: string;
+    priority?: string;
+    reason?: string;
+    note?: string;
+  }) => {
+    return apiRequest<{ success: boolean; message: string; requestId: string }>("/supply-outputs/request", {
+      method: "POST",
+      body: JSON.stringify(data),
+    })
+  },
+
+  // Methods for brigade assistants
+  getInventorySummary: async (productId?: string) => {
+    const query = productId ? `?productId=${productId}` : ""
+    return apiRequest<{
+      success: boolean;
+      data: {
+        inventory: any[];
+        pendingRequests: any[];
+        summary: any;
+      };
+    }>(`/supply-outputs/inventory-summary${query}`)
+  },
+
+  approveSupplyOutputRequest: async (requestId: string, data: {
+    approvedQuantity?: number;
+    plannedOutputDate?: string;
+    note?: string;
+  }) => {
+    return apiRequest<{ success: boolean; message: string; data: any }>(`/supply-outputs/requests/${requestId}/approve`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
+  rejectSupplyOutputRequest: async (requestId: string, data: {
+    rejectionReason: string;
+  }) => {
+    return apiRequest<{ success: boolean; message: string }>(`/supply-outputs/requests/${requestId}/reject`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    })
+  },
+
   getPlannedVsActual: async (params: { week: number; year: number; unitId?: string; productId?: string }) => {
     const queryParams = new URLSearchParams()
     queryParams.append("week", params.week.toString())
