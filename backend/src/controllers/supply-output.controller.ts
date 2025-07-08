@@ -1351,7 +1351,7 @@ export const getSupplyOutputRequests = async (req: Request, res: Response) => {
           $lookup: {
             from: "categories",
             localField: "product.category",
-            foreignField: "_id",
+            foreignField: "code",
             as: "category",
           },
         },
