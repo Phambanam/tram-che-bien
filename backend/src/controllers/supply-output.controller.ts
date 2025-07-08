@@ -1511,6 +1511,33 @@ export const approveSupplyOutputRequest = async (req: Request, res: Response) =>
       })
     }
 
+    // Update inventory (reduce from non-expired items when approving)
+    let remainingQuantity = Number(quantityToApprove)
+    const inventoryItems = await db
+      .collection("processingStation")
+      .find({
+        type: "food",
+        productId: request.productId,
+        nonExpiredQuantity: { $gt: 0 },
+      })
+      .sort({ expiryDate: 1 }) // Use oldest items first
+      .toArray()
+
+    for (const item of inventoryItems) {
+      if (remainingQuantity <= 0) break
+
+      const reduceAmount = Math.min(item.nonExpiredQuantity, remainingQuantity)
+      remainingQuantity -= reduceAmount
+
+      await db.collection("processingStation").updateOne(
+        { _id: item._id },
+        {
+          $inc: { nonExpiredQuantity: -reduceAmount, quantity: -reduceAmount },
+          $set: { updatedAt: new Date() },
+        },
+      )
+    }
+
     // Update request status and create planned output
     await db.collection("supplyOutputs").updateOne(
       { _id: new ObjectId(requestId) },
@@ -1593,11 +1620,43 @@ export const rejectSupplyOutputRequest = async (req: Request, res: Response) => 
       })
     }
 
-    if (request.status !== "pending") {
+    if (request.status !== "pending" && request.status !== "approved") {
       return res.status(400).json({
         success: false,
         message: "Yêu cầu đã được xử lý"
       })
+    }
+
+    // If rejecting an approved request, restore inventory
+    if (request.status === "approved" && request.approvedQuantity) {
+      const restoreQuantity = request.approvedQuantity
+      
+      // Find the newest inventory item to restore to (FIFO reverse)
+      const inventoryItem = await db.collection("processingStation").findOne({
+        type: "food",
+        productId: request.productId,
+      }, { sort: { expiryDate: -1 } })
+
+      if (inventoryItem) {
+        await db.collection("processingStation").updateOne(
+          { _id: inventoryItem._id },
+          {
+            $inc: { nonExpiredQuantity: restoreQuantity, quantity: restoreQuantity },
+            $set: { updatedAt: new Date() },
+          },
+        )
+      } else {
+        // If no inventory item exists, create one
+        await db.collection("processingStation").insertOne({
+          type: "food",
+          productId: request.productId,
+          quantity: restoreQuantity,
+          nonExpiredQuantity: restoreQuantity,
+          expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+      }
     }
 
     // Update request status
