@@ -23,7 +23,7 @@ export default function LoginPage() {
             className="mr-2"
             style={{ width: 80, height: 80 }}
           />
-          PHẦN MỀM QUẢN LÝ TRẠM CHẾ BIẾN
+          PHẦN MỀM QUẢN LÝ TĂNG GIA CHĂN NUÔI CHẾ BIẾN
         </div>
         <div className="relative z-20 mt-auto">
           <h3 className="font-bold mb-2">LIÊN HỆ:</h3>
