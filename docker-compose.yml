@@ -115,6 +115,24 @@ services:
       - ./backend:/app
       - /app/node_modules
 
+  # Init Admin Service (only run when needed)
+  init-admin:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: init-admin
+    environment:
+      - MONGODB_URI=mongodb://admin:password@db:27017/military-logistics?authSource=admin
+    depends_on:
+      - db
+    networks:
+      - military-logistics-network
+    profiles:
+      - init
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
 volumes:
   mongo_data:
 

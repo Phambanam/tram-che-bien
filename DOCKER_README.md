@@ -62,6 +62,9 @@ docker-compose down -v
 # Chạy migration database
 ./run-scripts.sh migrate
 
+# Tạo user admin
+./run-scripts.sh init-admin
+
 # Chạy script tùy chỉnh
 ./run-scripts.sh custom scripts/your-script.ts
 ```
@@ -87,6 +90,15 @@ docker-compose --profile seed up --build seed-content
 docker-compose --profile migrate up --build migrate
 ```
 
+#### Init Admin User
+```bash
+# Start database first
+docker-compose up -d db
+
+# Create admin user
+docker-compose --profile init up --build init-admin
+```
+
 #### Chạy script tùy chỉnh
 ```bash
 # Build backend với scripts target
@@ -101,6 +113,7 @@ docker-compose run --rm \
 ### Scripts có sẵn trong backend/scripts/
 - **`seed.ts`**: Seed database với dữ liệu mẫu (users, units, categories, products)
 - **`seed-content.ts`**: Seed database với content mẫu (articles, videos)
+- **`init-admin.ts`**: Tạo user admin với thông tin đăng nhập mặc định
 - **`migrate-to-mongoose.ts`**: Migration script
 - **`seed-data-library.js`**: Legacy seed script
 
@@ -132,6 +145,7 @@ Backend Dockerfile hỗ trợ nhiều targets:
 - **`production`**: Target mặc định để chạy API server
 - **`seed`**: Target để chạy database seeding
 - **`seed-content`**: Target để chạy content seeding
+- **`init-admin`**: Target để tạo user admin
 - **`migrate`**: Target để chạy migration
 - **`scripts`**: Target để chạy scripts tùy chỉnh
 

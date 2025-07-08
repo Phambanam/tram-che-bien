@@ -36,6 +36,11 @@ FROM base AS migrate
 # Command to run migration script
 CMD ["npx", "ts-node", "--project", "tsconfig.json", "scripts/migrate-to-mongoose.ts"]
 
+# Init admin target - for creating admin user
+FROM base AS init-admin
+# Command to run init admin script
+CMD ["npx", "ts-node", "--project", "tsconfig.json", "scripts/init-admin.ts"]
+
 # Scripts target - for running any script passed as argument
 FROM base AS scripts
 # This will be overridden by docker run command
