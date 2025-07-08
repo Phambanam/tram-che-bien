@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Package, Save, FileDown, RefreshCw, Plus, AlertCircle } from "lucide-react"
+import { Package, Save, FileDown, RefreshCw, Plus, AlertCircle, Check, X } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -134,10 +134,10 @@ export function OutputManagementContent() {
     try {
       const response = await productsApi.getProducts()
       
-      if (response.success && response.data) {
-        setProducts(response.data)
-      } else if (Array.isArray(response)) {
+      if (Array.isArray(response)) {
         setProducts(response)
+      } else if (response && 'success' in response && response.success && response.data) {
+        setProducts(response.data)
       }
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -192,10 +192,72 @@ export function OutputManagementContent() {
     }
   }
 
+  const handleApproveRequest = async (requestId: string, approvedQuantity?: number) => {
+    try {
+      const response = await apiClient.supplyOutputs.approveSupplyOutputRequest(requestId, {
+        approvedQuantity,
+        plannedOutputDate: format(new Date(), "yyyy-MM-dd"),
+        note: "Đã phê duyệt bởi trợ lý lữ đoàn"
+      })
+      
+      if (response.success) {
+        toast({
+          title: "✅ Thành công",
+          description: "Phê duyệt yêu cầu thành công",
+        })
+        fetchOutputRequests() // Refresh the requests list
+        fetchSupplyOutputs() // Refresh outputs list to show new planned output
+      } else {
+        toast({
+          title: "❌ Lỗi",
+          description: response.message || "Không thể phê duyệt yêu cầu",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error approving request:', error)
+      toast({
+        title: "❌ Lỗi",
+        description: "Đã xảy ra lỗi khi phê duyệt yêu cầu",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleRejectRequest = async (requestId: string, reason: string) => {
+    try {
+      const response = await apiClient.supplyOutputs.rejectSupplyOutputRequest(requestId, { rejectionReason: reason })
+      
+      if (response.success) {
+        toast({
+          title: "✅ Thành công",
+          description: "Từ chối yêu cầu thành công",
+        })
+        fetchOutputRequests() // Refresh the requests list
+      } else {
+        toast({
+          title: "❌ Lỗi",
+          description: response.message || "Không thể từ chối yêu cầu",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error)
+      toast({
+        title: "❌ Lỗi",
+        description: "Đã xảy ra lỗi khi từ chối yêu cầu",
+        variant: "destructive"
+      })
+    }
+  }
+
   useEffect(() => {
     fetchSupplyOutputs()
-    if (user?.role === "unitAssistant") {
+    if (user?.role === "unitAssistant" || user?.role === "brigadeAssistant") {
       fetchOutputRequests()
+    }
+    if (user?.role === "unitAssistant" || user?.role === "brigadeAssistant") {
+      fetchProducts()
     }
   }, [selectedDate, user])
 
@@ -445,10 +507,13 @@ export function OutputManagementContent() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className={`grid w-full ${user?.role === "unitAssistant" ? "grid-cols-2" : "grid-cols-1"}`}>
+          <TabsList className={`grid w-full ${(user?.role === "unitAssistant" || user?.role === "brigadeAssistant") ? "grid-cols-2" : "grid-cols-1"}`}>
             <TabsTrigger value="outputs">Danh sách xuất kho</TabsTrigger>
             {user?.role === "unitAssistant" && (
               <TabsTrigger value="requests">Yêu cầu của tôi</TabsTrigger>
+            )}
+            {user?.role === "brigadeAssistant" && (
+              <TabsTrigger value="requests">Quản lý yêu cầu</TabsTrigger>
             )}
           </TabsList>
           
@@ -677,6 +742,146 @@ export function OutputManagementContent() {
                   <li>• Mức độ ưu tiên: Bình thường → Gấp → Khẩn cấp</li>
                   <li>• Sau khi được duyệt, yêu cầu sẽ chuyển thành kế hoạch xuất kho</li>
                   <li>• Bạn có thể theo dõi trạng thái yêu cầu trong tab này</li>
+                </ul>
+              </div>
+            </TabsContent>
+          )}
+
+          {user?.role === "brigadeAssistant" && (
+            <TabsContent value="requests">
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg">Quản lý yêu cầu xuất kho</CardTitle>
+                    <Button onClick={fetchOutputRequests} disabled={requestsLoading} variant="outline">
+                      <RefreshCw className={`w-4 h-4 mr-2 ${requestsLoading ? 'animate-spin' : ''}`} />
+                      Làm mới
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {requestsLoading ? (
+                    <div className="flex justify-center items-center py-8">
+                      <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+                      <span>Đang tải dữ liệu...</span>
+                    </div>
+                  ) : outputRequests.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>Không có yêu cầu xuất kho nào</p>
+                      <p className="text-sm mt-2">Các yêu cầu từ đơn vị sẽ hiển thị ở đây</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table className="border">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-center border-r bg-gray-100 w-12">STT</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Sản phẩm</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Danh mục</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Đơn vị yêu cầu</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Số lượng</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Ngày cần</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Ưu tiên</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Trạng thái</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Lý do</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Ngày tạo</TableHead>
+                            <TableHead className="text-center bg-gray-100">Thao tác</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {outputRequests.map((request, index) => (
+                            <TableRow key={request.id} className="border-b">
+                              <TableCell className="text-center border-r font-medium">{index + 1}</TableCell>
+                              <TableCell className="border-r font-medium">{request.product.name}</TableCell>
+                              <TableCell className="text-center border-r">{request.product.category.name}</TableCell>
+                              <TableCell className="border-r">{request.requestingUnit?.name || 'N/A'}</TableCell>
+                              <TableCell className="text-center border-r font-semibold">{request.quantity} kg</TableCell>
+                              <TableCell className="text-center border-r text-sm">{format(new Date(request.requestDate), "dd/MM/yyyy", { locale: vi })}</TableCell>
+                              <TableCell className="text-center border-r">
+                                <Badge className={getPriorityColor(request.priority)}>
+                                  {getPriorityText(request.priority)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center border-r">
+                                <Badge className={getRequestStatusColor(request.status)}>
+                                  {getRequestStatusText(request.status)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="border-r text-sm max-w-[200px] truncate" title={request.reason}>
+                                {request.reason}
+                              </TableCell>
+                              <TableCell className="text-center border-r text-sm">{formatDate(request.createdAt)}</TableCell>
+                              <TableCell className="text-center">
+                                {request.status === 'pending' && (
+                                  <div className="flex gap-1">
+                                    <Button 
+                                      size="sm" 
+                                      className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 text-xs"
+                                      onClick={() => handleApproveRequest(request.id, request.quantity)}
+                                    >
+                                      <Check className="w-3 h-3 mr-1" />
+                                      Duyệt
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="destructive"
+                                      className="px-2 py-1 text-xs"
+                                      onClick={() => handleRejectRequest(request.id, "Không đủ tồn kho")}
+                                    >
+                                      <X className="w-3 h-3 mr-1" />
+                                      Từ chối
+                                    </Button>
+                                  </div>
+                                )}
+                                {request.status !== 'pending' && (
+                                  <span className="text-xs text-gray-500">Đã xử lý</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-blue-700 mb-1">Tổng yêu cầu</div>
+                    <div className="text-2xl font-bold text-blue-800">{outputRequests.length}</div>
+                  </div>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-yellow-700 mb-1">Chờ duyệt</div>
+                    <div className="text-xl font-bold text-yellow-800">{outputRequests.filter(r => r.status === 'pending').length}</div>
+                  </div>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-green-700 mb-1">Đã duyệt</div>
+                    <div className="text-xl font-bold text-green-800">{outputRequests.filter(r => r.status === 'approved').length}</div>
+                  </div>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-red-700 mb-1">Từ chối</div>
+                    <div className="text-lg font-bold text-red-800">{outputRequests.filter(r => r.status === 'rejected').length}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold mb-2">Hướng dẫn quản lý yêu cầu:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• Xem xét tất cả yêu cầu xuất kho từ các đơn vị</li>
+                  <li>• Kiểm tra tồn kho trước khi phê duyệt yêu cầu</li>
+                  <li>• Nhấn "Duyệt" để chấp nhận và tạo kế hoạch xuất kho</li>
+                  <li>• Nhấn "Từ chối" nếu không đủ điều kiện hoặc tồn kho</li>
+                  <li>• Các yêu cầu đã duyệt sẽ xuất hiện trong "Danh sách xuất kho"</li>
                 </ul>
               </div>
             </TabsContent>
