@@ -33,6 +33,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "node-fetch": "^2.6.7",
+    "process-nextick-args": "^2.0.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },

@@ -1119,6 +1119,39 @@ export const receiveSupply = async (req: Request, res: Response) => {
 
     await supply.save()
 
+    // Add to processing station inventory
+    const db = await getDb()
+    
+    // Get product ID from product code
+    const product = await db.collection('products').findOne({ code: supply.product })
+    
+    if (product) {
+      const processingEntry = {
+        type: "food",
+        productId: product._id,
+        productName: product.name,
+        quantity: Number(actualQuantity),
+        nonExpiredQuantity: Number(actualQuantity), // Initially all non-expired
+        unit: product.unit || "kg",
+        price: supply.unitPrice || 0,
+        totalValue: supply.totalPrice || 0,
+        expiryDate: supply.expiryDate || null,
+        receivedDate: new Date(),
+        stationEntryDate: supply.stationEntryDate,
+        sourceSupplyId: supply._id,
+        status: "available",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+      
+      await db.collection('processingStation').insertOne(processingEntry)
+      console.log("Added to processing station:", {
+        productName: product.name,
+        quantity: Number(actualQuantity),
+        supplyId: supply._id.toString()
+      })
+    }
+
     res.status(200).json({
       success: true,
       message: "Đã nhận nguồn nhập thành công! Trạng thái: Đã nhận",
