@@ -10,7 +10,7 @@ declare global {
       user?: {
         id: string
         role: string
-        unit: string
+        unit: string | null
       }
     }
   }
@@ -54,7 +54,7 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
     req.user = {
       id: user._id.toString(),
       role: user.role,
-      unit: user.unit.toString(),
+      unit: user.unit ? user.unit.toString() : null,
     }
 
     next()
