@@ -1144,7 +1144,9 @@ export function DataLibraryContent() {
                         <SelectValue placeholder="Chọn phân loại" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
+                        {categories
+                          .filter(category => category._id && category._id.trim() !== "")
+                          .map((category) => (
                           <SelectItem key={category._id} value={category._id}>
                             {category.name}
                           </SelectItem>
@@ -1405,7 +1407,9 @@ export function DataLibraryContent() {
                         <SelectValue placeholder="Chọn phân loại" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
+                        {categories
+                          .filter(category => category._id && category._id.trim() !== "")
+                          .map((category) => (
                           <SelectItem key={category._id} value={category._id}>
                             {category.name}
                           </SelectItem>

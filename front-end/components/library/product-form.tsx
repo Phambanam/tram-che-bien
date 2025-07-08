@@ -152,7 +152,9 @@ export function ProductForm({ productId, defaultValues, onSuccess, onCancel }: P
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {categories.map((category) => (
+                  {categories
+                    .filter(category => category._id && category._id.trim() !== "")
+                    .map((category) => (
                     <SelectItem key={category._id} value={category._id}>
                       {category.name}
                     </SelectItem>
