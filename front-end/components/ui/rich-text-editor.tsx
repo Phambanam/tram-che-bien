@@ -69,7 +69,6 @@ export function RichTextEditor({
         onChange={handleChange}
         placeholder={placeholder}
         height={200}
-        visibleDragBar={false}
         textareaProps={{
           placeholder: placeholder || "Nhập nội dung bài viết...",
           style: {
