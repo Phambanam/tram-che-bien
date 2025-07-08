@@ -1084,17 +1084,38 @@ export const createSupplyOutputRequest = async (req: Request, res: Response) => 
       })
     }
 
+    // Get unit name for receiver display
+    const unitInfo = await db.collection("units").findOne({ _id: new ObjectId(userUnit) })
+    const unitName = unitInfo?.name || "Đơn vị không xác định"
+
+    // Parse requestDate properly to handle timezone
+    const parsedRequestDate = new Date(requestDate)
+    // Adjust to Vietnam timezone (UTC+7) if needed
+    const vietnamTime = new Date(parsedRequestDate.getTime() + (7 * 60 * 60 * 1000))
+    
+    console.log('Creating request:', { 
+      productId, 
+      quantity, 
+      requestDate, 
+      parsedRequestDate: parsedRequestDate.toISOString(),
+      vietnamTime: vietnamTime.toISOString(),
+      userUnit, 
+      unitName,
+      userId: req.user!.id 
+    })
+
     // Create new supply output request
     const result = await db.collection("supplyOutputs").insertOne({
       type: "request", // New type for unit requests
-      receivingUnit: new ObjectId(userUnit),
+      requestingUnit: new ObjectId(userUnit), // Use requestingUnit for consistency
+      receivingUnit: new ObjectId(userUnit), // For backward compatibility
       productId: new ObjectId(productId),
       quantity: Number(quantity),
-      requestDate: new Date(requestDate),
-      outputDate: new Date(requestDate), // Same as request date initially
+      requestDate: parsedRequestDate,
+      outputDate: parsedRequestDate, // Same as request date initially
       priority: priority || "normal", // normal, urgent, critical
       reason: reason || "",
-      receiver: `${req.user!.unit} - Yêu cầu`,
+      receiver: `${unitName} - Yêu cầu`,
       status: "pending", // pending, approved, rejected, completed
       note: note || "",
       requestedBy: new ObjectId(req.user!.id),
@@ -1302,12 +1323,24 @@ export const getSupplyOutputRequests = async (req: Request, res: Response) => {
           },
         },
         {
+          $unwind: {
+            path: "$product",
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
           $lookup: {
             from: "categories",
             localField: "product.category",
             foreignField: "_id",
             as: "category",
           },
+        },
+        {
+          $unwind: {
+            path: "$category",
+            preserveNullAndEmptyArrays: true
+          }
         },
         {
           $lookup: {
@@ -1338,11 +1371,11 @@ export const getSupplyOutputRequests = async (req: Request, res: Response) => {
             id: { $toString: "$_id" },
             productId: { $toString: "$productId" },
             product: {
-              id: { $toString: { $arrayElemAt: ["$product._id", 0] } },
-              name: { $arrayElemAt: ["$product.name", 0] },
+              id: { $toString: "$product._id" },
+              name: "$product.name",
               category: {
-                id: { $toString: { $arrayElemAt: ["$category._id", 0] } },
-                name: { $arrayElemAt: ["$category.name", 0] },
+                id: { $toString: "$category._id" },
+                name: "$category.name",
               },
             },
             requestingUnit: {
@@ -1372,7 +1405,9 @@ export const getSupplyOutputRequests = async (req: Request, res: Response) => {
       ])
       .toArray()
     
-    console.log(`Found ${requests.length} supply output requests for user ${user.fullName} (${user.role})`)
+    console.log(`User object:`, { id: user.id, fullName: user.fullName, role: user.role, unit: user.unit })
+    console.log(`Filter used:`, filter)
+    console.log(`Found ${requests.length} supply output requests for user ${user.fullName || 'unnamed'} (${user.role})`)
     
     res.status(200).json({
       success: true,
