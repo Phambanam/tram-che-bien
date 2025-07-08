@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ProductSelect } from "@/components/ui/product-select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -176,7 +177,8 @@ export function OutputManagementContent() {
 
   const fetchProducts = async () => {
     try {
-      const response = await productsApi.getProducts()
+      // Load all products at once with a high limit for better search experience
+      const response = await productsApi.getProducts(undefined, 1, 100)
       
       if (Array.isArray(response)) {
         setProducts(response)
@@ -186,8 +188,15 @@ export function OutputManagementContent() {
           setProducts(apiResponse.data)
         }
       }
+      
+      console.log('Loaded products for ProductSelect:', products.length)
     } catch (error) {
       console.error('Error fetching products:', error)
+      toast({
+        title: "❌ Lỗi",
+        description: "Không thể tải danh sách sản phẩm",
+        variant: "destructive"
+      })
     }
   }
 
@@ -314,14 +323,14 @@ export function OutputManagementContent() {
     if (user?.role === "unitAssistant" || user?.role === "brigadeAssistant") {
       fetchOutputRequests()
     }
-    if (user?.role === "unitAssistant" || user?.role === "brigadeAssistant") {
-      fetchProducts()
-    }
   }, [selectedDate, user])
 
   useEffect(() => {
-    fetchProducts()
-  }, [])
+    // Load products once on component mount for request creation form
+    if (user?.role === "unitAssistant" || user?.role === "brigadeAssistant") {
+      fetchProducts()
+    }
+  }, [user])
 
   const formatDate = (dateStr: string) => {
     return format(new Date(dateStr), "dd/MM/yyyy HH:mm", { locale: vi })
@@ -436,23 +445,16 @@ export function OutputManagementContent() {
                     <Label htmlFor="product" className="text-right">
                       Sản phẩm *
                     </Label>
-                    <Select
-                      value={requestFormData.productId}
-                      onValueChange={(value) => 
-                        setRequestFormData({ ...requestFormData, productId: value })
-                      }
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Chọn sản phẩm" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product._id} value={product._id}>
-                            {product.name} ({product.category.name})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="col-span-3">
+                      <ProductSelect
+                        products={products}
+                        value={requestFormData.productId}
+                        onValueChange={(value) => 
+                          setRequestFormData({ ...requestFormData, productId: value })
+                        }
+                        placeholder="Chọn sản phẩm"
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="quantity" className="text-right">
