@@ -567,7 +567,6 @@ export function OutputManagementContent() {
             <li>• Dữ liệu hiện có từ ngày 16/06/2025 đến 29/06/2025</li>
           </ul>
         </div>
-            </Card>
           </TabsContent>
 
           {user?.role === "unitAssistant" && (
