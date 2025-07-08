@@ -952,14 +952,22 @@ export const deleteSupply = async (req: Request, res: Response) => {
 // @access  Private
 export const getFoodCategories = async (req: Request, res: Response) => {
   try {
-    const categories = Object.entries(FOOD_CATEGORIES).map(([id, name]) => ({
-      _id: id,
-      name,
+    await connectToDatabase()
+    
+    const db = await getDb()
+    const categories = await db.collection("categories")
+      .find({})
+      .sort({ name: 1 })
+      .toArray()
+
+    const formattedCategories = categories.map((category) => ({
+      _id: category.code,
+      name: category.name,
     }))
 
     res.status(200).json({
       success: true,
-      data: categories,
+      data: formattedCategories,
     })
   } catch (error) {
     console.error("Error fetching food categories:", error)
@@ -977,16 +985,27 @@ export const getFoodProducts = async (req: Request, res: Response) => {
   try {
     const categoryId = req.params.categoryId
 
-    if (!FOOD_CATEGORIES[categoryId as keyof typeof FOOD_CATEGORIES]) {
+    await connectToDatabase()
+    
+    const db = await getDb()
+    
+    // Check if category exists
+    const category = await db.collection("categories").findOne({ code: categoryId })
+    if (!category) {
       return res.status(404).json({
         success: false,
         message: "Phân loại không tồn tại"
       })
     }
 
-    const products = FOOD_PRODUCTS[categoryId as keyof typeof FOOD_PRODUCTS] || []
+    // Get products for this category
+    const products = await db.collection("products")
+      .find({ category: categoryId })
+      .sort({ name: 1 })
+      .toArray()
+
     const formattedProducts = products.map((product) => ({
-      _id: product.id,
+      _id: product.code,
       name: product.name,
       unit: product.unit,
       category: categoryId,
