@@ -28,7 +28,7 @@ async function initAdmin() {
     const hashedPassword = await hash("admin123", 12)
     const adminUser = {
       username: "admin",
-      phoneNumber: "0123456789",
+      phoneNumber: "0862852954",
       password: hashedPassword,
       fullName: "Administrator",
       rank: "Thiếu tá",
