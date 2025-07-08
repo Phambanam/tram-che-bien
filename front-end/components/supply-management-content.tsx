@@ -849,7 +849,7 @@ export function SupplyManagementContent() {
                           <TableCell>{supply.supplyQuantity}</TableCell>
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {shouldShowSupplyDetails(supply) ? (supply.requestedQuantity || "Chưa phê duyệt") : "Chưa phê duyệt"}
+                              {shouldShowSupplyDetails(supply) ? (supply.actualQuantity || supply.supplyQuantity || "Chưa có") : "Chưa phê duyệt"}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
@@ -859,22 +859,18 @@ export function SupplyManagementContent() {
                           )}
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {supply.status === "received" ? (supply.receivedQuantity || "Chưa có") : (supply.status === "approved" ? "Chưa nhận hàng" : "Chưa phê duyệt")}
+                              {supply.status === "received" ? (supply.actualQuantity || "Chưa có") : (supply.status === "approved" ? "Chưa nhận hàng" : "Chưa phê duyệt")}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
-                              {shouldShowSupplyDetails(supply) ? (supply.unitPrice?.toLocaleString('vi-VN') || "Chưa có") : "Chưa phê duyệt"}
+                              {shouldShowSupplyDetails(supply) ? (supply.price?.toLocaleString('vi-VN') || "Chưa có") : "Chưa phê duyệt"}
                             </TableCell>
                           )}
                           {shouldShowAdditionalColumns() && (
                             <TableCell>
                               {shouldShowSupplyDetails(supply) ? 
-                                (() => {
-                                  // For approved status, use requestedQuantity, for received status use actualQuantity
-                                  const quantity = supply.status === "received" ? supply.actualQuantity : supply.requestedQuantity;
-                                  return (quantity && supply.unitPrice) ? (quantity * supply.unitPrice).toLocaleString('vi-VN') : "Chưa có";
-                                })()
+                                (supply.totalPrice?.toLocaleString('vi-VN') || "Chưa có")
                                 : "Chưa phê duyệt"}
                             </TableCell>
                           )}

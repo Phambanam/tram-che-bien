@@ -220,6 +220,14 @@ export const getSupplies = async (req: Request, res: Response) => {
           }
         },
         {
+          $lookup: {
+            from: 'users',
+            localField: 'approvedBy.id',
+            foreignField: '_id',
+            as: 'approvedByUserInfo'
+          }
+        },
+        {
           $sort: { createdAt: -1 }
         }
       ])
@@ -259,12 +267,13 @@ export const getSupplies = async (req: Request, res: Response) => {
         stationEntryDate: supply.stationEntryDate,
         requiredQuantity: supply.requiredQuantity,
         actualQuantity: supply.actualQuantity,
-        price: supply.unitPrice,
+        price: supply.price,
         totalPrice: supply.totalPrice,
         expiryDate: supply.expiryDate,
         status: supply.status,
         note: supply.note,
         createdBy: supply.createdBy,
+        approvedBy: supply.approvedBy || null,
         createdAt: supply.createdAt,
         updatedAt: supply.updatedAt
       };
