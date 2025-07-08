@@ -56,6 +56,14 @@ export function OutputManagementContent() {
   const [requestsLoading, setRequestsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("outputs")
   
+  // Inventory state
+  const [inventoryData, setInventoryData] = useState<{[productId: string]: number}>({})
+  
+  // Approval dialog state
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
+  const [requestToApprove, setRequestToApprove] = useState<SupplyOutputRequest | null>(null)
+  const [approvalQuantity, setApprovalQuantity] = useState<number>(0)
+  
   // Request form state
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false)
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false)
@@ -114,6 +122,10 @@ export function OutputManagementContent() {
       
       if (response.success) {
         setOutputRequests(response.data)
+        // Fetch inventory for each unique product
+        if (user?.role === "brigadeAssistant") {
+          fetchInventoryForProducts(response.data)
+        }
       } else {
         setOutputRequests([])
       }
@@ -127,6 +139,20 @@ export function OutputManagementContent() {
       })
     } finally {
       setRequestsLoading(false)
+    }
+  }
+
+  const fetchInventoryForProducts = async (requests: SupplyOutputRequest[]) => {
+    try {
+      // TODO: Implement proper inventory fetching
+      // For now, set dummy data to show UI structure
+      const inventoryMap: {[productId: string]: number} = {}
+      requests.forEach(request => {
+        inventoryMap[request.product.id] = Math.floor(Math.random() * 100) // Dummy data
+      })
+      setInventoryData(inventoryMap)
+    } catch (error) {
+      console.error('Error fetching inventory data:', error)
     }
   }
 
@@ -192,19 +218,29 @@ export function OutputManagementContent() {
     }
   }
 
-  const handleApproveRequest = async (requestId: string, approvedQuantity?: number) => {
+  const openApprovalDialog = (request: SupplyOutputRequest) => {
+    setRequestToApprove(request)
+    setApprovalQuantity(request.quantity)
+    setApprovalDialogOpen(true)
+  }
+
+  const handleApproveRequest = async () => {
+    if (!requestToApprove) return
+    
     try {
-      const response = await apiClient.supplyOutputs.approveSupplyOutputRequest(requestId, {
-        approvedQuantity,
+      const response = await apiClient.supplyOutputs.approveSupplyOutputRequest(requestToApprove.id, {
+        approvedQuantity: approvalQuantity,
         plannedOutputDate: format(new Date(), "yyyy-MM-dd"),
-        note: "Đã phê duyệt bởi trợ lý lữ đoàn"
+        note: `Đã phê duyệt ${approvalQuantity}kg bởi trợ lý lữ đoàn`
       })
       
       if (response.success) {
         toast({
           title: "✅ Thành công",
-          description: "Phê duyệt yêu cầu thành công",
+          description: `Phê duyệt yêu cầu thành công - Số lượng: ${approvalQuantity}kg`,
         })
+        setApprovalDialogOpen(false)
+        setRequestToApprove(null)
         fetchOutputRequests() // Refresh the requests list
         fetchSupplyOutputs() // Refresh outputs list to show new planned output
       } else {
@@ -216,9 +252,10 @@ export function OutputManagementContent() {
       }
     } catch (error) {
       console.error('Error approving request:', error)
+      const errorMessage = error instanceof Error ? error.message : "Đã xảy ra lỗi khi phê duyệt yêu cầu"
       toast({
         title: "❌ Lỗi",
-        description: "Đã xảy ra lỗi khi phê duyệt yêu cầu",
+        description: errorMessage,
         variant: "destructive"
       })
     }
@@ -780,7 +817,8 @@ export function OutputManagementContent() {
                             <TableHead className="text-center border-r bg-gray-100">Sản phẩm</TableHead>
                             <TableHead className="text-center border-r bg-gray-100">Danh mục</TableHead>
                             <TableHead className="text-center border-r bg-gray-100">Đơn vị yêu cầu</TableHead>
-                            <TableHead className="text-center border-r bg-gray-100">Số lượng</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Số lượng yêu cầu</TableHead>
+                            <TableHead className="text-center border-r bg-gray-100">Tồn kho</TableHead>
                             <TableHead className="text-center border-r bg-gray-100">Ngày cần</TableHead>
                             <TableHead className="text-center border-r bg-gray-100">Ưu tiên</TableHead>
                             <TableHead className="text-center border-r bg-gray-100">Trạng thái</TableHead>
@@ -797,6 +835,15 @@ export function OutputManagementContent() {
                               <TableCell className="text-center border-r">{request.product.category.name}</TableCell>
                               <TableCell className="border-r">{request.requestingUnit?.name || 'N/A'}</TableCell>
                               <TableCell className="text-center border-r font-semibold">{request.quantity} kg</TableCell>
+                              <TableCell className="text-center border-r">
+                                <span className={`font-semibold ${
+                                  (inventoryData[request.product.id] || 0) >= request.quantity 
+                                    ? 'text-green-600' 
+                                    : 'text-red-600'
+                                }`}>
+                                  {inventoryData[request.product.id] || 0} kg
+                                </span>
+                              </TableCell>
                               <TableCell className="text-center border-r text-sm">{format(new Date(request.requestDate), "dd/MM/yyyy", { locale: vi })}</TableCell>
                               <TableCell className="text-center border-r">
                                 <Badge className={getPriorityColor(request.priority)}>
@@ -818,7 +865,7 @@ export function OutputManagementContent() {
                                     <Button 
                                       size="sm" 
                                       className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 text-xs"
-                                      onClick={() => handleApproveRequest(request.id, request.quantity)}
+                                      onClick={() => openApprovalDialog(request)}
                                     >
                                       <Check className="w-3 h-3 mr-1" />
                                       Duyệt
@@ -887,6 +934,88 @@ export function OutputManagementContent() {
             </TabsContent>
           )}
         </Tabs>
+
+        {/* Approval Dialog */}
+        <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Phê duyệt yêu cầu xuất kho</DialogTitle>
+              <DialogDescription>
+                Xác nhận số lượng phê duyệt cho yêu cầu từ {requestToApprove?.requestingUnit?.name}
+              </DialogDescription>
+            </DialogHeader>
+            {requestToApprove && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right font-medium">Sản phẩm:</Label>
+                  <div className="col-span-3 font-medium">{requestToApprove.product.name}</div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right font-medium">Số lượng yêu cầu:</Label>
+                  <div className="col-span-3">{requestToApprove.quantity} kg</div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right font-medium">Tồn kho hiện tại:</Label>
+                  <div className={`col-span-3 font-semibold ${
+                    (inventoryData[requestToApprove.product.id] || 0) >= requestToApprove.quantity 
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
+                    {inventoryData[requestToApprove.product.id] || 0} kg
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="approvalQuantity" className="text-right font-medium">
+                    Số lượng phê duyệt *
+                  </Label>
+                  <div className="col-span-3">
+                    <Input
+                      id="approvalQuantity"
+                      type="number"
+                      min="1"
+                      max={inventoryData[requestToApprove.product.id] || 0}
+                      value={approvalQuantity}
+                      onChange={(e) => setApprovalQuantity(parseInt(e.target.value) || 0)}
+                      className="w-full"
+                      placeholder="Nhập số lượng phê duyệt"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tối đa: {inventoryData[requestToApprove.product.id] || 0} kg
+                    </p>
+                  </div>
+                </div>
+                {approvalQuantity > (inventoryData[requestToApprove.product.id] || 0) && (
+                  <div className="col-span-4 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+                    ⚠️ Số lượng phê duyệt vượt quá tồn kho hiện có
+                  </div>
+                )}
+                {approvalQuantity < requestToApprove.quantity && (
+                  <div className="col-span-4 bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded text-sm">
+                    ℹ️ Phê duyệt một phần ({approvalQuantity}/{requestToApprove.quantity} kg)
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setApprovalDialogOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button 
+                type="submit" 
+                onClick={handleApproveRequest}
+                disabled={!approvalQuantity || approvalQuantity > (inventoryData[requestToApprove?.product.id || ''] || 0)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Phê duyệt {approvalQuantity} kg
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
