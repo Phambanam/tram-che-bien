@@ -468,8 +468,10 @@ export function TofuProcessing() {
     try {
       console.log(`🚀 Fetching weekly tracking data via API for week ${targetWeek}/${targetYear}`)
       
-      // TODO: Implement proper weekly tracking API
-      const response = { success: false, data: null }
+      const response = await tofuCalculationApi.getWeeklyTofuTracking({
+        week: targetWeek,
+        year: targetYear
+      })
 
       if (response.success && response.data) {
         const apiData = response.data.dailyData
