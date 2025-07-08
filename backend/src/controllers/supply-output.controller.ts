@@ -1273,6 +1273,122 @@ export const getInventorySummary = async (req: Request, res: Response) => {
   }
 }
 
+// @desc    Get supply output requests
+// @route   GET /api/supply-outputs/requests
+// @access  Private (Unit Assistant - own requests, Brigade Assistant - all requests)
+export const getSupplyOutputRequests = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any
+    const db = await getDb()
+    
+    let filter: any = { type: "request" }
+    
+    // Unit assistants can only see their own unit's requests
+    if (user.role === "unitAssistant") {
+      filter.requestingUnit = new ObjectId(user.unit)
+    }
+    // Brigade assistants can see all requests (no additional filter)
+    
+    const requests = await db
+      .collection("supplyOutputs")
+      .aggregate([
+        { $match: filter },
+        {
+          $lookup: {
+            from: "products",
+            localField: "productId",
+            foreignField: "_id",
+            as: "product",
+          },
+        },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "product.category",
+            foreignField: "_id",
+            as: "category",
+          },
+        },
+        {
+          $lookup: {
+            from: "units",
+            localField: "requestingUnit",
+            foreignField: "_id",
+            as: "requestingUnitInfo",
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "createdBy",
+            foreignField: "_id",
+            as: "createdByInfo",
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "approvedBy",
+            foreignField: "_id",
+            as: "approvedByInfo",
+          },
+        },
+        {
+          $project: {
+            id: { $toString: "$_id" },
+            productId: { $toString: "$productId" },
+            product: {
+              id: { $toString: { $arrayElemAt: ["$product._id", 0] } },
+              name: { $arrayElemAt: ["$product.name", 0] },
+              category: {
+                id: { $toString: { $arrayElemAt: ["$category._id", 0] } },
+                name: { $arrayElemAt: ["$category.name", 0] },
+              },
+            },
+            requestingUnit: {
+              id: { $toString: { $arrayElemAt: ["$requestingUnitInfo._id", 0] } },
+              name: { $arrayElemAt: ["$requestingUnitInfo.name", 0] },
+            },
+            quantity: 1,
+            requestDate: 1,
+            priority: 1,
+            reason: 1,
+            status: 1,
+            note: 1,
+            rejectReason: 1,
+            createdBy: {
+              id: { $toString: { $arrayElemAt: ["$createdByInfo._id", 0] } },
+              name: { $arrayElemAt: ["$createdByInfo.fullName", 0] },
+            },
+            approvedBy: {
+              id: { $toString: { $arrayElemAt: ["$approvedByInfo._id", 0] } },
+              name: { $arrayElemAt: ["$approvedByInfo.fullName", 0] },
+            },
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+        { $sort: { createdAt: -1 } },
+      ])
+      .toArray()
+    
+    console.log(`Found ${requests.length} supply output requests for user ${user.fullName} (${user.role})`)
+    
+    res.status(200).json({
+      success: true,
+      count: requests.length,
+      data: requests
+    })
+  } catch (error) {
+    console.error("Error fetching supply output requests:", error)
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi tải danh sách yêu cầu xuất kho",
+      error: error instanceof Error ? error.message : "Unknown error"
+    })
+  }
+}
+
 // @desc    Approve supply output request (convert to planned output)
 // @route   PATCH /api/supply-outputs/requests/:id/approve
 // @access  Private (Brigade Assistant only)

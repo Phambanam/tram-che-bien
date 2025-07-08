@@ -9,6 +9,7 @@ import {
   getPlannedVsActual,
   updatePlannedOutput,
   createSupplyOutputRequest,
+  getSupplyOutputRequests,
   getInventorySummary,
   approveSupplyOutputRequest,
   rejectSupplyOutputRequest,
@@ -27,6 +28,7 @@ router.get("/:id", getSupplyOutputById)
 
 // Routes for unit assistants (for output requests)
 router.post("/request", authorize("unitAssistant"), createSupplyOutputRequest)
+router.get("/requests", authorize("unitAssistant", "brigadeAssistant"), getSupplyOutputRequests)
 
 // Routes for brigade assistant (for planned outputs and request management)
 router.get("/inventory-summary", authorize("brigadeAssistant"), getInventorySummary)
