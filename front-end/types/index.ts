@@ -162,6 +162,51 @@ export interface SupplyOutput {
   note?: string
 }
 
+// SupplyOutputRequest types
+export interface SupplyOutputRequest {
+  id: string
+  productId: string
+  product: {
+    id: string
+    name: string
+    category: {
+      id: string
+      name: string
+    }
+  }
+  requestingUnit: {
+    id: string
+    name: string
+  }
+  quantity: number
+  requestDate: string
+  priority: "normal" | "urgent" | "critical"
+  reason: string
+  status: "pending" | "approved" | "rejected"
+  note?: string
+  rejectReason?: string
+  createdBy: {
+    id: string
+    name: string
+  }
+  approvedBy?: {
+    id: string
+    name: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+// SupplyOutputRequestFormData
+export interface SupplyOutputRequestFormData {
+  productId: string
+  quantity: number
+  requestDate: string
+  priority: "normal" | "urgent" | "critical"
+  reason: string
+  note?: string
+}
+
 // RecipeIngredient types
 export interface RecipeIngredient {
   id: string

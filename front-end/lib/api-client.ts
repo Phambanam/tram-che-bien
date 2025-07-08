@@ -1083,6 +1083,11 @@ export const supplyOutputsApi = {
     })
   },
 
+  // Get output requests for unit assistants
+  getOutputRequests: async () => {
+    return apiRequest<{ success: boolean; data: any[] }>("/supply-outputs/requests")
+  },
+
   getPlannedVsActual: async (params: { week: number; year: number; unitId?: string; productId?: string }) => {
     const queryParams = new URLSearchParams()
     queryParams.append("week", params.week.toString())
